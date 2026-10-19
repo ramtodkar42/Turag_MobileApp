@@ -1,0 +1,276 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import useDebounce from '../../../hooks/useDebounce';
+import { getMarketplaceVehicles } from '../../../api/services/vehicle.api';
+import { useListedCount } from '../../../store/garageStore';
+import { onReconnect } from '../../../store/networkStore';
+import prefetchImages from '../../../utils/prefetchImages';
+import { CATEGORIES, DEFAULT_FILTERS, fitFilters } from './constants';
+import { VEHICLE_TYPES } from './filterCatalog';
+import { tNow } from '../../../i18n';
+
+// Results kept per search (tab + filters + text), newest last.
+const CACHE_LIMIT = 20;
+// A search seen this recently is shown from memory without asking again.
+const FRESH_MS = 30000;
+
+// Chosen quick filters -> backend filters, e.g. { city: 'PUNE', price_max: 500000 }.
+// The price range "min-max" (rupees, max may be empty) becomes price_min / price_max.
+const toFilters = ({ price, ...rest }) => {
+  if (!price) {
+    return rest;
+  }
+  const [min, max] = price.split('-');
+  return {
+    ...rest,
+    price_min: Number(min) > 0 ? Number(min) : undefined,
+    price_max: max ? Number(max) : undefined,
+  };
+};
+
+// The Car / Bike filter for a category tab ('cars' | 'bikes'; otherwise none).
+const vehicleOf = category => (VEHICLE_TYPES.includes(category) ? category : undefined);
+
+// Drops choices that don't fit the category (Car / Bike) or each other - e.g.
+// Diesel, a car price, Body Type or a car make once Bike is picked, or a model
+// of another make (see fitFilters).
+const prune = (filters, category) => {
+  const { vehicle: _vehicle, ...rest } = fitFilters({ ...filters, vehicle: vehicleOf(category) });
+  return rest;
+};
+
+// What makes a first page "the same": vehicles, prices and reserved state.
+// (Photo links are left out: the backend signs a new short-lived link each time.)
+const signature = items => items.map(v => `${v.id}:${v.price}:${v.reserved ? 1 : 0}`).join('|');
+
+// Search text, quick filters, category tab and the paged vehicle list for Home.
+// Show cached, refresh quietly ("stale-while-revalidate"):
+// - A search seen before (e.g. going back to a tab) shows its results at once,
+//   with no placeholders; it is re-checked in the background (after 30 s) and
+//   the grid only changes if the results did.
+// - A new search shows placeholders, then the first page.
+// - loadMore() fetches the next page (infinite scroll).
+// - Pull-to-refresh and "a listing went live" fetch fresh data.
+// - Answers that arrive after a newer search are ignored.
+export default function useMarketplace() {
+  const [query, setQuery] = useState('');
+  const [filters, setFilters] = useState(DEFAULT_FILTERS);
+  const [category, setCategory] = useState('all');
+  const [vehicles, setVehicles] = useState([]);
+  const [nextCursor, setNextCursor] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
+  // { n, force }: force = ignore the cache (pull-to-refresh, data changed).
+  const [reload, setReload] = useState({ n: 0, force: false });
+  const debouncedQuery = useDebounce(query);
+  const listedCount = useListedCount(); // reload when the user lists a vehicle
+
+  // Bumped on every request so late answers are dropped.
+  const requestId = useRef(0);
+  // searchKey -> { items, nextCursor, firstPage (signature), fetchedAt }
+  const cache = useRef(new Map());
+  const lastListedCount = useRef(listedCount);
+
+  const comingSoon = !!CATEGORIES.find(c => c.id === category)?.comingSoon;
+  const searchKey = JSON.stringify([debouncedQuery.trim(), category, filters]);
+
+  const remember = useCallback((key, entry) => {
+    const map = cache.current;
+    // Read the existing entry BEFORE deleting, so a partial update (e.g. just
+    // `fetchedAt`) keeps the cached items instead of wiping them. Deleting then
+    // re-setting moves the key to the end (LRU).
+    const prev = map.get(key);
+    map.delete(key);
+    map.set(key, { ...prev, ...entry });
+    if (map.size > CACHE_LIMIT) {
+      map.delete(map.keys().next().value);
+    }
+  }, []);
+
+  useEffect(() => {
+    const id = ++requestId.current;
+    setLoadingMore(false);
+
+    // One of the user's listings went live: everything cached may be stale.
+    let force = reload.force;
+    if (lastListedCount.current !== listedCount) {
+      lastListedCount.current = listedCount;
+      cache.current.clear();
+      force = true;
+    }
+
+    if (comingSoon) {
+      setVehicles([]);
+      setNextCursor(null);
+      setError(null);
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
+    // Only treat it as a hit if it actually carries items; a malformed/partial
+    // entry is a miss (and never crashes on `cached.items.length`).
+    const stored = force ? null : cache.current.get(searchKey);
+    const cached = stored?.items ? stored : null;
+    if (cached) {
+      // Seen before: show it now - no placeholders, no blink.
+      setVehicles(cached.items);
+      setNextCursor(cached.nextCursor);
+      setError(null);
+      setLoading(false);
+      // A fresh, NON-empty result is trusted as is. An empty cached result is
+      // always re-checked (e.g. switching back to a tab that was briefly empty
+      // / offline) so a tab that now has vehicles doesn't keep showing "none".
+      if (cached.items.length > 0 && Date.now() - cached.fetchedAt < FRESH_MS) {
+        return;
+      }
+    } else if (!force) {
+      // A new search: placeholders until the first page arrives.
+      setVehicles([]);
+      setLoading(true);
+    }
+
+    const [q, cat, chosen] = JSON.parse(searchKey);
+    getMarketplaceVehicles({ query: q, category: cat, filters: toFilters(chosen) })
+      .then(({ items, nextCursor: cursor }) => {
+        if (id !== requestId.current) {
+          return;
+        }
+        const firstPage = signature(items);
+        const keepScrolled = cached && cached.firstPage === firstPage;
+        if (keepScrolled) {
+          // Nothing changed: keep the grid (and the pages already loaded) as is.
+          remember(searchKey, { fetchedAt: Date.now() });
+        } else {
+          setVehicles(items);
+          setNextCursor(cursor);
+          remember(searchKey, { items, nextCursor: cursor, firstPage, fetchedAt: Date.now() });
+          // Warm the cache with the cards' photos so the grid paints instantly.
+          prefetchImages(items.map(v => v.image));
+        }
+        setError(null);
+      })
+      .catch(e => {
+        // With cached results on screen, a failed quiet check stays quiet.
+        if (id === requestId.current && !cached) {
+          setError(e.message || tNow('home.error.load'));
+        }
+      })
+      .finally(() => {
+        if (id === requestId.current) {
+          setLoading(false);
+          setRefreshing(false);
+        }
+      });
+  }, [searchKey, comingSoon, reload, listedCount, remember]);
+
+  const loadMore = useCallback(() => {
+    if (!nextCursor || loading || loadingMore || refreshing) {
+      return;
+    }
+    const id = requestId.current;
+    const key = searchKey;
+    const [q, cat, chosen] = JSON.parse(key);
+    setLoadingMore(true);
+    getMarketplaceVehicles({ query: q, category: cat, filters: toFilters(chosen), cursor: nextCursor })
+      .then(({ items, nextCursor: cursor }) => {
+        if (id !== requestId.current) {
+          return;
+        }
+        setVehicles(prev => {
+          const known = new Set(prev.map(v => v.id));
+          const merged = [...prev, ...items.filter(v => !known.has(v.id))];
+          remember(key, { items: merged, nextCursor: cursor });
+          return merged;
+        });
+        setNextCursor(cursor);
+        // Warm the cache with the next page's photos.
+        prefetchImages(items.map(v => v.image));
+      })
+      // The footer offers no retry; scrolling again tries the same page.
+      .catch(() => {})
+      .finally(() => {
+        if (id === requestId.current) {
+          setLoadingMore(false);
+        }
+      });
+  }, [nextCursor, loading, loadingMore, refreshing, searchKey, remember]);
+
+  // Category tab (and the Car / Bike filter): drops a make / model that
+  // doesn't fit the new type.
+  const changeCategory = next => {
+    setCategory(next);
+    setFilters(prev => prune(prev, next));
+  };
+
+  // One quick filter's choice; null / '' clears it. Other filters stay, except
+  // a model that doesn't belong to a newly picked make. 'vehicle' (Car / Bike)
+  // is the category tab.
+  const setFilter = (id, value) => {
+    if (id === 'vehicle') {
+      changeCategory(value || 'all');
+      return;
+    }
+    setFilters(prev => {
+      const next = { ...prev };
+      if (value) {
+        next[id] = value;
+      } else {
+        delete next[id];
+      }
+      return prune(next, category);
+    });
+  };
+
+  const clearFilters = () => {
+    setFilters(DEFAULT_FILTERS);
+    setQuery('');
+  };
+
+  // Fetch fresh data without placeholders (e.g. after a new listing goes live).
+  const reloadFresh = useCallback(() => setReload(r => ({ n: r.n + 1, force: true })), []);
+
+  // Back online after the grid failed to load: try again automatically.
+  const errorRef = useRef(error);
+  errorRef.current = error;
+  useEffect(() => onReconnect(() => errorRef.current && reloadFresh()), [reloadFresh]);
+
+  // After an error: show placeholders and try again.
+  const retry = () => {
+    setError(null);
+    setLoading(true);
+    reloadFresh();
+  };
+
+  const refresh = () => {
+    setRefreshing(true);
+    reloadFresh();
+  };
+
+  return {
+    reload: reloadFresh,
+    query,
+    setQuery,
+    // The quick filters' choices, with Car / Bike from the category tab.
+    filters: { ...filters, vehicle: vehicleOf(category) },
+    setFilter,
+    clearFilters,
+    hasFilters: Object.keys(filters).length > 0 || debouncedQuery.trim() !== '',
+    // A text search on its way: the typing pause before it's sent, then the
+    // first page loading (cached results show at once, so no flash for them).
+    searching: query.trim() !== '' && (query.trim() !== debouncedQuery.trim() || loading),
+    category,
+    setCategory: changeCategory,
+    comingSoon,
+    vehicles,
+    hasMore: !!nextCursor,
+    loadMore,
+    loading,
+    loadingMore,
+    refreshing,
+    error,
+    refresh,
+    retry,
+  };
+}

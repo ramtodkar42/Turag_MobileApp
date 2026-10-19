@@ -1,6 +1,8 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
+// Firebase (push notifications): reads app/google-services.json.
+apply plugin: "com.google.gms.google-services"
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -77,13 +79,23 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
+    // The code's package stays com.turag; the app's ID (Play Store, Firebase
+    // - google-services.json) is ai.turag.app.
     namespace "com.turag"
     defaultConfig {
-        applicationId "com.turag"
+        applicationId "ai.turag.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+        // Google Maps key (react-native-maps). Kept out of git: add a line
+        // MAPS_API_KEY=your_key to android/local.properties.
+        def localProps = new Properties()
+        def localPropsFile = rootProject.file('local.properties')
+        if (localPropsFile.exists()) {
+            localPropsFile.withInputStream { localProps.load(it) }
+        }
+        manifestPlaceholders += [MAPS_API_KEY: localProps.getProperty('MAPS_API_KEY', '')]
     }
     signingConfigs {
         debug {
@@ -110,6 +122,8 @@ android {
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
+    // Backported Photo Picker for Android < 11 (react-native-image-picker)
+    implementation("androidx.activity:activity:1.9.+")
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")

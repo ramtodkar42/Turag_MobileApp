@@ -73,3 +73,7 @@ yarn-error.log
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+
+
+# Local keys (OpenAI etc.) - never commit; see src/api/secrets.example.js
+src/api/secrets.js

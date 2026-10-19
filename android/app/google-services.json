@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "161610159665",
+    "project_id": "turag-f4bc5",
+    "storage_bucket": "turag-f4bc5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:161610159665:android:4d5a335c4a686a704f6710",
+        "android_client_info": {
+          "package_name": "ai.turag.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCBan_6DTdUbEunyz4zQzCsic7Jj6drCwk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

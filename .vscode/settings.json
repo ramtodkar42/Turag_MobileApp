@@ -1,0 +1,7 @@
+{
+  // React Native app: Android is built with Gradle from the command line, not by
+  // VS Code's Java extension. Importing it as a Java project only produces
+  // false errors (e.g. ".project is out of sync") and uses a lot of memory.
+  "java.import.gradle.enabled": false,
+  "java.configuration.updateBuildConfiguration": "disabled"
+}

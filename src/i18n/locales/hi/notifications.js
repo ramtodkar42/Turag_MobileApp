@@ -1,0 +1,23 @@
+// hi - Notifications.
+export default {
+  'notifications.title': 'सूचनाएँ',
+  'notifications.bannerHint': 'नोटिफ़िकेशन खोलता है',
+  'notifications.filter.all': 'सभी',
+  'notifications.filter.offers': 'ऑफ़र',
+  'notifications.filter.messages': 'संदेश',
+  'notifications.filter.alerts': 'अलर्ट',
+  'notifications.empty.all.title': 'आपने सब देख लिया है',
+  'notifications.empty.all.message': 'इंस्पेक्शन बुक या असाइन होने, या रिपोर्ट तैयार होने पर हम आपको सूचित करेंगे।',
+  'notifications.empty.offers.title': 'कोई ऑफ़र अपडेट नहीं',
+  'notifications.empty.offers.message': 'आपके दिए या मिले ऑफ़र यहाँ दिखेंगे।',
+  'notifications.empty.messages.title': 'अभी कोई संदेश नहीं',
+  'notifications.empty.messages.message': 'खरीदारों और विक्रेताओं के संदेश यहाँ दिखेंगे।',
+  'notifications.empty.alerts.title': 'कोई अलर्ट नहीं',
+  'notifications.empty.alerts.message': 'निरीक्षण और रिपोर्ट के अपडेट यहाँ दिखेंगे।',
+  'notifications.section.today': 'आज',
+  'notifications.section.week': 'इस सप्ताह',
+  'notifications.section.earlier': 'पहले',
+  'notifications.error.title': 'कुछ गड़बड़ हो गई',
+  'notifications.error.load': 'सूचनाएँ लोड नहीं हो सकीं।',
+  'notifications.unread': 'अपठित।',
+};

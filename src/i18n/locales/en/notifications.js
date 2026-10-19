@@ -1,0 +1,23 @@
+// en - Notifications.
+export default {
+  'notifications.title': 'Notifications',
+  'notifications.bannerHint': 'Opens the notification',
+  'notifications.filter.all': 'All',
+  'notifications.filter.offers': 'Offers',
+  'notifications.filter.messages': 'Messages',
+  'notifications.filter.alerts': 'Alerts',
+  'notifications.empty.all.title': 'You’re all caught up',
+  'notifications.empty.all.message': 'We’ll notify you when an inspection is booked, assigned, or a report is ready.',
+  'notifications.empty.offers.title': 'No offer updates',
+  'notifications.empty.offers.message': 'Offers you make or receive will show up here.',
+  'notifications.empty.messages.title': 'No messages yet',
+  'notifications.empty.messages.message': 'Messages from buyers and sellers will show up here.',
+  'notifications.empty.alerts.title': 'No alerts',
+  'notifications.empty.alerts.message': 'Inspection and report updates will show up here.',
+  'notifications.section.today': 'Today',
+  'notifications.section.week': 'This week',
+  'notifications.section.earlier': 'Earlier',
+  'notifications.error.title': 'Something went wrong',
+  'notifications.error.load': 'Could not load notifications.',
+  'notifications.unread': 'Unread.',
+};
