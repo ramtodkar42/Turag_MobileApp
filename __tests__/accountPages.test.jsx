@@ -280,7 +280,8 @@ describe('My offers (buyer)', () => {
     expect(hasText(root, '₹2,35,000')).toBe(true);
     expect(hasText(root, 'Expires in 30 hr')).toBe(true);
     expect(hasText(root, 'Pay the token amount')).toBe(true);
-    expect(button(root, 'Cancel order')).toBeDefined();
+    // Paying the token (and cancelling the order) happen on the offer's page, as the web.
+    expect(button(root, 'Pay the token')).toBeDefined();
   });
 
   test('accepting the counter creates the order', async () => {

@@ -33,10 +33,11 @@ const aiBadge = (state, finding) => {
 
 // Photos, one at a time (the same photos and rules as the web's Photos step):
 // the groups as pills (Exterior, Interior, Engine, Tyres, Video, Extras, Dents
-// - required first), one large card for the current angle with "Take photo",
-// then on to the next one by itself. A strip of the group's angles to jump
-// around; dents grow one at a time.
+// - required first), one large card for the current angle with "Take photo"
+// (the camera only - no gallery), then on to the next one by itself. A strip of
+// the group's angles to jump around; dents grow one at a time.
 // focusItem: open the group of that item (a jump from the "what's left" list).
+// onTakePhoto(itemCode, shotCode, label, replace).
 function PhotosStep({ si, focusItem, onTakePhoto, onAddVideo }) {
   const t = useT();
   const { groups, progress, mediaShots, mediaFiles, thumbs, uploading, removing, slotMsg, analysis, persisted, submitting } = si;
@@ -106,20 +107,21 @@ function PhotosStep({ si, focusItem, onTakePhoto, onAddVideo }) {
   }, [focusItem]);
 
   // After a photo finishes uploading for the current angle, go on to the next
-  // missing one in the group by itself.
+  // missing one in the group by itself - unless it came with a hint ("looks
+  // like your Front photo"), so it can be read and the photo retaken.
   const key = slot ? slotKey(slot.itemCode, slot.shotCode) : null;
-  const wasUploading = useRef(false);
+  const { lastUpload } = si;
+  const seenUpload = useRef(lastUpload?.n ?? 0);
   useEffect(() => {
-    const now = key ? uploading[key] === true : false;
-    if (wasUploading.current && !now && slot && has(slot)) {
-      const after = slots.findIndex((s, i) => i > shotIndex && !has(s));
-      const before = slots.findIndex(s => !has(s));
-      const next = after >= 0 ? after : before;
-      if (next >= 0) setShotIndex(next);
-    }
-    wasUploading.current = now;
+    if (!lastUpload || lastUpload.n === seenUpload.current) return;
+    seenUpload.current = lastUpload.n;
+    if (lastUpload.key !== key || !slot || !has(slot) || slotMsg[key]) return;
+    const after = slots.findIndex((s, i) => i > shotIndex && !has(s));
+    const before = slots.findIndex(s => !has(s));
+    const next = after >= 0 ? after : before;
+    if (next >= 0) setShotIndex(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, uploading[key], mediaShots]);
+  }, [lastUpload]);
 
   if (!sec) {
     return <SectionCard title={t('selfInspection.step.photos')} subtitle={t('selfInspection.photos.subtitleEmpty')} />;
@@ -148,6 +150,8 @@ function PhotosStep({ si, focusItem, onTakePhoto, onAddVideo }) {
     const nextIndex = slots.findIndex((s, i) => i > index && !has(s));
     const groupComplete = sectionDone(sec);
     const nextSection = sections.findIndex((s, i) => i > secIndex && !sectionDone(s));
+    // Retake: straight back to the camera (the new photo replaces this one).
+    const retake = () => onTakePhoto(slot.itemCode, slot.shotCode, label, true);
 
     return (
       <FadeIn key={key} offset={ms(8)} style={styles.focus}>
@@ -170,7 +174,7 @@ function PhotosStep({ si, focusItem, onTakePhoto, onAddVideo }) {
         </AppText>
 
         <Pressable
-          onPress={() => onTakePhoto(slot.itemCode, slot.shotCode, label, photo != null)}
+          onPress={() => (photo ? retake() : onTakePhoto(slot.itemCode, slot.shotCode, label, false))}
           disabled={submitting || busy}
           accessibilityRole="button"
           accessibilityLabel={t(photo ? 'selfInspection.photo.retake' : 'selfInspection.photo.add', { label })}
@@ -221,7 +225,7 @@ function PhotosStep({ si, focusItem, onTakePhoto, onAddVideo }) {
                 fullWidth={false}
                 disabled={submitting || busy}
                 leftIcon={<Icon name="camera" size={ms(15)} color={colors.primary} />}
-                onPress={() => onTakePhoto(slot.itemCode, slot.shotCode, label, true)}
+                onPress={retake}
                 style={styles.flex}
               />
               <Button
@@ -247,6 +251,7 @@ function PhotosStep({ si, focusItem, onTakePhoto, onAddVideo }) {
           </>
         ) : (
           <>
+            {/* Camera only: every angle is a fresh photo (no gallery). */}
             <Button
               title={t('selfInspection.photos.take')}
               disabled={submitting || busy}

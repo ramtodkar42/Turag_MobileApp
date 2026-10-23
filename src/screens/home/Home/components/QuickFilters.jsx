@@ -6,15 +6,18 @@ import { useT } from '../../../../i18n';
 import { optionsOf as optionsFor, visibleFilters } from '../constants';
 import { CITIES } from '../filterCatalog';
 import FilterPill from './FilterPill';
+import LanguagePill from './LanguagePill';
 import LocationSheet from './LocationSheet';
 
-// The quick filters: one line of dropdown pills that scrolls sideways. Tapping
+// The quick filters: one line of dropdown pills that scrolls sideways, after
+// the language pill (LanguagePill). Tapping
 // one opens its choices in a bottom sheet ("All" clears it); Location opens
 // the state -> city sheet. A pill with a choice shows that choice in red.
 // Picking Bike makes the rest fit bikes: car-only filters are hidden, the
 // options are bike ones and the icons follow (see QUICK_FILTERS).
 // filters: { [id]: value }; onChange(id, value | '').
-function QuickFilters({ filters, onChange, style }) {
+// onLanguagePress(anchor): the language pill was tapped (Home shows the menu).
+function QuickFilters({ filters, onChange, onLanguagePress, style }) {
   const t = useT();
   const [openId, setOpenId] = useState(null);
   const items = visibleFilters(filters);
@@ -51,6 +54,8 @@ function QuickFilters({ filters, onChange, style }) {
         contentContainerStyle={styles.row}
         style={style}
       >
+        {/* The app language first, as the web's header picker. */}
+        <LanguagePill onPress={onLanguagePress} />
         {items.map(item => {
           const chosen = chosenLabel(item);
           const name = t(item.labelKey);

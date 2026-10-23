@@ -10,6 +10,7 @@ import {
 import { colors, spacing } from '../../../theme';
 import { endSession } from '../../../api/session';
 import { getHomeRoute } from '../../../navigation/homeRoute';
+import { resetAfterSignIn } from '../../../navigation/authRoutes';
 import { ROUTES } from '../../../navigation/routes';
 import { clearUser } from '../../../store/userStore';
 import completeSignUp from './completeSignUp';
@@ -43,15 +44,10 @@ function CompleteProfile({ navigation, route }) {
         consents,
       });
       const titleKey = needsProfile ? 'auth.accountCreated' : 'auth.loginSuccessful';
-      navigation.reset({
-        index: 0,
-        routes: [
-          {
-            name: ROUTES.AUTH_SUCCESS,
-            params: { titleKey, next: getHomeRoute(user.role) },
-          },
-        ],
-      });
+      resetAfterSignIn(navigation, [
+        ROUTES.AUTH_SUCCESS,
+        { titleKey, next: getHomeRoute(user.role) },
+      ]);
     },
   });
   const { values, errors } = form;
@@ -62,8 +58,8 @@ function CompleteProfile({ navigation, route }) {
     navigation.reset({ index: 0, routes: [{ name: ROUTES.LOGIN }] });
   };
 
-  const openLink = title =>
-    navigation.navigate(ROUTES.PROFILE_SECTION, { title, showBack: true });
+  // Terms / Privacy Policy: the website's page, inside the app.
+  const openLink = (title, path) => navigation.navigate(ROUTES.WEB_PAGE, { title, path });
 
   return (
     <ScreenContainer

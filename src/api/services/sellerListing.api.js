@@ -89,8 +89,8 @@ export const getMyListing = async listingId => {
 };
 
 // Creates the listing (a DRAFT) from a valued vehicle.
-// draft: { vehicleId, valuationId (required), inspectionId?, askPrice (₹), sellerNote?, idempotencyKey,
-//          vehicle? (name for the mock) }
+// draft: { vehicleId, valuationId (required), inspectionId?, askPrice (₹), sellerNote?,
+//          location ({ city, state, ... } - required), idempotencyKey, vehicle? (name for the mock) }
 // ownership is attested by the seller on the form (required by the backend).
 // Errors: 422 VALUATION_REQUIRED / VALUATION_EXPIRED / OWNERSHIP_ATTESTATION_REQUIRED,
 //         409 LISTING_ALREADY_ACTIVE (the vehicle is already listed).
@@ -100,6 +100,7 @@ export const createListing = async ({
   inspectionId = null,
   askPrice,
   sellerNote,
+  location,
   idempotencyKey,
   vehicle,
 }) => {
@@ -110,6 +111,10 @@ export const createListing = async ({
     ask_price: toMoney(askPrice),
     seller_note: sellerNote?.trim() ? sellerNote.trim() : null,
     ownership_attested: true,
+    // Where the vehicle is: { city, state (required), locality?, pincode?,
+    // address_line?, building?, landmark?, geo_lat?, geo_lng? }. Buyers see
+    // the area, city and state; the rest stays private with the listing.
+    location,
   };
   if (!real()) {
     await wait(800);

@@ -12,7 +12,7 @@ import { Button } from '../src/components';
 import { USE_REAL_API } from '../src/api/config';
 import { endSession, startSession } from '../src/api/session';
 import { getReportPdf, shareReport } from '../src/api/services/report.api';
-import { resumeInspection } from '../src/api/services/inspector.api';
+import { reopenSelfInspection } from '../src/api/services/selfInspection.api';
 
 jest.mock('@react-navigation/native', () => {
   const { useEffect } = require('react');
@@ -105,11 +105,10 @@ describe('real backend', () => {
     expect(fetch.mock.calls[0][1].method).toBe('POST');
   });
 
-  test('Fix photos: the self-inspection reopens (/reopen, as the web); the inspector resumes (/resume)', async () => {
+  test('Fix photos: both the owner and the inspector reopen it (/reopen, as the web)', async () => {
     fetch.mockResolvedValue(reply(200, { inspection: { id: 'insp_1', status: 'IN_PROGRESS' } }));
-    await resumeInspection('insp_1', { self: true });
+    await reopenSelfInspection('insp_1');
     expect(fetch.mock.calls[0][0]).toMatch(/\/inspections\/insp_1\/reopen$/);
-    await resumeInspection('insp_1');
-    expect(fetch.mock.calls[1][0]).toMatch(/\/inspections\/insp_1\/resume$/);
+    expect(fetch.mock.calls[0][1].method).toBe('POST');
   });
 });

@@ -44,7 +44,8 @@ const mockSearch = ({ query, category, filters }) => {
 };
 
 // Marketplace grid. filters (backend parameter names): { city?, fuel?, make?,
-// model?, body_type?, transmission?, grade_min?, price_min?, price_max? (rupees) }.
+// model?, body_type?, transmission?, grade_min?, tier? ('BUDGET' | 'ASSURED' |
+// 'PREMIUM'), price_min?, price_max? (rupees) }.
 // cursor: the previous page's nextCursor (null = first page).
 // Returns { items, nextCursor } - nextCursor is null on the last page.
 export const getMarketplaceVehicles = async ({
@@ -68,6 +69,7 @@ export const getMarketplaceVehicles = async ({
       body_type: filters.body_type,
       transmission: filters.transmission,
       grade_min: filters.grade_min,
+      tier: filters.tier,
       price_min: filters.price_min,
       price_max: filters.price_max,
       limit: PAGE_SIZE,

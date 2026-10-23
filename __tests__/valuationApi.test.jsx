@@ -185,12 +185,20 @@ describe('self-inspection', () => {
 
   test('start creates an M1 inspection for the vehicle', async () => {
     fetch.mockResolvedValueOnce(reply(201, { inspection: { id: 'insp_1', status: 'DRAFT' } }));
-    await expect(startSelfInspection({ vehicleId: 'veh_1', category: 'PASSENGER' })).resolves.toEqual({
+    await expect(
+      startSelfInspection({ vehicleId: 'veh_1', category: 'PASSENGER', consent: true }),
+    ).resolves.toEqual({
       inspectionId: 'insp_1',
     });
     const call = fetch.mock.calls[0];
     expect(urlOf(call)).toMatch(/\/inspections$/);
-    expect(bodyOf(call)).toEqual({ vehicle_id: 'veh_1', mode: 'M1', category: 'PASSENGER' });
+    // The consent box the user ticked (never a fixed "yes"), as the web.
+    expect(bodyOf(call)).toEqual({
+      vehicle_id: 'veh_1',
+      mode: 'M1',
+      category: 'PASSENGER',
+      inspection_consent: true,
+    });
     expect(headerOf(call, 'Authorization')).toBe('Bearer access-1');
   });
 

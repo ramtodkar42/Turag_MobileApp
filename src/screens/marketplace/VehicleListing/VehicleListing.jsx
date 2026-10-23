@@ -4,12 +4,15 @@ import {
   Button,
   FadeIn,
   Header,
+  Icon,
   ScreenContainer,
   StatusView,
+  TierBadge,
 } from '../../../components';
 import { colors, spacing } from '../../../theme';
-import { fs } from '../../../utils/responsive';
+import { fs, ms } from '../../../utils/responsive';
 import { ROUTES } from '../../../navigation/routes';
+import { requireLogin } from '../../../store/loginPromptStore';
 import { useT } from '../../../i18n';
 import { codeLabel, keyLabel } from '../../../i18n/vehicleLabels';
 import DescriptionCard from '../components/DescriptionCard';
@@ -49,7 +52,9 @@ function VehicleListing({ navigation, route }) {
   }
 
   const fuel = codeLabel(t, 'marketplace.fuel', vehicle.fuelCode, vehicle.fuel);
-  const meta = [vehicle.year, fuel, vehicle.city].filter(Boolean).join(' • ');
+  const meta = [vehicle.year, fuel].filter(Boolean).join(' • ');
+  // "Baner, Pune, Maharashtra" (as the web's vehicle page).
+  const where = [vehicle.place ?? vehicle.city, vehicle.state].filter(Boolean).join(', ');
 
   // The first four are the tiles always shown.
   const rows = [
@@ -103,7 +108,7 @@ function VehicleListing({ navigation, route }) {
           <Button
             title={offerTitle}
             disabled={offerBlocked || loading}
-            onPress={() => navigation.navigate(ROUTES.MAKE_OFFER, { vehicle })}
+            onPress={() => requireLogin('offer') && navigation.navigate(ROUTES.MAKE_OFFER, { vehicle })}
           />
         </>
       }
@@ -119,6 +124,24 @@ function VehicleListing({ navigation, route }) {
           <AppText variant="caption" color={colors.placeholder}>
             {vehicle.variant}
           </AppText>
+        ) : null}
+        {where ? (
+          <View style={styles.where}>
+            <Icon name="mapPin" size={ms(13)} color={colors.body} />
+            <AppText variant="caption" style={styles.flex}>
+              {where}
+            </AppText>
+          </View>
+        ) : null}
+
+        {/* Turag tier and what it means (as the web). */}
+        {vehicle.tier ? (
+          <View style={styles.tier}>
+            <TierBadge tier={vehicle.tier} size="md" />
+            <AppText variant="caption" style={styles.tierNote}>
+              {t(`marketplace.tier.note.${vehicle.tier}`)}
+            </AppText>
+          </View>
         ) : null}
 
         <SpecGrid rows={rows} style={styles.section} />
@@ -160,6 +183,21 @@ const styles = StyleSheet.create({
   name: {
     fontSize: fs(22),
     lineHeight: fs(28),
+  },
+  where: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.xxs,
+  },
+  flex: {
+    flex: 1,
+  },
+  tier: {
+    marginTop: spacing.md,
+  },
+  tierNote: {
+    marginTop: spacing.xs,
   },
   section: {
     marginTop: spacing.lg,

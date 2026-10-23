@@ -9,6 +9,7 @@ import Saved from '../src/screens/saved/Saved/Saved';
 import { FavoriteButton, SearchBar, VehicleGridCard } from '../src/components';
 import { clearSaved, toggleSaved } from '../src/store/savedStore';
 import { addRecentSearch, clearRecentSearches } from '../src/store/recentSearchStore';
+import { clearUser, setUser } from '../src/store/userStore';
 import { ROUTES } from '../src/navigation/routes';
 
 // These tests render Saved on its own (no navigator); tab focus is covered in tabs.test.jsx.
@@ -53,6 +54,10 @@ const recentItems = root => {
 // VehicleGridCard is memo()-wrapped, so match on its `vehicle` prop.
 const savedNames = root =>
   [...new Set(root.findAll(n => n.props.vehicle?.name && n.props.width).map(n => n.props.vehicle.name))];
+
+// Signed in (a guest gets the login prompts instead - see guest.test.jsx).
+beforeEach(() => setUser({ fullName: 'Test User', role: 'individual' }));
+afterEach(() => clearUser());
 
 beforeEach(() => {
   jest.useFakeTimers();
@@ -109,8 +114,13 @@ test('Recent searches show, open Home with the search, and clear', async () => {
   const items = recentItems(root).map(i => i.props.item.query);
   expect(items).toEqual(['Superb', 'Honda CRV']);
 
-  await act(async () => recentItems(root)[1].props.onPress('Honda CRV'));
+  await act(async () => recentItems(root)[1].props.onPress({ query: 'Honda CRV' }));
   expect(navigation.navigate).toHaveBeenCalledWith(ROUTES.MARKET, { query: 'Honda CRV' });
+  // A brand picked on the search screen re-applies as the Make filter.
+  await act(async () =>
+    recentItems(root)[1].props.onPress({ query: 'Tata', filter: { id: 'make', value: 'Tata' } }),
+  );
+  expect(navigation.navigate).toHaveBeenLastCalledWith(ROUTES.MARKET, { filter: { id: 'make', value: 'Tata' } });
 
   const clear = root.find(n => n.props.actionLabel === 'Clear all');
   await act(async () => clear.props.onAction());

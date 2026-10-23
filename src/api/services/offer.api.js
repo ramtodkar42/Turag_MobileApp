@@ -7,11 +7,12 @@
 // Offer life: PENDING -> (seller) COUNTERED -> (buyer) PENDING ... ->
 // ACCEPTED (creates an order) | DECLINED | WITHDRAWN | EXPIRED.
 // After any counter, the offer's `amount` is that counter.
-import { ApiError, request } from '../client';
+import { ApiError, newIdempotencyKey, request } from '../client';
 import { USE_REAL_API } from '../config';
 import { ENDPOINTS } from '../endpoints';
-import { toMoney } from '../mappers/money';
+import { toMoney, toRupees } from '../mappers/money';
 import { mapOffer, mapOrder } from '../mappers/offer';
+import { isTestGateway, openRazorpayCheckout } from '../razorpay';
 import { sampleBuyerOffers, sampleListingOffers, sampleOrders } from '../mock/account';
 import { tNow } from '../../i18n';
 
@@ -127,6 +128,83 @@ export const cancelOrder = async (orderId, reason = null) => {
     return mapOrder(raw);
   }
   const data = await request(ENDPOINTS.orderCancel(orderId), { method: 'POST', body: { reason } });
+  return mapOrder(data.order);
+};
+
+// --- Paying the token / handover (as the web's offer page + listing page) --------
+
+export const PAYMENTS_UNAVAILABLE = 'PAYMENTS_UNAVAILABLE';
+
+// The payment's state on the server (the verified webhook sets it).
+const getPaymentStatus = async paymentId => (await request(ENDPOINTS.payment(paymentId))).payment?.status ?? null;
+
+// Pays the token for an accepted vehicle (order CREATED -> TOKEN_PAID), as the
+// web: the server makes the payment order (its amount is the server's), the
+// test gateway completes it at once, a real one opens Razorpay; then the
+// payment is checked (1 s apart, 10 times) until the server confirms it.
+// Paying is the buyer's acknowledgement of the refund policy (cancellation_ack).
+// opts: { prefill } for the checkout. Returns { result: 'paid' | 'failed' |
+// 'awaiting' (not confirmed yet), amount (₹ token), paymentId }.
+// Throws PAYMENTS_UNAVAILABLE (switched off on the server) or PAYMENT_CANCELLED.
+export const payOrderToken = async (orderId, { prefill } = {}) => {
+  if (!real()) {
+    await wait(700);
+    const raw = mockOfferState().orders[orderId];
+    if (raw) {
+      raw.status = 'TOKEN_PAID';
+      raw.updated_at = new Date().toISOString();
+    }
+    return { result: 'paid', amount: 10000, paymentId: `pay_mock_${Date.now()}` };
+  }
+  let payment;
+  try {
+    ({ payment } = await request(ENDPOINTS.orderTokenPayment(orderId), {
+      method: 'POST',
+      body: { cancellation_ack: true },
+      idempotencyKey: newIdempotencyKey(),
+    }));
+  } catch (e) {
+    if (e?.code === PAYMENTS_UNAVAILABLE || e?.status === 503) {
+      throw new ApiError({ status: 503, code: PAYMENTS_UNAVAILABLE, message: tNow('offers.pay.unavailable') });
+    }
+    throw e;
+  }
+  const amount = toRupees(payment.amount);
+  if (isTestGateway(payment)) {
+    try {
+      await request(ENDPOINTS.orderTokenPaymentSimulate(orderId), { method: 'POST', body: {} });
+    } catch {
+      return { result: 'awaiting', amount, paymentId: payment.payment_id };
+    }
+  } else {
+    await openRazorpayCheckout({
+      keyId: payment.key_id,
+      orderId: payment.provider_order_id,
+      amountMinor: payment.amount?.amount_minor ?? null,
+      description: tNow('offers.pay.description'),
+      prefill,
+    });
+  }
+  for (let i = 0; i < 10; i += 1) {
+    await wait(1000);
+    const status = await getPaymentStatus(payment.payment_id).catch(() => null);
+    if (status === 'CAPTURED') return { result: 'paid', amount, paymentId: payment.payment_id };
+    if (status === 'FAILED' || status === 'EXPIRED') return { result: 'failed', amount, paymentId: payment.payment_id };
+  }
+  return { result: 'awaiting', amount, paymentId: payment.payment_id };
+};
+
+// The seller confirms the vehicle was handed over (TOKEN_PAID -> HANDED_OVER).
+// Allowed once the transfer forms are in (the server checks). Returns the order.
+export const handoverOrder = async orderId => {
+  if (!real()) {
+    await wait(600);
+    const raw = mockOfferState().orders[orderId];
+    raw.status = 'HANDED_OVER';
+    raw.handover_at = new Date().toISOString();
+    return mapOrder(raw);
+  }
+  const data = await request(ENDPOINTS.orderHandover(orderId), { method: 'POST', body: {} });
   return mapOrder(data.order);
 };
 

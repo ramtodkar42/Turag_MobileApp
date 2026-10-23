@@ -6,6 +6,7 @@ import { ms } from '../../../utils/responsive';
 import useCountdown from '../../../hooks/useCountdown';
 import ResendOtp from './components/ResendOtp';
 import otpChannels from './otpChannels';
+import { resetAfterSignIn } from '../../../navigation/authRoutes';
 import { useT } from '../../../i18n';
 
 // The test server (it sends `devHint`) uses 6-digit codes; otherwise 4.
@@ -46,8 +47,7 @@ function VerifyOtp({ navigation, route }) {
       const next = await otpChannel.verify(params, code);
       if (next.reset) {
         // Signed in: clear the login screens from history.
-        const [name, resetParams] = next.reset;
-        navigation.reset({ index: 0, routes: [{ name, params: resetParams }] });
+        resetAfterSignIn(navigation, next.reset);
       } else {
         setLoading(false);
         verifying.current = false;

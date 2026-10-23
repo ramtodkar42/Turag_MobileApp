@@ -8595,11 +8595,56 @@ var COSMETIC_AREAS2 = [
   "OTHER"
 ];
 var COSMETIC_SEVERITIES2 = ["MINOR", "MODERATE", "MAJOR"];
+
+// src/lib/photo-dhash.ts
+var NEAR_DUPLICATE_DISTANCE = 5;
+function hammingDistanceHex(a, b) {
+  var _a, _b;
+  const shorter = Math.min(a.length, b.length);
+  let dist = Math.abs(a.length - b.length) * 4;
+  for (let i = 0; i < shorter; i++) {
+    let xor = parseInt((_a = a[i]) != null ? _a : "0", 16) ^ parseInt((_b = b[i]) != null ? _b : "0", 16);
+    while (xor > 0) {
+      dist += xor & 1;
+      xor >>= 1;
+    }
+  }
+  return dist;
+}
+function dhashGrayscale(pixels, width, height) {
+  var _a, _b;
+  let bits = "";
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width - 1; x++) {
+      const left = (_a = pixels[y * width + x]) != null ? _a : 0;
+      const right = (_b = pixels[y * width + x + 1]) != null ? _b : 0;
+      bits += left > right ? "1" : "0";
+    }
+  }
+  let hex = "";
+  for (let i = 0; i < 64; i += 4) {
+    const nibble = bits.slice(i, i + 4).padEnd(4, "0");
+    hex += parseInt(nibble, 2).toString(16);
+  }
+  return hex;
+}
+function findNearDuplicate(hash, seen, maxDistance = NEAR_DUPLICATE_DISTANCE) {
+  if (!hash) return null;
+  let best = null;
+  for (const s of seen) {
+    const distance = hammingDistanceHex(hash, s.hash);
+    if (distance <= maxDistance && (!best || distance < best.distance)) {
+      best = { ...s, distance };
+    }
+  }
+  return best;
+}
 export {
   COSMETIC_AREAS2 as COSMETIC_AREAS,
   COSMETIC_SEVERITIES2 as COSMETIC_SEVERITIES,
   DAMAGE_TYPE_VALUES,
   M1_DENT_PROMPT_VERSION,
+  NEAR_DUPLICATE_DISTANCE,
   PANEL_GROUPS,
   PANEL_LABELS,
   PHOTO_CAPTURE_GUIDANCE,
@@ -8615,7 +8660,9 @@ export {
   collectAngleFindings,
   crossValidateVehicle,
   decideForSavedSeverity,
+  dhashGrayscale,
   explainIntegrityFailure,
+  findNearDuplicate,
   findingToShotRead,
   humanizeSubmitError,
   isDocumentItem,

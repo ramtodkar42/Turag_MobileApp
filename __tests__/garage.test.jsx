@@ -79,7 +79,7 @@ test('Camera: shutter checks the angle, shows Perfect Angle, returns the photo',
     <NavigationContainer>
       <VehicleCamera
         navigation={navigation}
-        route={{ params: { shot, returnTo: ROUTES.INSPECTION_CAPTURE } }}
+        route={{ params: { shot, returnTo: ROUTES.SELF_INSPECTION } }}
       />
     </NavigationContainer>,
   );
@@ -94,7 +94,7 @@ test('Camera: shutter checks the angle, shows Perfect Angle, returns the photo',
   expect(root.findByType(AngleBadge).props.status).toBe('perfect');
   await advance(900);
   expect(navigation.popTo).toHaveBeenCalledWith(
-    ROUTES.INSPECTION_CAPTURE,
+    ROUTES.SELF_INSPECTION,
     { captured: { key: 'front', file: expect.objectContaining({ uri: 'file:///tmp/photo.jpg' }) } },
     { merge: true },
   );
@@ -206,7 +206,8 @@ test('Garage tab: placeholders, empty state, then saved vehicles with their stat
   const cards = root.findAll(n => n.props.vehicle && n.props.onAction && n.type !== GarageCard);
   expect(cards.map(c => c.props.vehicle.status).sort()).toEqual(['in_review', 'not_inspected']);
   const badge = label => root.findAll(n => n.props.label === label && n.props.tone)[0];
-  expect(badge('In-review').props.tone).toBe('warningOnPhoto'); // white pill, orange text
+  // The web's stage chip: what's happening with the inspection.
+  expect(badge('Inspection in progress').props.tone).toBe('warningOnPhoto'); // white pill, orange text
   expect(badge('Not inspected').props.tone).toBe('neutralOnPhoto');
   expect(root.findAll(n => n.props.children === 'Not available').length).toBeGreaterThan(0);
 
@@ -279,7 +280,7 @@ test('Camera never sends a torch value to a camera without flash (selfie camera)
     <NavigationContainer>
       <VehicleCamera
         navigation={{ goBack: jest.fn(), popTo: jest.fn() }}
-        route={{ params: { shot, returnTo: ROUTES.INSPECTION_CAPTURE } }}
+        route={{ params: { shot, returnTo: ROUTES.SELF_INSPECTION } }}
       />
     </NavigationContainer>,
   );
@@ -307,7 +308,7 @@ test('Camera hides the harmless "Camera is not active" error but shows real ones
     <NavigationContainer>
       <VehicleCamera
         navigation={{ goBack: jest.fn(), popTo: jest.fn() }}
-        route={{ params: { shot, returnTo: ROUTES.INSPECTION_CAPTURE } }}
+        route={{ params: { shot, returnTo: ROUTES.SELF_INSPECTION } }}
       />
     </NavigationContainer>,
   );

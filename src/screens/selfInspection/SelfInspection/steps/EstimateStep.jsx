@@ -7,12 +7,15 @@ import { missingLabel, shotName } from '../labels';
 import EstimateCard from '../components/EstimateCard';
 import MissingList from '../components/MissingList';
 import SectionCard from '../components/SectionCard';
+import { useInspectorMode } from '../inspectorMode';
 
 // Estimate (the web's reviewStep): the live estimate (the web's own pricing
 // engine over what's confirmed), each step's progress, photos still to take,
 // and "Before you can submit" - every entry jumps to where it's done.
 function EstimateStep({ si, vehicleLabel, onGoStep, onGoMissing }) {
   const t = useT();
+  // The inspector's estimate is advisory - the value is set after Turag's QC.
+  const inspector = useInspectorMode();
   const { pricing, progress, missing } = si;
   const missingAngles = si.requiredSlots.filter(s => !(si.mediaShots[s.itemCode] ?? []).includes(s.shotCode));
   const entries = missing.map(entry => ({ ...entry, label: missingLabel(t, entry, si.allItems) }));
@@ -24,9 +27,9 @@ function EstimateStep({ si, vehicleLabel, onGoStep, onGoMissing }) {
         lowerMinor={pricing.lowerPriceMinor}
         upperMinor={pricing.upperPriceMinor}
         confidenceLevel={pricing.confidence?.level ?? null}
-        vehicleLabel={vehicleLabel || t('selfInspection.yourVehicle')}
+        vehicleLabel={vehicleLabel || t(inspector ? 'selfInspection.inspector.vehicle' : 'selfInspection.yourVehicle')}
         emptyText={t(si.canonicalReady ? 'selfInspection.estimate.needMore' : 'selfInspection.estimate.confirmFirst')}
-        footnote={t('selfInspection.estimate.liveFootnote')}
+        footnote={t(inspector ? 'selfInspection.inspector.estimateFootnote' : 'selfInspection.estimate.liveFootnote')}
       />
       <SectionCard title={t('selfInspection.review.title')} subtitle={t('selfInspection.review.subtitle')}>
         <View style={styles.steps}>

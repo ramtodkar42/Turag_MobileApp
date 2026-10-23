@@ -10,9 +10,21 @@ import SectionCard from '../components/SectionCard';
 // After submitting (the web's submitted screen): done with the final
 // estimated value from Turag's valuation engine - or, when photos failed the
 // integrity checks, which ones and "Retake photos".
-function SubmittedView({ si, vehicleLabel, savingGarage, onFixPhotos, onGarage, onEvaluateAnother }) {
+// inspector: the inspection officer's doorstep inspection - it goes to Turag's
+// QC (the web's PENDING_QC), and the way on is back to the jobs.
+function SubmittedView({
+  si,
+  vehicleLabel,
+  savingGarage,
+  onFixPhotos,
+  onGarage,
+  onEvaluateAnother,
+  inspector = false,
+  onBackToJobs,
+}) {
   const t = useT();
   const failed = si.finalStatus === 'INTEGRITY_FAILED';
+  const doneKey = inspector ? 'selfInspection.inspector.sent' : 'selfInspection.submitted';
   const names = si.integrityItems.map(code => itemName(t, si.allItems.find(i => i.item_code === code)) || code);
 
   return (
@@ -28,10 +40,10 @@ function SubmittedView({ si, vehicleLabel, savingGarage, onFixPhotos, onGarage, 
           )}
         </PopIn>
         <AppText variant="h3" align="center">
-          {t(failed ? 'selfInspection.submitted.failedTitle' : 'selfInspection.submitted.title')}
+          {t(failed ? 'selfInspection.submitted.failedTitle' : `${doneKey}.title`)}
         </AppText>
         <AppText variant="subtitle" align="center">
-          {t(failed ? 'selfInspection.submitted.failedText' : 'selfInspection.submitted.text')}
+          {t(failed ? 'selfInspection.submitted.failedText' : `${doneKey}.text`)}
         </AppText>
         {failed && names.length > 0 ? (
           <View style={styles.reasons}>
@@ -66,13 +78,23 @@ function SubmittedView({ si, vehicleLabel, savingGarage, onFixPhotos, onGarage, 
         {failed ? (
           <Button title={t('selfInspection.submitted.retake')} variant="primary" loading={si.reopening} onPress={onFixPhotos} />
         ) : null}
-        <Button
-          title={t('selfInspection.submitted.garage')}
-          variant={failed ? 'outline' : 'primary'}
-          loading={savingGarage}
-          onPress={onGarage}
-        />
-        <Button title={t('selfInspection.submitted.another')} variant="outline" onPress={onEvaluateAnother} />
+        {inspector ? (
+          <Button
+            title={t('selfInspection.inspector.backToJobs')}
+            variant={failed ? 'outline' : 'primary'}
+            onPress={onBackToJobs}
+          />
+        ) : (
+          <>
+            <Button
+              title={t('selfInspection.submitted.garage')}
+              variant={failed ? 'outline' : 'primary'}
+              loading={savingGarage}
+              onPress={onGarage}
+            />
+            <Button title={t('selfInspection.submitted.another')} variant="outline" onPress={onEvaluateAnother} />
+          </>
+        )}
       </View>
     </View>
   );

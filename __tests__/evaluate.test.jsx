@@ -7,6 +7,7 @@ import ReactTestRenderer, { act } from 'react-test-renderer';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { formatRegNumber, isValidRegNumber } from '../src/utils/validators';
 import { formatDate, formatPriceRange } from '../src/utils/format';
+import { clearUser, setUser } from '../src/store/userStore';
 import { ROUTES } from '../src/navigation/routes';
 
 const metrics = {
@@ -24,6 +25,10 @@ const render = async element => {
   });
   return tree.root;
 };
+
+// Signed in (a guest gets the login prompts instead - see guest.test.jsx).
+beforeEach(() => setUser({ fullName: 'Test User', role: 'individual' }));
+afterEach(() => clearUser());
 
 beforeEach(() => jest.useFakeTimers());
 

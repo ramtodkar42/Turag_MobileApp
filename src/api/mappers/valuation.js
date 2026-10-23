@@ -85,6 +85,28 @@ const garageStatus = inspectionStatus => {
   return NOT_INSPECTED.has(inspectionStatus) ? 'not_inspected' : 'in_review';
 };
 
+// Where a garage vehicle is, as the web's Garage card works it out (from the
+// LATEST inspection; `inspection_eligible` = a report-ready one exists):
+//   listed      - has a listing
+//   can_list    - inspected and ready to list
+//   resume_self - the user's own self-inspection is still open (continue it)
+//   in_review   - an inspection is with Turag (submitted / QC / an inspector job)
+//   fresh       - no inspection yet
+// A DRAFT self-inspection can't be edited, so (unlike the web, where it's a
+// dead end) it counts as fresh: the user simply starts again.
+const REPORT_READY = new Set(['VERIFIED', 'VALUED', 'PUBLISHED', 'EXPIRED']);
+const RESUMABLE_SELF = new Set(['IN_PROGRESS', 'INTEGRITY_FAILED']);
+
+export const garagePhase = item => {
+  const status = item.inspection_status ?? null;
+  const hasInspection = item.inspection_id != null && status != null;
+  if (item.valuation_id != null && item.listing_status != null) return 'listed';
+  if (item.inspection_eligible === true) return 'can_list';
+  if (hasInspection && item.inspection_mode === 'M1' && RESUMABLE_SELF.has(status)) return 'resume_self';
+  if (hasInspection && !(item.inspection_mode === 'M1' && status === 'DRAFT')) return 'in_review';
+  return 'fresh';
+};
+
 // GET /saved-vehicles item -> garage vehicle.
 export const mapSavedVehicle = item => ({
   id: item.id,
@@ -92,6 +114,10 @@ export const mapSavedVehicle = item => ({
   valuationId: item.valuation_id ?? null,
   inspectionId: item.inspection_id ?? null,
   inspectionStatus: item.inspection_status ?? null,
+  inspectionMode: item.inspection_mode ?? null, // 'M1' (self) | 'M2' (inspector)
+  phase: garagePhase(item),
+  // The report opens only from a finished (frozen) inspection.
+  reportReady: item.inspection_id != null && REPORT_READY.has(item.inspection_status),
   // ADR-0038: a vehicle can only be listed once it has a report-ready
   // inspection (self or inspector). The backend decides this.
   inspectionEligible: item.inspection_eligible === true,

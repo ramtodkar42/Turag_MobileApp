@@ -119,16 +119,18 @@ export const checkPhotoAngle = async ({ angle, file }) => {
 // --- Self-inspection (M1, cars) --------------------------------------------
 
 // Starts the owner's self-inspection for a confirmed vehicle. Returns { inspectionId }.
-export const startSelfInspection = async ({ vehicleId, category }) => {
+// consent: the inspection-consent box the user ticked (InspectionConsent) - sent
+// as it is, never a fixed "yes"; the backend refuses M1 without it.
+export const startSelfInspection = async ({ vehicleId, category, consent }) => {
   if (!real()) {
     await wait(500);
     return { inspectionId: 'insp_mock_1' };
   }
   const data = await request(ENDPOINTS.INSPECTIONS, {
     method: 'POST',
-    // DPDP inspection consent (as the web): the person agreed before starting
+    // DPDP inspection consent (as the web): the person ticked it before starting
     // the self-inspection (Privacy Policy §6.4). Required by the backend for M1.
-    body: { vehicle_id: vehicleId, mode: 'M1', category, inspection_consent: true },
+    body: { vehicle_id: vehicleId, mode: 'M1', category, inspection_consent: consent === true },
   });
   return { inspectionId: data.inspection.id };
 };
@@ -174,8 +176,9 @@ export const DUPLICATE_FILE = 'DUPLICATE_FILE';
 // Every step is safe to repeat: request-upload is idempotent on
 // client_asset_id (same id for the whole upload), the PUT rewrites the same
 // object, and complete is idempotent, so a retry never adds a second photo.
-// kind: 'DOCUMENT' | 'PHOTO'. Returns { mediaId, status }.
-export const uploadInspectionFile = async ({ inspectionId, itemCode, shotCode, kind, file }) => {
+// kind: 'DOCUMENT' | 'PHOTO'. gps (optional): { lat, lng, accuracyM? } where it was taken.
+// Returns { mediaId, status }.
+export const uploadInspectionFile = async ({ inspectionId, itemCode, shotCode, kind, file, gps }) => {
   if (!real()) {
     await wait(1000);
     return { mediaId: `med_mock_${shotCode}_${newClientAssetId().slice(3)}`, status: 'PROCESSED' };
@@ -201,6 +204,15 @@ export const uploadInspectionFile = async ({ inspectionId, itemCode, shotCode, k
         checksum_sha256: checksum,
         client_asset_id: clientAssetId,
         captured_at: capturedAt,
+        ...(gps
+          ? {
+              gps: {
+                lat: gps.lat,
+                lng: gps.lng,
+                ...(gps.accuracyM != null ? { accuracy_m: gps.accuracyM } : {}),
+              },
+            }
+          : {}),
       },
       timeoutMs: UPLOAD_TIMEOUT_MS,
     }),
@@ -312,8 +324,10 @@ export const recordInspectionAnswer = async ({
     method: 'PUT',
     body: {
       severity,
-      numeric_value: numericValue,
-      unit,
+      // Only a real number: the backend refuses null (an answer loaded from an
+      // earlier visit has none) - as the web, which leaves it out.
+      numeric_value: typeof numericValue === 'number' && Number.isFinite(numericValue) ? numericValue : undefined,
+      unit: unit || undefined,
       text_note: note || undefined,
       na_reason: severity === 'NOT_ASSESSABLE' ? naReason : undefined,
       refurb_cost_minor: refurbCost != null ? Math.round(refurbCost * 100) : undefined,

@@ -21,12 +21,14 @@ import { currentHomeRoute } from '../../../navigation/homeRoute';
 import { pickImageFromGallery } from '../../../utils/pickImage';
 import { pickPdf } from '../../../utils/pickDocument';
 import { pickVideoFromGallery, recordVideo } from '../../../utils/pickVideo';
+import { warmPhotoLocation } from '../../../utils/photoLocation';
 import { saveToGarage, useIsInGarage } from '../../../store/garageStore';
-import useLeaveGuard from '../../inspector/Capture/useLeaveGuard';
+import useLeaveGuard from './useLeaveGuard';
 import useSelfInspection, { slotKey } from './useSelfInspection';
 import { STEPS } from './constants';
 import ProgressRing from './components/ProgressRing';
 import StepTabs from './components/StepTabs';
+import { InspectorModeContext } from './inspectorMode';
 import PhotosStep from './steps/PhotosStep';
 import DocumentsStep from './steps/DocumentsStep';
 import ChecklistStep from './steps/ChecklistStep';
@@ -40,11 +42,18 @@ const AFTER_SHEET_MS = 350;
 // The customer's own self-inspection (M1), the same process as the web's
 // /inspect/[id]: Photos -> Documents -> Checklist -> Estimate, with "X of Y
 // done", a live estimate, and Submit once nothing's left. Then the final value.
-// params: { inspectionId, vehicle?, valuation? } (from Evaluate / Garage).
+// The inspection officer's doorstep inspection (M2) uses this same screen, as
+// the web's inspector capture is the M1 flow's M2 equivalent: inspector
+// wording, the 10 "can't check" reasons, and after submit it goes to Turag's
+// QC and back to the jobs (see inspectorMode.js).
+// params: { inspectionId, vehicle?, valuation? } (from Evaluate / Garage),
+//   or { inspectionId, bookingId } (an inspector's job).
 function SelfInspection({ navigation, route }) {
   const t = useT();
-  const { inspectionId, vehicle, valuation } = route.params ?? {};
+  const { inspectionId, vehicle, valuation, bookingId } = route.params ?? {};
   const si = useSelfInspection(inspectionId);
+  const inspector = !!bookingId || si.inspection?.mode === 'M2';
+  const titleKey = inspector ? 'selfInspection.inspector.title' : 'selfInspection.title';
   const [step, setStep] = useState('photos');
   const [qIndex, setQIndex] = useState(0);
   const [docIndex, setDocIndex] = useState(null); // null = the first document still to do
@@ -150,10 +159,16 @@ function SelfInspection({ navigation, route }) {
     navigation.navigate(ROUTES.VEHICLE_CAMERA, { shot: { key, title }, returnTo: ROUTES.SELF_INSPECTION });
   };
 
-  const onTakePhoto = (itemCode, shotCode, label, replace) => openCamera(itemCode, shotCode, label, 'PHOTO', replace);
+  // A car photo for an angle: always taken now with the in-app camera (no
+  // gallery), so every angle is a fresh photo of the car in front of the user.
+  const onTakePhoto = (itemCode, shotCode, label, replace) => {
+    warmPhotoLocation();
+    openCamera(itemCode, shotCode, label, 'PHOTO', replace);
+  };
 
   // A document (or a single photo) from the camera, the gallery or a PDF.
   const onAddDocument = (item, shotCode, kind, source) => {
+    warmPhotoLocation();
     if (source === 'camera') {
       openCamera(item.item_code, shotCode, item.label, kind, false);
       return;
@@ -169,6 +184,7 @@ function SelfInspection({ navigation, route }) {
   };
 
   const onAddVideo = (item, shotCode, have, source) => {
+    warmPhotoLocation();
     setTimeout(async () => {
       try {
         const file = source === 'record' ? await recordVideo() : await pickVideoFromGallery();
@@ -224,13 +240,17 @@ function SelfInspection({ navigation, route }) {
     navigation.reset({ index: 0, routes: [{ name: currentHomeRoute(), params: { screen: ROUTES.GARAGE } }] });
   };
 
+  // Inspector: back to the jobs list (the job now shows the inspection as sent).
+  const onBackToJobs = () =>
+    navigation.reset({ index: 0, routes: [{ name: ROUTES.INSPECTOR_TABS, params: { screen: ROUTES.INSPECTIONS } }] });
+
   const onEvaluateAnother = () =>
     navigation.reset({ index: 1, routes: [{ name: currentHomeRoute() }, { name: ROUTES.EVALUATE_CHAT }] });
 
   const v = si.inspection?.vehicle;
   const vehicleLabel =
     [v?.make, v?.model, v?.variant].filter(Boolean).join(' ') + (v?.mfg_year ? ` · ${v.mfg_year}` : '');
-  const header = <Header onBack={navigation.goBack} title={t('selfInspection.title')} />;
+  const header = <Header onBack={navigation.goBack} title={t(titleKey)} />;
 
   if (si.screen === 'loading') {
     return (
@@ -252,7 +272,11 @@ function SelfInspection({ navigation, route }) {
     return (
       <ScreenContainer header={header}>
         <StatusView title={t('selfInspection.notReadyTitle')} message={t('selfInspection.notReadyText')}>
-          <Button title={t('selfInspection.submitted.garage')} onPress={onGarage} />
+          {inspector ? (
+            <Button title={t('selfInspection.inspector.backToJobs')} onPress={onBackToJobs} />
+          ) : (
+            <Button title={t('selfInspection.submitted.garage')} onPress={onGarage} />
+          )}
         </StatusView>
       </ScreenContainer>
     );
@@ -267,6 +291,8 @@ function SelfInspection({ navigation, route }) {
           onFixPhotos={si.fixPhotos}
           onGarage={onGarage}
           onEvaluateAnother={onEvaluateAnother}
+          inspector={inspector}
+          onBackToJobs={onBackToJobs}
         />
       </ScreenContainer>
     );
@@ -311,7 +337,7 @@ function SelfInspection({ navigation, route }) {
           />
         ) : (
           <Button
-            title={t('selfInspection.submit')}
+            title={t(inspector ? 'selfInspection.inspector.submit' : 'selfInspection.submit')}
             fullWidth={false}
             loading={si.submitting}
             disabled={si.submitting || !canSubmit}
@@ -324,6 +350,7 @@ function SelfInspection({ navigation, route }) {
   );
 
   return (
+    <InspectorModeContext.Provider value={inspector}>
     <ScreenContainer scroll scrollRef={scrollRef} header={header} footer={footer}>
       {/* Summary: progress, the vehicle, and the live estimate (green, as the app's value card). */}
       <Card style={styles.hero}>
@@ -331,7 +358,7 @@ function SelfInspection({ navigation, route }) {
           <ProgressRing fraction={totalAll > 0 ? totalDone / totalAll : 0} />
           <View style={styles.heroText}>
             <AppText variant="h3" style={styles.heroTitle}>
-              {t('selfInspection.title')}
+              {t(titleKey)}
             </AppText>
             {vehicleLabel ? (
               <AppText variant="label" color={colors.heading} numberOfLines={1}>
@@ -342,7 +369,12 @@ function SelfInspection({ navigation, route }) {
           </View>
         </View>
         <View style={styles.heroFoot}>
-          <Badge size="sm" tone="neutral" label={t('selfInspection.selfDeclared')} />
+          {/* A Turag inspector's report goes to QC (it can become Turag Verified); the owner's own is self-declared. */}
+          <Badge
+            size="sm"
+            tone="neutral"
+            label={t(inspector ? 'selfInspection.inspector.badge' : 'selfInspection.selfDeclared')}
+          />
           {pricing.estimatedPriceMinor != null ? (
             <Pressable onPress={() => goStep('review')} accessibilityRole="button" hitSlop={8} style={styles.live}>
               <AppText variant="caption" color={colors.heading}>
@@ -376,6 +408,7 @@ function SelfInspection({ navigation, route }) {
         </FadeIn>
       </View>
     </ScreenContainer>
+    </InspectorModeContext.Provider>
   );
 }
 

@@ -11,46 +11,42 @@ import { colors, radius, shadows, spacing } from '../../../../theme';
 import { fs, ms } from '../../../../utils/responsive';
 import { formatINR } from '../../../../utils/format';
 import { useT } from '../../../../i18n';
+import { phaseAction, phaseBadge, phaseOf } from '../../garagePhase';
 
-// status (from the vehicle's latest inspection on the backend) -> badge.
-const STATUS = {
-  not_inspected: { labelKey: 'garage.status.not_inspected', tone: 'neutralOnPhoto' },
-  in_review: { labelKey: 'garage.status.in_review', tone: 'warningOnPhoto' },
-  verified: { labelKey: 'common.verified', tone: 'successOnPhoto' },
+// The chip sits on the photo: its "on photo" look.
+const ON_PHOTO = { success: 'successOnPhoto', warning: 'warningOnPhoto', neutral: 'neutralOnPhoto' };
+
+// The card's one action per stage (as the web's Garage card, see garagePhase):
+// a short line saying where it is, and the button for the next step.
+const CARD_ACTION = {
+  view: { questionKey: null, titleKey: 'garage.card.viewListing' },
+  list: { questionKey: 'garage.card.question', titleKey: 'garage.card.list' },
+  book: { questionKey: 'garage.card.needsValue', titleKey: 'garage.card.book' },
+  resume: { questionKey: 'garage.card.resumeQuestion', titleKey: 'garage.card.continue' },
+  summary: { questionKey: 'garage.card.withTurag', titleKey: 'garage.card.viewSummary' },
+  inspect: { questionKey: 'garage.card.needsInspection', titleKey: 'garage.card.inspectToList' },
+  wait: { questionKey: 'garage.card.withTurag', titleKey: 'garage.card.viewDetails' },
 };
 
-// The card's action, as on the web's Garage (ADR-0038: a vehicle can only be
-// listed once it has a report-ready inspection):
-//   listed (in review / live)     -> "View listing"
-//   not inspection-eligible yet   -> "Inspect to list" (opens the detail page,
-//                                     where self-inspect / book an inspector live)
-//   eligible + has an estimate    -> "List this vehicle"
-//   eligible, no estimate yet     -> "Book an inspection"
-const actionOf = vehicle => {
-  if (vehicle.listingId) {
-    return {
-      kind: 'view',
-      questionKey: vehicle.listingStatus === 'LIVE' ? 'garage.card.live' : 'garage.card.inReview',
-      titleKey: 'garage.card.viewListing',
-    };
-  }
-  if (!vehicle.inspectionEligible) {
-    return { kind: 'open', questionKey: 'garage.card.needsInspection', titleKey: 'garage.card.inspectToList' };
-  }
-  if (vehicle.valuationId) {
-    return { kind: 'list', questionKey: 'garage.card.question', titleKey: 'garage.card.list' };
-  }
-  return { kind: 'book', questionKey: 'garage.card.needsValue', titleKey: 'garage.card.book' };
-};
-
-// Garage grid card: photo with status badge, name, pre-estimated value, and
-// one action (see actionOf). onAction(kind, vehicle).
+// Garage grid card: photo with the stage chip, name, pre-estimated value, and
+// one action. onAction(kind, vehicle) with kind from garagePhase.phaseAction
+// ('wait' opens the vehicle page).
 function GarageCard({ vehicle, width, onPress, onAction }) {
   const t = useT();
-  const status = STATUS[vehicle.status] ?? STATUS.not_inspected;
-  const statusLabel = t(status.labelKey);
-  const verified = vehicle.status === 'verified';
-  const action = actionOf(vehicle);
+  const badge = phaseBadge(vehicle);
+  const statusLabel = t(badge.labelKey);
+  const done = phaseOf(vehicle) === 'can_list' || phaseOf(vehicle) === 'listed';
+  const kind = phaseAction(vehicle) ?? 'wait';
+  const action = CARD_ACTION[kind];
+  // A rejected inspection reads as "needs attention" above its Book button.
+  const questionKey =
+    kind === 'book' && vehicle.inspectionStatus === 'QC_REJECTED'
+      ? 'garage.card.rejected'
+      : kind === 'view'
+      ? vehicle.listingStatus === 'LIVE'
+        ? 'garage.card.live'
+        : 'garage.card.inReview'
+      : action.questionKey;
 
   return (
     <Pressable
@@ -63,12 +59,12 @@ function GarageCard({ vehicle, width, onPress, onAction }) {
         <VehicleImage source={vehicle.image} style={styles.image} />
         <Badge
           label={statusLabel}
-          tone={status.tone}
+          tone={ON_PHOTO[badge.tone]}
           size="sm"
-          icon={verified ? <CheckCircle size={ms(11)} /> : null}
+          icon={done ? <CheckCircle size={ms(11)} /> : null}
           style={styles.badge}
         />
-        {verified ? (
+        {done ? (
           <View style={styles.tick}>
             <CheckCircle size={ms(18)} />
           </View>
@@ -92,13 +88,13 @@ function GarageCard({ vehicle, width, onPress, onAction }) {
         <View style={styles.divider} />
 
         <AppText variant="caption" numberOfLines={1} style={styles.question}>
-          {t(action.questionKey)}
+          {t(questionKey)}
         </AppText>
         <Button
           title={t(action.titleKey)}
           size="sm"
-          variant={action.kind === 'view' ? 'outline' : 'primary'}
-          onPress={() => onAction(action.kind, vehicle)}
+          variant={kind === 'view' || kind === 'summary' || kind === 'wait' ? 'outline' : 'primary'}
+          onPress={() => onAction(kind, vehicle)}
           style={styles.button}
         />
       </View>
@@ -130,6 +126,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: spacing.xs,
     left: spacing.xs,
+    maxWidth: '80%',
   },
   tick: {
     position: 'absolute',

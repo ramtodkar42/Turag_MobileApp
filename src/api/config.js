@@ -42,6 +42,11 @@ export const BACKEND_URL = (BACKENDS[ACTIVE_BACKEND] ?? BACKENDS.staging).replac
 
 export const API_BASE_URL = `${BACKEND_URL}/api/v1`;
 
+// The public website: help, FAQ, contact and the legal pages (Privacy Policy,
+// Terms, Refund Policy) open from here in the app - always the live site, even
+// while testing against a local backend.
+export const WEBSITE_URL = 'https://turag.ai';
+
 // The local backend runs in Next.js dev mode, which compiles each API route
 // the first time it's called (10-20 s on a dev PC), so it gets more time.
 const isLocalBackend = ACTIVE_BACKEND !== 'staging';

@@ -49,4 +49,23 @@ export default {
   'garage.vehicle.removeError': 'Couldn’t remove it. Please try again.',
   'garage.vehicle.needsInspectNote':
     'Inspect this vehicle before you can list it — self-inspect it now, or book an inspector.',
+  // Stages (as the web's Garage card)
+  'garage.phase.listed': 'Listed for sale',
+  'garage.phase.canList': 'Inspected & ready to list',
+  'garage.phase.resumeSelf': 'Self-inspection in progress',
+  'garage.phase.underReview': 'Under Turag review',
+  'garage.phase.needsAttention': 'Inspection needs attention',
+  'garage.phase.submitted': 'Submitted, summary being prepared',
+  'garage.phase.inProgress': 'Inspection in progress',
+  'garage.hint.fresh': 'Inspect this vehicle before you can list it: self-inspect it now, or book an inspector.',
+  'garage.hint.resume': 'Pick up your self-inspection where you left off.',
+  'garage.hint.pendingQc': 'A Turag inspector is reviewing this. We’ll update it here when it’s ready.',
+  'garage.hint.qcRejected': 'This inspection couldn’t be verified. Book an inspector to try again.',
+  'garage.hint.preparing': 'Your inspection is being prepared. This updates automatically.',
+  'garage.card.resumeQuestion': 'Pick up where you left off',
+  'garage.card.continue': 'Continue self-inspection',
+  'garage.card.withTurag': 'With Turag for review',
+  'garage.card.viewSummary': 'View summary',
+  'garage.card.viewDetails': 'View details',
+  'garage.card.rejected': 'Inspection needs attention',
 };

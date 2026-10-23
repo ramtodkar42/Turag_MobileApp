@@ -13,13 +13,14 @@ export const ROUTES = {
   MAIN_TABS: 'MainTabs', // consumer app
   INSPECTOR_TABS: 'InspectorTabs', // inspection officer app
   JOB_DETAILS: 'JobDetails', // inspector: one job (start / continue the inspection)
-  INSPECTION_CAPTURE: 'InspectionCapture', // inspector: the M2 checklist + photos, submit
-  SELF_INSPECTION: 'SelfInspection', // customer's own self-inspection (M1), as the web's /inspect
+  // The inspection capture: the owner's self-inspection (M1, as the web's /inspect)
+  // and the inspector's doorstep inspection (M2, with { bookingId }).
+  SELF_INSPECTION: 'SelfInspection',
   CHAT_SPLASH: 'ChatSplash',
   CHAT: 'Chat',
 
   // Evaluate (valuation) - opened from the Evaluate tab: a chat with TURAG.AI,
-  // then the self-inspection (INSPECTION_CAPTURE) -> ValuationResult, or booking.
+  // then the self-inspection (SELF_INSPECTION) -> ValuationResult, or booking.
   EVALUATE_CHAT: 'EvaluateChat',
   VEHICLE_CAMERA: 'VehicleCamera',
   VALUATION_RESULT: 'ValuationResult',
@@ -33,14 +34,18 @@ export const ROUTES = {
   BOOK_APPOINTMENT: 'BookAppointment',
   BOOKING_SUMMARY: 'BookingSummary',
   BOOKING_PAYMENT: 'BookingPayment', // pick how to pay the fee
+  VERIFY_IDENTITY: 'VerifyIdentity', // ID document + selfie before paying (when not verified yet)
   PAYMENT_STATUS: 'PaymentStatus', // "Hold On" while the payment is verified
   BOOKING_CONFIRMED: 'BookingConfirmed',
+  BOOKING_COMING_SOON: 'BookingComingSoon', // the address is in a city Turag doesn't serve yet
   MY_BOOKINGS: 'MyBookings', // My inspections (Profile)
 
   // Selling: Garage vehicle -> CreateListing (a draft) -> MyListing (submit
   // for review, price, withdraw, offers); My listings in Profile.
   CREATE_LISTING: 'CreateListing',
   MY_LISTINGS: 'MyListings',
+  PAYOUT_ACCOUNTS: 'PayoutAccounts', // seller: the bank account sales are paid to
+  SETTLEMENTS: 'Settlements', // seller: payouts for sold vehicles
 
   // Marketplace (buying)
   VEHICLE_LISTING: 'VehicleListing',
@@ -53,12 +58,27 @@ export const ROUTES = {
   INSPECTION_REPORT: 'InspectionReport',
   BOOKING_RECEIPT: 'BookingReceipt', // a paid booking's receipt (download as PDF)
   MY_OFFERS: 'MyOffers', // buyer: offers made (+ orders)
+  SEARCH: 'Search', // Home's search: recent, price ranges, brands, suggestions
+  OFFER_DETAILS: 'OfferDetails', // buyer: one offer - pay the token, transfer documents
+  LOAN_APPLICATION: 'LoanApplication', // apply for a loan for an accepted vehicle
   MY_LISTING: 'MyListing', // seller: one listing (manage it) and the offers it received
+
+  // Business accounts (Profile > Business accounts; only for organization members)
+  BUSINESS_HOME: 'BusinessHome',
+  DEALER_PORTAL: 'DealerPortal', // { org }
+  DEALER_CREATE_LISTING: 'DealerCreateListing', // { org }
+  INSTITUTIONAL_PORTAL: 'InstitutionalPortal', // { org }
+  INTAKE_DETAIL: 'IntakeDetail', // { orgId, intakeId }
+  YARD_PLACEMENT_DETAIL: 'YardPlacementDetail', // { orgId, placementId }
+  BULK_INTAKE_IMPORT: 'BulkIntakeImport', // { org }
+  INTAKE_IMPORT_JOB: 'IntakeImportJob', // { orgId, importId, job? }
 
   // Profile
   PERSONAL_INFO: 'PersonalInfo',
+  IDENTITY_VERIFICATION: 'IdentityVerification', // status of the ID check; opens VERIFY_IDENTITY to send one
+  LISTING_PREVIEW: 'ListingPreview', // seller: the listing as buyers will see it
   LANGUAGE: 'Language',
-  PROFILE_SECTION: 'ProfileSection', // placeholder for menu items not built yet
+  WEB_PAGE: 'WebPage', // a page of the Turag website inside the app (help, FAQ, legal)
 
   // Bottom tabs
   MARKET: 'Market',

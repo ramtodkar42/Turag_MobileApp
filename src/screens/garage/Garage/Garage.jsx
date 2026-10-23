@@ -40,19 +40,24 @@ function Garage({ navigation }) {
     setRefreshing(false);
   };
 
-  // The card's action: list it, open its listing, open the vehicle to get it
-  // inspected, or book an inspection.
+  // The card's action (garagePhase.phaseAction): list it, open its listing,
+  // continue / view the self-inspection, book an inspector, or open the vehicle
+  // (where self-inspect / book an inspector live).
   const onAction = useCallback(
     (kind, vehicle) => {
+      const valuation = vehicle.valuationId
+        ? { valuationId: vehicle.valuationId, estimatedValue: vehicle.estimatedValue }
+        : null;
       if (kind === 'list') {
         navigation.navigate(ROUTES.CREATE_LISTING, { vehicle });
       } else if (kind === 'view') {
         navigation.navigate(ROUTES.MY_LISTING, { listingId: vehicle.listingId });
-      } else if (kind === 'open') {
-        // Not inspection-eligible yet: the detail page offers self-inspect / book.
-        navigation.navigate(ROUTES.GARAGE_VEHICLE, { vehicle });
+      } else if (kind === 'resume' || kind === 'summary') {
+        navigation.navigate(ROUTES.SELF_INSPECTION, { inspectionId: vehicle.inspectionId, vehicle, valuation });
+      } else if (kind === 'book') {
+        navigation.navigate(ROUTES.BOOK_APPOINTMENT, { vehicle, valuation });
       } else {
-        navigation.navigate(ROUTES.BOOK_APPOINTMENT, { vehicle });
+        navigation.navigate(ROUTES.GARAGE_VEHICLE, { vehicle });
       }
     },
     [navigation],

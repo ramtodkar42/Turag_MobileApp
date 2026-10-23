@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 import AppText from './AppText';
 import Chevron from './Chevron';
-import { colors, spacing } from '../../theme';
+import { colors, fonts, spacing } from '../../theme';
 import { fs, ms } from '../../utils/responsive';
 
 // One tappable settings row: label, optional value text, and a ">" chevron.
@@ -49,10 +49,12 @@ const styles = StyleSheet.create({
   pressed: {
     backgroundColor: colors.input,
   },
+  // The medium weight (with DejaVu Sans that is its Regular - see fonts.js).
   label: {
     flex: 1,
-    fontSize: fs(13),
-    lineHeight: fs(18),
+    fontFamily: fonts.subtitle.medium,
+    fontSize: fs(15),
+    lineHeight: fs(20),
   },
   value: {
     maxWidth: '45%',

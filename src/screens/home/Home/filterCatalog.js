@@ -34,6 +34,10 @@ export const MAKES = [
   { name: 'Bajaj', bikes: ['Pulsar', 'Platina', 'CT 100', 'Avenger', 'Dominar'] },
   { name: 'Hero', bikes: ['Splendor', 'HF Deluxe', 'Passion', 'Glamour', 'Xtreme'] },
   { name: 'TVS', bikes: ['Apache', 'Raider', 'Jupiter', 'Ntorq', 'XL100'] },
+  { name: 'Yamaha', bikes: ['FZ', 'R15', 'MT-15', 'Fascino', 'RayZR'] },
+  { name: 'Suzuki', bikes: ['Access 125', 'Gixxer', 'Burgman Street', 'Avenis', 'V-Strom SX'] },
+  { name: 'KTM', bikes: ['Duke 200', 'Duke 390', 'RC 200', 'RC 390', 'Adventure 390'] },
+  { name: 'Kawasaki', bikes: ['Ninja 300', 'Ninja 650', 'Z650', 'Z900', 'Versys 650'] },
 ];
 
 // Makes for a vehicle type ('cars' | 'bikes'; anything else = all makes).

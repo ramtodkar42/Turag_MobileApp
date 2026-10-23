@@ -19,6 +19,9 @@ import notifications from './notifications';
 import account from './account';
 import offers from './offers';
 import selling from './selling';
+import payouts from './payouts';
+import business from './business';
+import guest from './guest';
 
 export default {
   ...common,
@@ -41,4 +44,7 @@ export default {
   ...account,
   ...offers,
   ...selling,
+  ...payouts,
+  ...business,
+  ...guest,
 };

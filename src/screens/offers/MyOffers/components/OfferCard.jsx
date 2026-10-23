@@ -1,29 +1,36 @@
 import { memo } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { AppText, Badge, Button, ButtonRow, Card, InfoNote } from '../../../../components';
-import { colors, spacing } from '../../../../theme';
-import { fs } from '../../../../utils/responsive';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { AppText, Badge, Button, ButtonRow, Icon } from '../../../../components';
+import { colors, radius, shadows, spacing } from '../../../../theme';
+import { fs, ms } from '../../../../utils/responsive';
 import { formatINR } from '../../../../utils/format';
 import { timeAgo } from '../../../../utils/date';
 import { useT } from '../../../../i18n';
 import { OFFER_STATUS, ORDER_STATUS } from '../../../account/statuses';
 import { expiresLabel, vehicleName } from '../../offerTime';
 
-// One of the buyer's offers (as on the web's My offers):
-// vehicle, status, the amount on the table (the seller's counter after one),
-// time left, and what the buyer can do now:
+// One of the buyer's offers (as on the web's My offers): vehicle, status, the
+// amount on the table (the seller's counter after one), time left; tap to open
+// it (the offer page: progress, paying the token, transfer documents).
+// Quick answers right here:
 //   COUNTERED: Accept counter / Counter back / Cancel offer
 //   PENDING:   Cancel offer
-//   ACCEPTED:  the order - "Pay the token" step while new, then its status.
+//   ACCEPTED:  the order - "Pay the token" while new, then its status
 // busy: an action on this card is running (its buttons wait).
-function OfferCard({ offer, busy, onAccept, onCounter, onWithdraw, onCancelOrder }) {
+function OfferCard({ offer, busy, onOpen, onAccept, onCounter, onWithdraw }) {
   const t = useT();
   const status = OFFER_STATUS[offer.status] ?? OFFER_STATUS.PENDING;
   const countered = offer.amountBy === 'SELLER';
   const order = offer.order;
+  const orderStatus = order ? ORDER_STATUS[order.status] ?? ORDER_STATUS.CREATED : null;
 
   return (
-    <Card style={styles.card}>
+    <Pressable
+      onPress={() => onOpen(offer)}
+      accessibilityRole="button"
+      accessibilityLabel={`${vehicleName(offer.vehicle, t('offers.offer'))}, ${t(status.labelKey)}`}
+      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+    >
       <View style={styles.top}>
         <AppText variant="title" style={styles.name} numberOfLines={2}>
           {vehicleName(offer.vehicle, t('offers.offer'))}
@@ -48,6 +55,9 @@ function OfferCard({ offer, busy, onAccept, onCounter, onWithdraw, onCancelOrder
             </AppText>
           </View>
         ) : null}
+        <View style={styles.chevron}>
+          <Icon name="chevronRight" size={ms(16)} color={colors.placeholder} />
+        </View>
       </View>
 
       <AppText variant="caption" style={styles.meta}>
@@ -101,38 +111,45 @@ function OfferCard({ offer, busy, onAccept, onCounter, onWithdraw, onCancelOrder
               <AppText variant="subtitle" style={styles.orderLine}>
                 {t('offers.token.accepted', { amount: formatINR(order.agreedPrice) })}
               </AppText>
-              <InfoNote style={styles.orderNote}>{t('offers.token.note')}</InfoNote>
               <Button
-                title={t('offers.cancelOrder')}
-                size="sm"
-                variant="outline"
-                onPress={onCancelOrder}
+                title={t('offers.pay.openToPay')}
+                size="md"
+                onPress={() => onOpen(offer)}
                 disabled={busy}
-                style={styles.single}
+                style={styles.payButton}
               />
             </>
           ) : (
             <View style={styles.orderRow}>
-              {order ? (
-                <Badge
-                  label={t((ORDER_STATUS[order.status] ?? ORDER_STATUS.CREATED).labelKey)}
-                  tone={(ORDER_STATUS[order.status] ?? ORDER_STATUS.CREATED).tone}
-                />
-              ) : null}
+              {orderStatus ? <Badge label={t(orderStatus.labelKey)} tone={orderStatus.tone} /> : null}
               <AppText variant="subtitle">
                 {t('offers.agreedAt', { amount: formatINR(order?.agreedPrice ?? offer.amount) })}
               </AppText>
             </View>
           )}
+          {order?.status === 'TOKEN_PAID' ? (
+            <AppText variant="caption" color={colors.primary} style={styles.orderLine}>
+              {t('offers.transfer.cardHint')}
+            </AppText>
+          ) : null}
         </View>
       ) : null}
-    </Card>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
     marginTop: spacing.md,
+    padding: spacing.lg,
+    borderRadius: radius.lg,
+    backgroundColor: colors.white,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    ...shadows.sm,
+  },
+  pressed: {
+    opacity: 0.94,
   },
   top: {
     flexDirection: 'row',
@@ -147,6 +164,7 @@ const styles = StyleSheet.create({
   },
   amounts: {
     flexDirection: 'row',
+    alignItems: 'flex-end',
     gap: spacing.xl,
     marginTop: spacing.md,
   },
@@ -161,6 +179,10 @@ const styles = StyleSheet.create({
     fontSize: fs(15),
     lineHeight: fs(26),
     color: colors.body,
+  },
+  chevron: {
+    marginLeft: 'auto',
+    marginBottom: ms(4),
   },
   meta: {
     marginTop: spacing.xs,
@@ -190,7 +212,7 @@ const styles = StyleSheet.create({
   orderLine: {
     marginTop: spacing.xxs,
   },
-  orderNote: {
+  payButton: {
     marginTop: spacing.sm,
   },
   orderRow: {

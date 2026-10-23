@@ -8,34 +8,49 @@ import {
   CardListSkeleton,
   FadeIn,
   Header,
+  ListFilterBar,
   ScreenContainer,
   StatusView,
 } from '../../../components';
 import { colors, spacing } from '../../../theme';
 import useRemoteData from '../../../hooks/useRemoteData';
 import useConfirmDialog from '../../../hooks/useConfirmDialog';
-import {
-  acceptOffer,
-  cancelOrder,
-  counterOffer,
-  getMyOffers,
-  withdrawOffer,
-} from '../../../api/services/offer.api';
+import useListFilters from '../../../hooks/useListFilters';
+import { acceptOffer, counterOffer, getMyOffers, withdrawOffer } from '../../../api/services/offer.api';
 import { formatINR } from '../../../utils/format';
 import { ROUTES } from '../../../navigation/routes';
 import { currentHomeRoute } from '../../../navigation/homeRoute';
-import { useT } from '../../../i18n';
+import { tNow, useT } from '../../../i18n';
+import { OFFER_STATUS } from '../../account/statuses';
 import CounterSheet from '../components/CounterSheet';
 import { vehicleName } from '../offerTime';
 import OfferCard from './components/OfferCard';
 
-// The buyer's offers (as the web's My offers), newest first: answer a seller's
-// counter, counter back, cancel an offer, and follow an accepted one's order.
-// Offers are binding for 48 hours.
+const statusLabel = status => tNow((OFFER_STATUS[status] ?? OFFER_STATUS.PENDING).labelKey);
+
+// As the web's My offers toolbar: newest / oldest / highest / lowest amount.
+const SORTS = [
+  { value: 'newest', compare: (a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0) },
+  { value: 'oldest', compare: (a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0) },
+  { value: 'highest', compare: (a, b) => (b.amount ?? 0) - (a.amount ?? 0) },
+  { value: 'lowest', compare: (a, b) => (a.amount ?? 0) - (b.amount ?? 0) },
+];
+
+// The buyer's offers (as the web's My offers), newest first: search, status
+// tabs, a day and the order to narrow them down; answer a seller's counter,
+// counter back, cancel an offer, or open one (its progress, paying the token
+// and the transfer documents). Offers are binding for 48 hours.
 function MyOffers({ navigation }) {
   const t = useT();
   const insets = useSafeAreaInsets();
   const { data, setData, loading, refreshing, error, refresh, reload } = useRemoteData(getMyOffers);
+  const filters = useListFilters(data, {
+    statusOf: o => o.status,
+    searchText: o => [vehicleName(o.vehicle, ''), statusLabel(o.status), o.amount].join(' '),
+    timeOf: o => o.createdAt,
+    sorts: SORTS,
+  });
+  const sortOptions = SORTS.map(s => ({ value: s.value, label: t(`offers.sort.${s.value}`) }));
   const { confirm, dialog } = useConfirmDialog();
   const [busyId, setBusyId] = useState(null);
   const [actionError, setActionError] = useState('');
@@ -70,6 +85,7 @@ function MyOffers({ navigation }) {
         <OfferCard
           offer={item}
           busy={busyId === item.id}
+          onOpen={offer => navigation.navigate(ROUTES.OFFER_DETAILS, { offerId: offer.id })}
           onAccept={() =>
             confirm({
               title: t('offers.confirmAccept.title'),
@@ -88,19 +104,10 @@ function MyOffers({ navigation }) {
               onConfirm: () => run(item, () => withdrawOffer(item.id)),
             })
           }
-          onCancelOrder={() =>
-            confirm({
-              title: t('offers.confirmCancelOrder.title'),
-              message: t('offers.confirmCancelOrder.message'),
-              confirmLabel: t('offers.cancelOrder'),
-              cancelLabel: t('offers.keep'),
-              onConfirm: () => run(item, () => cancelOrder(item.order.id)),
-            })
-          }
         />
       );
     },
-    [busyId, confirm, run, t],
+    [busyId, confirm, navigation, run, t],
   );
 
   const header = <Header onBack={navigation.goBack} title={t('offers.title')} />;
@@ -118,14 +125,26 @@ function MyOffers({ navigation }) {
     body = (
       <FadeIn offset={0} style={styles.flex}>
         <FlatList
-          data={data}
+          data={filters.filtered}
           keyExtractor={item => item.id}
           renderItem={renderItem}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           ListHeaderComponent={
             <>
               <AppText variant="subtitle" style={styles.intro}>
                 {t('offers.intro')}
               </AppText>
+              {data?.length ? (
+                <ListFilterBar
+                  filters={filters}
+                  labelOf={statusLabel}
+                  searchPlaceholder={t('offers.search')}
+                  showDate
+                  sortOptions={sortOptions}
+                  style={styles.filters}
+                />
+              ) : null}
               {actionError ? (
                 <AppText variant="caption" color={colors.danger} style={styles.intro}>
                   {actionError}
@@ -134,6 +153,11 @@ function MyOffers({ navigation }) {
             </>
           }
           ListEmptyComponent={
+            filters.filtering ? (
+              <StatusView title={t('common.filter.noMatch')} message={t('common.filter.noMatchHint')} style={styles.empty}>
+                <Button title={t('common.filter.clear')} size="md" variant="outline" onPress={filters.clear} style={styles.action} />
+              </StatusView>
+            ) : (
             <StatusView title={t('offers.empty.title')} message={t('offers.empty.message')} style={styles.empty}>
               <Button
                 title={t('offers.empty.browse')}
@@ -142,6 +166,7 @@ function MyOffers({ navigation }) {
                 style={styles.action}
               />
             </StatusView>
+            )
           }
           refreshControl={<AppRefreshControl refreshing={refreshing} onRefresh={refresh} />}
           contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, spacing.lg) + spacing.lg }}
@@ -181,6 +206,9 @@ const styles = StyleSheet.create({
   },
   intro: {
     marginTop: spacing.sm,
+  },
+  filters: {
+    marginTop: spacing.md,
   },
   empty: {
     marginTop: spacing.xxl,

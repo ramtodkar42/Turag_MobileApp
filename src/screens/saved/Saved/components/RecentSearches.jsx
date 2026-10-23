@@ -26,7 +26,7 @@ function RecentSearches({ items, onSelect, onClear }) {
         contentContainerStyle={styles.row}
       >
         {items.map(item => (
-          <RecentSearchItem key={item.query} item={item} onPress={onSelect} />
+          <RecentSearchItem key={`${item.filter?.id ?? 'q'}:${item.query}`} item={item} onPress={onSelect} />
         ))}
       </ScrollView>
     </View>

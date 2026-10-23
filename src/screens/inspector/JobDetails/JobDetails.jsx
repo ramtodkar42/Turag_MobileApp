@@ -24,10 +24,12 @@ import { getInspectorJob } from '../../../api/services/inspector.api';
 import { ROUTES } from '../../../navigation/routes';
 import { useT } from '../../../i18n';
 import { BOOKING_STATUS } from '../../account/statuses';
+import { isJobExpired } from '../constants';
 import StartInspection from './components/StartInspection';
 
-// One job (as the web's job page): when and where (with directions), the
-// inspection - start it on site, or continue it - and chat with the customer.
+// One job (as the web's job page): when and where (with directions to the
+// pinned spot), the inspection - start it on site, or continue it; an expired
+// one can't be started (ops must reschedule) - and chat with the customer.
 // params: { bookingId }
 function JobDetails({ navigation, route }) {
   const t = useT();
@@ -62,14 +64,25 @@ function JobDetails({ navigation, route }) {
     );
   }
 
+  const expired = isJobExpired(job);
   const status = BOOKING_STATUS[job.status] ?? BOOKING_STATUS.REQUESTED;
   const kind = t(`account.booking.kind.${job.category === 'TWO_WHEELER' ? 'TWO_WHEELER' : 'PASSENGER'}`);
   const place = [job.address, [job.city, job.pincode].filter(Boolean).join(' ')].filter(Boolean).join(', ');
-  const openCapture = inspectionId =>
-    navigation.navigate(ROUTES.INSPECTION_CAPTURE, { inspectionId, bookingId: job.id });
+  // Where, as the web: the building / flat first, the landmark last.
+  const where = [job.building, place].filter(Boolean).join(', ') + (job.landmark ? ` (${job.landmark})` : '');
+  // Chat stays open until the booking ends (as the web).
+  const chatClosed = job.status === 'CANCELLED' || job.status === 'FULFILLED';
+  let chatHintKey = 'inspector.job.chatHint';
+  if (chatClosed) {
+    chatHintKey = job.status === 'CANCELLED' ? 'inspector.job.chatCancelled' : 'inspector.job.chatDone';
+  }
+  // The shared M1 / M2 capture screen.
+  const openCapture = inspectionId => navigation.navigate(ROUTES.SELF_INSPECTION, { inspectionId, bookingId: job.id });
 
+  // The customer's map pin gets the inspector to the exact doorstep; the text
+  // address only when no pin was set.
   const onDirections = async () => {
-    if (!(await openDirections({ address: place }))) {
+    if (!(await openDirections({ location: job.location, address: place }))) {
       confirm({
         title: t('inspector.accepted.openMapsFailed'),
         message: t('inspector.accepted.openFailedMessage'),
@@ -79,19 +92,48 @@ function JobDetails({ navigation, route }) {
     }
   };
 
+  // As the web: complete, then expired (never started; checked after
+  // complete so a started visit never reads as expired), then in progress
+  // (continue), then assigned (start).
   let inspection;
-  if (job.inspectionId) {
+  if (job.status === 'FULFILLED') {
+    inspection = (
+      <AppText variant="subtitle" style={styles.text}>
+        {t('inspector.job.complete')}
+      </AppText>
+    );
+  } else if (expired && job.status !== 'ON_SITE' && !job.inspectionId) {
+    inspection = (
+      <>
+        <AppText variant="title" style={styles.text}>
+          {t('inspector.job.expiredTitle')}
+        </AppText>
+        <AppText variant="subtitle" style={styles.text}>
+          {t('inspector.job.expiredMessage')}
+        </AppText>
+        <Button
+          title={t('inspector.submitted.back')}
+          size="md"
+          variant="outline"
+          onPress={navigation.goBack}
+          style={styles.button}
+        />
+      </>
+    );
+  } else if (job.status === 'ON_SITE' || job.inspectionId) {
     inspection = (
       <>
         <AppText variant="subtitle" style={styles.text}>
           {t('inspector.job.inProgress')}
         </AppText>
-        <Button
-          title={t('inspector.jobs.continue')}
-          size="md"
-          onPress={() => openCapture(job.inspectionId)}
-          style={styles.button}
-        />
+        {job.inspectionId ? (
+          <Button
+            title={t('inspector.jobs.continue')}
+            size="md"
+            onPress={() => openCapture(job.inspectionId)}
+            style={styles.button}
+          />
+        ) : null}
       </>
     );
   } else if (job.status === 'ASSIGNED') {
@@ -102,12 +144,14 @@ function JobDetails({ navigation, route }) {
           reload();
           openCapture(inspectionId);
         }}
+        // The server says the slot lapsed: reload so the page shows it as expired.
+        onExpired={reload}
       />
     );
   } else {
     inspection = (
       <AppText variant="subtitle" style={styles.text}>
-        {t(job.status === 'FULFILLED' ? 'inspector.job.complete' : 'inspector.job.notStartable')}
+        {t('inspector.job.notStartable')}
       </AppText>
     );
   }
@@ -124,7 +168,10 @@ function JobDetails({ navigation, route }) {
             <AppText variant="h3" style={styles.time}>
               {job.slotAt ? formatSlot(job.slotAt) : '—'}
             </AppText>
-            <Badge label={t(status.labelKey)} tone={status.tone} />
+            <Badge
+              label={expired ? t('inspector.jobs.expiredBadge') : t(status.labelKey)}
+              tone={expired ? 'neutral' : status.tone}
+            />
           </View>
           <AppText variant="label">{t('account.booking.heading', { kind })}</AppText>
         </Card>
@@ -132,7 +179,7 @@ function JobDetails({ navigation, route }) {
         <KeyValueCard
           dense
           rows={[
-            { label: t('account.booking.where'), value: place || '—' },
+            { label: t('account.booking.where'), value: where || '—' },
             { label: t('inspector.job.reference'), value: job.id },
           ]}
           style={styles.card}
@@ -146,7 +193,7 @@ function JobDetails({ navigation, route }) {
           />
         </KeyValueCard>
 
-        {job.category === 'TWO_WHEELER' && !job.inspectionId ? (
+        {job.category === 'TWO_WHEELER' && job.status === 'ASSIGNED' && !job.inspectionId && !expired ? (
           <InfoNote style={styles.card}>{t('inspector.job.twoWheelerNote')}</InfoNote>
         ) : null}
 
@@ -156,13 +203,13 @@ function JobDetails({ navigation, route }) {
 
         <TitledCard title={t('inspector.job.chatTitle')} style={styles.card}>
           <AppText variant="subtitle" style={styles.text}>
-            {t(job.toDo ? 'inspector.job.chatHint' : 'inspector.job.chatClosed')}
+            {t(chatHintKey)}
           </AppText>
           <Button
             title={t('account.booking.chat.open')}
             size="md"
             variant="outline"
-            disabled={!job.toDo}
+            disabled={chatClosed}
             onPress={() => navigation.navigate(ROUTES.BOOKING_CHAT, { bookingId: job.id, withCustomer: true })}
             style={styles.button}
           />

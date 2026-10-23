@@ -6,6 +6,7 @@ import { colors, radius, shadows, spacing } from '../../../theme';
 import { fs, ms } from '../../../utils/responsive';
 import { useT } from '../../../i18n';
 import { toggleSaved, useIsSaved } from '../../../store/savedStore';
+import { requireLogin } from '../../../store/loginPromptStore';
 
 const ROUND = ms(40);
 
@@ -52,7 +53,7 @@ function VehicleGallery({ vehicle, onBack, loading = false, showTabs = true, sty
         }
         topRight={
           <IconButton
-            onPress={() => toggleSaved(vehicle)}
+            onPress={() => requireLogin('save') && toggleSaved(vehicle)}
             size={ROUND}
             backgroundColor={colors.white}
             accessibilityLabel={t(saved ? 'common.removeFromSaved' : 'common.saveVehicle')}

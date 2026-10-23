@@ -8,6 +8,7 @@ import {
   ButtonRow,
   Card,
   CardListSkeleton,
+  EyeIcon,
   FadeIn,
   Header,
   InfoNote,
@@ -17,12 +18,12 @@ import {
   TitledCard,
 } from '../../../components';
 import { colors, spacing } from '../../../theme';
-import { fs } from '../../../utils/responsive';
+import { fs, ms } from '../../../utils/responsive';
 import { formatINR } from '../../../utils/format';
 import { timeAgo } from '../../../utils/date';
 import useRemoteData from '../../../hooks/useRemoteData';
 import useConfirmDialog from '../../../hooks/useConfirmDialog';
-import { acceptOffer, counterOffer, declineOffer } from '../../../api/services/offer.api';
+import { acceptOffer, counterOffer, declineOffer, handoverOrder } from '../../../api/services/offer.api';
 import {
   getMyListing,
   submitListing,
@@ -30,15 +31,18 @@ import {
   withdrawListing,
 } from '../../../api/services/sellerListing.api';
 import { loadGarage } from '../../../store/garageStore';
+import { ROUTES } from '../../../navigation/routes';
 import { useT } from '../../../i18n';
 import CounterSheet from '../../offers/components/CounterSheet';
+import TransferChecklist from '../../offers/components/TransferChecklist';
 import { LISTING_STATUS, ORDER_STEPS } from '../../account/statuses';
 import ReceivedOfferRow from './components/ReceivedOfferRow';
 
 // The seller's own listing (My listings, a new listing, offer notifications),
 // as the web's listing page: status, asking price (change it while draft /
 // live), Submit for review (draft), Withdraw, the offers it received -
-// Accept / Counter / Decline - and, once one is accepted, the order's progress.
+// Accept / Counter / Decline - and, once one is accepted, the order's progress;
+// after the buyer pays the token: the transfer forms and "Confirm handover".
 // params: { listingId }
 function MyListing({ navigation, route }) {
   const t = useT();
@@ -53,6 +57,8 @@ function MyListing({ navigation, route }) {
   const [countering, setCountering] = useState(null);
   const [editingPrice, setEditingPrice] = useState(false);
   const [listingBusy, setListingBusy] = useState(null); // 'submit' | 'withdraw'
+  const [transferReady, setTransferReady] = useState(false);
+  const [handingOver, setHandingOver] = useState(false);
 
   // Runs a change to the listing itself; the updated listing replaces the old.
   const changeListing = async (kind, action) => {
@@ -121,6 +127,27 @@ function MyListing({ navigation, route }) {
   const name = [listing.vehicle.make, listing.vehicle.model, listing.vehicle.year].filter(Boolean).join(' ');
   const accepted = offers.find(o => o.status === 'ACCEPTED' && o.order);
   const order = accepted?.order;
+
+  const onHandover = () =>
+    confirm({
+      title: t('selling.handover.confirmTitle'),
+      message: t('selling.handover.confirmMessage', { amount: formatINR(order.agreedPrice) }),
+      confirmLabel: t('selling.handover.button'),
+      cancelLabel: t('offers.keep'),
+      onConfirm: async () => {
+        setHandingOver(true);
+        setActionError('');
+        try {
+          await handoverOrder(order.id);
+          loadGarage();
+        } catch (e) {
+          setActionError(e.message || t('offers.error.action'));
+        } finally {
+          await reload();
+          setHandingOver(false);
+        }
+      },
+    });
 
   const onWithdraw = () =>
     confirm({
@@ -207,6 +234,15 @@ function MyListing({ navigation, route }) {
               .filter(Boolean)
               .join(' · ')}
           </AppText>
+          {/* As the web: what buyers will see (the card, the note, the report). */}
+          <Button
+            title={t('selling.preview.open')}
+            size="sm"
+            variant="outline"
+            leftIcon={<EyeIcon size={ms(15)} color={colors.primary} />}
+            onPress={() => navigation.navigate(ROUTES.LISTING_PREVIEW, { listing })}
+            style={styles.preview}
+          />
         </Card>
 
         {listing.status === 'REJECTED' ? (
@@ -284,12 +320,33 @@ function MyListing({ navigation, route }) {
                   currentStep={Math.max(0, ORDER_STEPS.indexOf(order.status))}
                   style={styles.timeline}
                 />
-                <InfoNote style={styles.orderNote}>
-                  {t(order.status === 'CREATED' ? 'selling.order.waitingToken' : 'selling.order.nextSteps')}
-                </InfoNote>
+                {order.status === 'CREATED' ? (
+                  <InfoNote style={styles.orderNote}>{t('selling.order.waitingToken')}</InfoNote>
+                ) : null}
               </>
             )}
           </TitledCard>
+        ) : null}
+
+        {/* Token paid: the seller provides the transfer forms, then confirms
+            handover (as the web: only once Forms 29 / 30 are in). */}
+        {order && order.status !== 'CREATED' && order.status !== 'CANCELLED' ? (
+          <Card style={styles.card}>
+            <TransferChecklist orderId={order.id} role="SELLER" onReadyChange={setTransferReady} />
+            {order.status === 'TOKEN_PAID' ? (
+              <View style={styles.handover}>
+                <Button
+                  title={t(handingOver ? 'selling.handover.confirming' : 'selling.handover.button')}
+                  onPress={onHandover}
+                  loading={handingOver}
+                  disabled={!transferReady || handingOver}
+                />
+                <AppText variant="caption" align="center">
+                  {t(transferReady ? 'selling.handover.ready' : 'selling.handover.needForms')}
+                </AppText>
+              </View>
+            ) : null}
+          </Card>
         ) : null}
 
         {actionError ? (
@@ -352,6 +409,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: spacing.sm,
   },
+  preview: {
+    marginTop: spacing.md,
+    alignSelf: 'flex-start',
+  },
   liveNote: {
     marginTop: spacing.xxs,
   },
@@ -379,6 +440,10 @@ const styles = StyleSheet.create({
   },
   orderNote: {
     marginTop: spacing.sm,
+  },
+  handover: {
+    marginTop: spacing.lg,
+    gap: spacing.sm,
   },
   action: {
     marginTop: spacing.lg,

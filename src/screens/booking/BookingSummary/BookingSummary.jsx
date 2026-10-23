@@ -30,7 +30,13 @@ function BookingSummary({ navigation, route }) {
   const detailRows = [
     // No vehicle picked (booked from My inspections): its type instead.
     ...(vehicle ? [] : [{ label: t('booking.summary.vehicle'), value: t(`booking.category.${category}`) }]),
-    ...scheduleRows({ time: slot.time, place: placeText(address.area, address.city), t, language }),
+    ...scheduleRows({
+      time: slot.time,
+      place: placeText([address.building, address.address].filter(Boolean).join(', '), address.city),
+      t,
+      language,
+    }),
+    ...(address.landmark ? [{ label: t('booking.summary.landmark'), value: address.landmark }] : []),
     { label: t('booking.summary.ready'), value: ready.length ? ready.join(', ') : '—' },
   ];
 

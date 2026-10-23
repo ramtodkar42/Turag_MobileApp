@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { StyleSheet } from 'react-native';
 import {
   AppRefreshControl,
@@ -15,6 +15,7 @@ import {
 } from '../../../components';
 import { colors, spacing } from '../../../theme';
 import { cityLabel } from '../../../utils/address';
+import { formatINR } from '../../../utils/format';
 import useRemoteData from '../../../hooks/useRemoteData';
 import useConfirmDialog from '../../../hooks/useConfirmDialog';
 import { cancelMyBooking, getMyBooking } from '../../../api/services/booking.api';
@@ -24,18 +25,33 @@ import { BOOKING_STATUS, BOOKING_STEPS } from '../statuses';
 import ActionPanel from './components/ActionPanel';
 import BookingHero from './components/BookingHero';
 import InspectionDetailsCard from './components/InspectionDetailsCard';
+import usePayAgain from './usePayAgain';
+
+// Fee still to pay (as the web's booking page): not paid, and not over.
+const PAYABLE_UNTIL = new Set(['CANCELLED', 'FULFILLED']);
 
 // A booked doorstep inspection (opened from its notifications), same as the
-// web's booking page: status, when / where / fee, progress, the report once
-// it's ready, chat with the inspector, and Cancel while it's still allowed.
-// params: { bookingId }
+// web's booking page: status, when / where / fee, "Pay now" while the fee is
+// unpaid, progress, the report once it's ready, chat with the inspector, and
+// Cancel while it's still allowed.
+// params: { bookingId, booking? } - `booking` is the one just paid for when the
+// payment wasn't confirmed yet (the backend doesn't list unpaid bookings).
 function BookingDetails({ navigation, route }) {
   const t = useT();
-  const { bookingId } = route.params;
+  const { bookingId, booking: passed } = route.params;
+  const load = useCallback(async () => {
+    try {
+      return await getMyBooking(bookingId);
+    } catch (e) {
+      if (e?.code === 'BOOKING_NOT_FOUND' && passed?.id === bookingId) return passed;
+      throw e;
+    }
+  }, [bookingId, passed]);
   const { data: booking, setData, loading, refreshing, error, errorCode, refresh, reload } =
-    useRemoteData(() => getMyBooking(bookingId), [bookingId]);
+    useRemoteData(load, [bookingId]);
   const { confirm, dialog } = useConfirmDialog();
   const [actionError, setActionError] = useState('');
+  const payment = usePayAgain({ booking, onPaid: reload });
 
   const header = <Header onBack={navigation.goBack} title={t('account.booking.title')} />;
 
@@ -67,12 +83,14 @@ function BookingDetails({ navigation, route }) {
 
   const status = BOOKING_STATUS[booking.status] ?? BOOKING_STATUS.REQUESTED;
   const cancelled = booking.status === 'CANCELLED';
+  const payable = !booking.feePaid && !PAYABLE_UNTIL.has(booking.status);
   const kind = t(`account.booking.kind.${booking.category === 'TWO_WHEELER' ? 'TWO_WHEELER' : 'PASSENGER'}`);
-  // "Apollo Clinic, Viman Nagar, Pune - 411001"
+  // "Flat 402, Sunshine Society, Viman Nagar, Pune - 411001 (near X Mall)", as the web's receipt.
   const city = booking.cityCode ? cityLabel(booking.cityCode) : booking.city;
-  const place = [booking.address, [city, booking.pincode].filter(Boolean).join(' - ')]
-    .filter(Boolean)
-    .join(', ');
+  const place =
+    [booking.building, booking.address, [city, booking.pincode].filter(Boolean).join(' - ')]
+      .filter(Boolean)
+      .join(', ') + (booking.landmark ? ` (${booking.landmark})` : '');
 
   const onCancel = () =>
     confirm({
@@ -125,6 +143,35 @@ function BookingDetails({ navigation, route }) {
           onViewReceipt={() => navigation.navigate(ROUTES.BOOKING_RECEIPT, { booking })}
           style={styles.card}
         />
+
+        {payable ? (
+          <ActionPanel
+            icon="rupee"
+            title={t('account.booking.pay.title')}
+            text={t('account.booking.pay.text')}
+            button={{
+              title: payment.busy
+                ? t('account.booking.pay.paying')
+                : payment.failed
+                ? t('account.booking.pay.retry')
+                : t('account.booking.pay.button', { amount: booking.price != null ? formatINR(booking.price) : '' }),
+              loading: payment.busy,
+              onPress: payment.pay,
+            }}
+            style={styles.card}
+          >
+            {payment.note ? (
+              <AppText
+                variant="caption"
+                color={payment.note.tone === 'error' ? colors.danger : colors.body}
+                style={styles.payNote}
+                accessibilityLiveRegion="polite"
+              >
+                {payment.note.text}
+              </AppText>
+            ) : null}
+          </ActionPanel>
+        ) : null}
 
         {cancelled ? (
           <InfoNote style={styles.card}>{t('account.booking.cancelledNote')}</InfoNote>
@@ -188,6 +235,9 @@ const styles = StyleSheet.create({
   },
   action: {
     marginTop: spacing.lg,
+  },
+  payNote: {
+    marginTop: spacing.sm,
   },
 });
 

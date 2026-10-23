@@ -8,6 +8,7 @@ const storage = createAsyncStorage('turag-prefs');
 const KEYS = {
   INSTALLED: 'installed', // set on the first launch after install
   INTRO_SEEN: 'introSeen', // the intro slides were finished or skipped
+  GUEST: 'guestBrowsing', // chose "Browse cars without login": open on the marketplace
 };
 
 // A failed read counts as "not set" and a failed write is ignored: at worst
@@ -56,6 +57,9 @@ export const removePref = async key => {
 
 export const hasSeenIntro = () => isSet(KEYS.INTRO_SEEN);
 export const markIntroSeen = () => set(KEYS.INTRO_SEEN);
+
+export const hasChosenGuest = () => isSet(KEYS.GUEST);
+export const markGuestChosen = () => set(KEYS.GUEST);
 
 // True only on the first launch after (re)installing the app, then marked.
 // If storage can't be read at all, it's treated as NOT a fresh install, so a

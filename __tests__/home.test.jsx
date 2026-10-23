@@ -81,11 +81,18 @@ test('mock API filters by category, search and chip filters', async () => {
   expect(gradeA.items.map(v => v.grade)).toEqual(['A', 'A']);
 });
 
-// The search button opens the search bar; returns its text field.
-const openSearch = async root => {
-  const button = root.findAll(n => n.props.accessibilityLabel === 'Search vehicles' && n.props.onPress)[0];
-  await act(async () => button.props.onPress());
-  return root.findAll(n => n.props.placeholder === 'Search Car' && n.props.onChangeText)[0];
+// A search made on the search screen comes back to Home as { query } (the
+// search screen's own tests are in search.test.jsx). Returns the navigation.
+const searchFor = async text => {
+  const navigation = { navigate: jest.fn(), setParams: jest.fn() };
+  await act(async () =>
+    tree.update(
+      <SafeAreaProvider initialMetrics={metrics}>
+        <Home navigation={navigation} route={{ params: { query: text } }} />
+      </SafeAreaProvider>,
+    ),
+  );
+  return navigation;
 };
 
 const tab = (root, label) =>
@@ -113,13 +120,9 @@ test('Home shows placeholders first, then all vehicles, then filters by category
   expect(cardTitles(root)).toEqual(['Yamaha RX 100']);
 });
 
-test('Commercial tab says Coming soon without loading anything', async () => {
+test('No Commercial tab until the marketplace lists commercial vehicles', async () => {
   const root = await renderHome();
-  await act(async () => tab(root, 'Commercial').props.onPress());
-  await settle();
-
-  expect(cardTitles(root)).toEqual([]);
-  expect(root.findAll(n => n.props.title === 'Coming soon').length).toBeGreaterThan(0);
+  expect(tab(root, 'Commercial')).toBeUndefined();
 });
 
 // Quick filters: the pill for a filter (by its name), and picking an option
@@ -258,8 +261,7 @@ test('Make -> Model: models are only the chosen make\'s; Car / Bike narrows make
 
 test('All tab: no matches just says so, without Clear filters', async () => {
   const root = await renderHome();
-  const search = await openSearch(root);
-  await act(async () => search.props.onChangeText('Lamborghini'));
+  await searchFor('Lamborghini');
   await settle();
 
   expect(cardTitles(root)).toEqual([]);
@@ -271,8 +273,7 @@ test('A specific tab with no matches offers Clear filters, which brings the vehi
   const root = await renderHome();
   await act(async () => tab(root, 'Cars').props.onPress());
   await settle();
-  const search = await openSearch(root);
-  await act(async () => search.props.onChangeText('Lamborghini'));
+  await searchFor('Lamborghini');
   await settle();
 
   expect(cardTitles(root)).toEqual([]);
@@ -325,24 +326,40 @@ test('After 30 s a revisited tab is re-checked quietly, keeping the cards on scr
 
 test('Search shows that it is searching until the results arrive', async () => {
   const root = await renderHome();
-  const search = await openSearch(root);
   const status = () => root.findAll(n => n.props.children === 'Searching for "hyundai"...').length > 0;
-  await act(async () => search.props.onChangeText('hyundai'));
+  await searchFor('hyundai');
   expect(status()).toBe(true);
+  // Smooth: the cards on screen stay (veiled) until the results arrive - no placeholders.
+  await act(async () => {
+    jest.advanceTimersByTime(400); // past the typing pause, the request on its way
+  });
+  expect(root.findAllByType(VehicleGridSkeleton)).toHaveLength(0);
+  expect(cardTitles(root)).toHaveLength(8);
   await settle();
   expect(status()).toBe(false);
   expect(cardTitles(root).length).toBeGreaterThan(0);
 });
 
-test('Search: hidden until the search button; closing it clears the search', async () => {
+test('Search: the button opens the search screen; a search shows here and the X clears it', async () => {
   const root = await renderHome();
   const field = () => root.findAll(n => n.props.placeholder === 'Search Car' && n.props.onChangeText)[0];
   expect(field()).toBeUndefined();
 
-  const search = await openSearch(root);
-  await act(async () => search.props.onChangeText('Lamborghini'));
+  const navigation = await searchFor('');
+  const button = root.findAll(n => n.props.accessibilityLabel === 'Search vehicles' && n.props.onPress)[0];
+  await act(async () => button.props.onPress());
+  expect(navigation.navigate).toHaveBeenCalledWith('Search', { vehicle: null });
+
+  await searchFor('Lamborghini');
   await settle();
+  expect(field().props.value).toBe('Lamborghini');
   expect(cardTitles(root)).toEqual([]);
+
+  // Deleting every letter keeps the bar open (it doesn't vanish while typing).
+  await act(async () => field().props.onChangeText(''));
+  expect(field()).toBeDefined();
+  await act(async () => field().props.onChangeText('Lamborghini'));
+  await settle();
 
   const close = root.findAll(n => n.props.accessibilityLabel === 'Close search' && n.props.onPress)[0];
   await act(async () => close.props.onPress());

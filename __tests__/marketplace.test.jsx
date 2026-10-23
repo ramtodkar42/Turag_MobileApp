@@ -14,6 +14,7 @@ import {
 } from '../src/components';
 import { clearSaved, isSaved } from '../src/store/savedStore';
 import { getVehicleDetails } from '../src/api/services/vehicle.api';
+import { clearUser, setUser } from '../src/store/userStore';
 import { ROUTES } from '../src/navigation/routes';
 
 const metrics = {
@@ -45,6 +46,10 @@ const button = (root, title) => root.findAllByType(Button).find(b => b.props.tit
 const hasText = (root, text) =>
   root.findAll(n => typeof n.type === 'string' && [].concat(n.props.children).join('') === text).length > 0;
 
+// Signed in (a guest gets the login prompts instead - see guest.test.jsx).
+beforeEach(() => setUser({ fullName: 'Test User', role: 'individual' }));
+afterEach(() => clearUser());
+
 beforeEach(() => {
   jest.useFakeTimers();
   act(() => clearSaved());
@@ -62,9 +67,10 @@ test('Vehicle page shows details, bookmark saves it, Make an offer opens the off
   );
   await advance(400);
 
-  // Name, then year • fuel • city; the details as tiles; the inspection banner.
+  // Name, then year • fuel, then where it is; the details as tiles; the inspection banner.
   expect(hasText(root, 'KIA Seltos')).toBe(true);
-  expect(hasText(root, '2023 • Petrol • Pune')).toBe(true);
+  expect(hasText(root, '2023 • Petrol')).toBe(true);
+  expect(hasText(root, 'Pune')).toBe(true);
   const tiles = root.findAll(n => n.type?.name === 'SpecGrid')[0].props.rows.map(r => [r.label, r.value]);
   expect(tiles).toEqual([
     ['Vehicle type', 'Four Wheeler'],

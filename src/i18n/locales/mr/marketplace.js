@@ -118,4 +118,13 @@ export default {
   'marketplace.colour.BEIGE': 'बेज',
   'marketplace.colour.GOLD': 'सोनेरी',
   'marketplace.colour.MAROON': 'मरून',
+  'marketplace.tier.PREMIUM': 'Turag प्रीमियम',
+  'marketplace.tier.ASSURED': 'Turag ॲश्युअर्ड',
+  'marketplace.tier.BUDGET': 'Turag बजेट',
+  'marketplace.tier.short.PREMIUM': 'प्रीमियम',
+  'marketplace.tier.short.ASSURED': 'ॲश्युअर्ड',
+  'marketplace.tier.short.BUDGET': 'बजेट',
+  'marketplace.tier.note.PREMIUM': 'Turag Verified तपासणी, ग्रेड A किंवा A+, कंडिशन स्कोर 8.5/10 किंवा जास्त, आणि मागणी किंमत Rs 10 लाख किंवा जास्त.',
+  'marketplace.tier.note.ASSURED': 'Turag Verified तपासणी, ग्रेड B किंवा चांगला, कंडिशन स्कोर 7/10 किंवा जास्त.',
+  'marketplace.tier.note.BUDGET': 'व्हेरिफाइड विक्रेत्याने लिस्ट केले. अजून ग्रेड B आणि 7/10 किंवा जास्तसह Turag Verified नाही.',
 };

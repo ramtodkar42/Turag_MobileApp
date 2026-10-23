@@ -7,10 +7,11 @@ import { useT } from '../../../../i18n';
 // Bigger counts show as "9+" (as on the web).
 const MAX_BADGE = 9;
 const BUTTON = ms(42);
-const LOGO_WIDTH = ms(78);
+const LOGO_WIDTH = ms(68);
 
 // TURAG logo + "Hello Name" + location; round search and notification buttons
 // (the bell with the unread count). searchOpen: the search bar is showing.
+// (The language picker is the first pill of the filter row - LanguagePill.)
 function HomeHeader({ name, location, unreadCount = 0, searchOpen, onSearchPress, onNotificationsPress }) {
   const t = useT();
   return (

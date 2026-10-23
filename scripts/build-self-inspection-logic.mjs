@@ -58,6 +58,7 @@ export { buildItemLabelMap, humanizeSubmitError, resolveShotDisplayName } from '
 export { explainIntegrityFailure } from '@/lib/integrity-reasons';
 export { buildFinalValuationRequest, selectFinalValuationCard } from '@/lib/final-valuation-card';
 export { COSMETIC_AREAS, COSMETIC_SEVERITIES } from '@/lib/condition';
+export { dhashGrayscale, findNearDuplicate, NEAR_DUPLICATE_DISTANCE } from '@/lib/photo-dhash';
 export { PANEL_GROUPS, PANEL_LABELS } from '@turag/core/pricing';
 `;
 

@@ -8,24 +8,41 @@ import {
   CardListSkeleton,
   FadeIn,
   Header,
+  ListFilterBar,
   ScreenContainer,
   StatusView,
 } from '../../../components';
 import { colors, spacing } from '../../../theme';
 import useRemoteData from '../../../hooks/useRemoteData';
 import useConfirmDialog from '../../../hooks/useConfirmDialog';
+import useListFilters from '../../../hooks/useListFilters';
 import { cancelMyBooking, getMyBookings } from '../../../api/services/booking.api';
 import { ROUTES } from '../../../navigation/routes';
-import { useT } from '../../../i18n';
+import { tNow, useT } from '../../../i18n';
+import { BOOKING_STATUS } from '../statuses';
 import BookingRow from './components/BookingRow';
 
+const statusLabel = status => tNow((BOOKING_STATUS[status] ?? BOOKING_STATUS.REQUESTED).labelKey);
+
+// What a search looks in (as the web): type, city, pincode, booking id, status, address.
+const searchText = b =>
+  [
+    tNow(`account.booking.kind.${b.category === 'TWO_WHEELER' ? 'TWO_WHEELER' : 'PASSENGER'}`),
+    b.city,
+    b.pincode,
+    b.id,
+    statusLabel(b.status),
+    b.address,
+  ].join(' ');
+
 // My inspections (Profile), as the web's list: every doorstep booking, newest
-// first, with its status; open one, view its report, cancel while allowed,
-// or book a new one.
+// first, with its status; search, status tabs and a day to narrow it down;
+// open one, view its report, cancel while allowed, or book a new one.
 function MyBookings({ navigation }) {
   const t = useT();
   const insets = useSafeAreaInsets();
   const { data, setData, loading, refreshing, error, refresh, reload } = useRemoteData(getMyBookings);
+  const filters = useListFilters(data, { statusOf: b => b.status, searchText, timeOf: b => b.slotAt });
   const { confirm, dialog } = useConfirmDialog();
   const [busyId, setBusyId] = useState(null);
   const [actionError, setActionError] = useState('');
@@ -81,14 +98,25 @@ function MyBookings({ navigation }) {
     body = (
       <FadeIn offset={0} style={styles.flex}>
         <FlatList
-          data={data}
+          data={filters.filtered}
           keyExtractor={item => item.id}
           renderItem={renderItem}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           ListHeaderComponent={
             <>
               <AppText variant="subtitle" style={styles.intro}>
                 {t('account.list.subtitle')}
               </AppText>
+              {data?.length ? (
+                <ListFilterBar
+                  filters={filters}
+                  labelOf={statusLabel}
+                  searchPlaceholder={t('account.list.search')}
+                  showDate
+                  style={styles.filters}
+                />
+              ) : null}
               {actionError ? (
                 <AppText variant="caption" color={colors.danger} style={styles.intro}>
                   {actionError}
@@ -97,7 +125,13 @@ function MyBookings({ navigation }) {
             </>
           }
           ListEmptyComponent={
-            <StatusView title={t('account.list.empty.title')} message={t('account.list.empty.message')} style={styles.empty} />
+            filters.filtering ? (
+              <StatusView title={t('common.filter.noMatch')} message={t('common.filter.noMatchHint')} style={styles.empty}>
+                <Button title={t('common.filter.clear')} size="md" variant="outline" onPress={filters.clear} style={styles.action} />
+              </StatusView>
+            ) : (
+              <StatusView title={t('account.list.empty.title')} message={t('account.list.empty.message')} style={styles.empty} />
+            )
           }
           refreshControl={<AppRefreshControl refreshing={refreshing} onRefresh={refresh} />}
           contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, spacing.lg) + spacing.lg }}
@@ -129,6 +163,9 @@ const styles = StyleSheet.create({
   },
   intro: {
     marginTop: spacing.sm,
+  },
+  filters: {
+    marginTop: spacing.md,
   },
   empty: {
     marginTop: spacing.xxl,

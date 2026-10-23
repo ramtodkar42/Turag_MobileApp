@@ -5,7 +5,7 @@ import { colors, fonts, radius, spacing } from '../../../../theme';
 import { fs, ms } from '../../../../utils/responsive';
 import { useT } from '../../../../i18n';
 import { isDocumentItem } from '../../../../vendor/selfInspectionLogic';
-import IdentityExtractCard from '../../../inspector/Capture/identity/IdentityExtractCard';
+import IdentityExtractCard from '../identity/IdentityExtractCard';
 import { slotKey, uploadKindFor } from '../useSelfInspection';
 import { itemName } from '../labels';
 import { DETAIL_ITEM_CODES } from '../constants';

@@ -8,23 +8,47 @@ import { useT } from '../../../../i18n';
 import { BOOKING_STATUS } from '../../../account/statuses';
 
 // One job (as the web's job board card): time, status, vehicle type,
-// address and pincode. Tapping opens the job.
-function JobCard({ job, onPress }) {
+// address and pincode. Tapping opens the job. expired: the slot passed before
+// it was started - reads "Expired", no Open (ops must reschedule); it can
+// still be opened to read it and chat.
+function JobCard({ job, expired = false, onPress }) {
   const t = useT();
   const status = BOOKING_STATUS[job.status] ?? BOOKING_STATUS.REQUESTED;
   const kind = t(`account.booking.kind.${job.category === 'TWO_WHEELER' ? 'TWO_WHEELER' : 'PASSENGER'}`);
+
+  let action = null;
+  if (expired) {
+    action = (
+      <AppText variant="caption" color={colors.body} numberOfLines={2} style={styles.expiredNote}>
+        {t('inspector.jobs.expiredHint')}
+      </AppText>
+    );
+  } else if (job.toDo) {
+    action = (
+      <View style={styles.open}>
+        <AppText variant="label" color={colors.primary}>
+          {t(job.inspectionId ? 'inspector.jobs.continue' : 'inspector.jobs.open')}
+        </AppText>
+        <Icon name="chevronRight" size={ms(14)} color={colors.primary} />
+      </View>
+    );
+  }
 
   return (
     <Pressable
       onPress={() => onPress(job)}
       accessibilityRole="button"
-      style={({ pressed }) => [styles.card, !job.toDo && styles.past, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.card, (!job.toDo || expired) && styles.past, pressed && styles.pressed]}
     >
       <View style={styles.top}>
         <AppText variant="h3" style={styles.time}>
           {job.slotAt ? formatSlot(job.slotAt) : '—'}
         </AppText>
-        <Badge label={t(status.labelKey)} tone={status.tone} size="sm" />
+        <Badge
+          label={expired ? t('inspector.jobs.expiredBadge') : t(status.labelKey)}
+          tone={expired ? 'neutral' : status.tone}
+          size="sm"
+        />
       </View>
       <AppText variant="label" color={colors.heading} style={styles.kind}>
         {t('account.booking.heading', { kind })}
@@ -38,14 +62,7 @@ function JobCard({ job, onPress }) {
         <AppText variant="caption" numberOfLines={1} style={styles.flex}>
           {job.id}
         </AppText>
-        {job.toDo ? (
-          <View style={styles.open}>
-            <AppText variant="label" color={colors.primary}>
-              {t(job.inspectionId ? 'inspector.jobs.continue' : 'inspector.jobs.open')}
-            </AppText>
-            <Icon name="chevronRight" size={ms(14)} color={colors.primary} />
-          </View>
-        ) : null}
+        {action}
       </View>
     </Pressable>
   );
@@ -89,6 +106,10 @@ const styles = StyleSheet.create({
   },
   flex: {
     flex: 1,
+  },
+  expiredNote: {
+    flexShrink: 1,
+    textAlign: 'right',
   },
   open: {
     flexDirection: 'row',

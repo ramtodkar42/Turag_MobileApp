@@ -1,0 +1,33 @@
+// Browsing without an account: Login's "browse" link, the "Log in to
+// continue" sheet and the guest view of the account tabs.
+export default {
+  'guest.browse': 'लॉगिन न करता कार पहा',
+  'guest.logIn': 'लॉग इन किंवा साइन अप करा',
+  'guest.notNow': 'आत्ता नको',
+
+  'guest.prompt.title': 'पुढे जाण्यासाठी लॉग इन करा',
+  'guest.prompt.save': 'आवडलेल्या कार सेव्ह करण्यासाठी आणि त्या कधीही सेव्हडमध्ये पाहण्यासाठी लॉग इन करा.',
+  'guest.prompt.offer': 'या कारवर ऑफर देण्यासाठी लॉग इन करा.',
+  'guest.prompt.notifications': 'तुमच्या ऑफर, तपासणी आणि लिस्टिंगचे अपडेट मिळवण्यासाठी लॉग इन करा.',
+  'guest.prompt.evaluate': 'TURAG.AI सह तुमच्या वाहनाची किंमत जाणून घेण्यासाठी लॉग इन करा.',
+  'guest.prompt.default': 'ही सुविधा वापरण्यासाठी लॉग इन करा.',
+
+  'guest.garage.title': 'तुमची वाहने, एकाच ठिकाणी',
+  'guest.garage.message': 'तुमची वाहने जोडण्यासाठी, त्यांची किंमत जाणून घेण्यासाठी, तपासणी बुक करण्यासाठी आणि ती Turag वर विकण्यासाठी लॉग इन करा.',
+  'guest.saved.title': 'आवडलेल्या कार सेव्ह करा',
+  'guest.saved.message': 'कार सेव्ह करण्यासाठी आणि त्या कधीही पुन्हा पाहण्यासाठी लॉग इन करा.',
+  'guest.personalInfo.title': 'तुमची प्रोफाइल',
+  'guest.personalInfo.message': 'तुमचे नाव, मोबाइल नंबर आणि ईमेल पाहण्यासाठी आणि बदलण्यासाठी लॉग इन करा.',
+  'guest.bookings.title': 'तुमच्या तपासण्या',
+  'guest.bookings.message': 'तुमच्या वाहनासाठी घरपोच तपासणी बुक करण्यासाठी आणि ती इथे ट्रॅक करण्यासाठी लॉग इन करा.',
+  'guest.offers.title': 'तुमच्या ऑफर',
+  'guest.offers.message': 'आवडलेल्या कारवर ऑफर देण्यासाठी आणि प्रत्येक ऑफर इथे पाहण्यासाठी लॉग इन करा.',
+  'guest.listings.title': 'तुमच्या लिस्टिंग',
+  'guest.listings.message': 'तुमचे वाहन Turag वर विक्रीसाठी लिस्ट करण्यासाठी आणि ते इथे सांभाळण्यासाठी लॉग इन करा.',
+  'guest.verification.title': 'तुमची ओळख पडताळा',
+  'guest.verification.message': 'सरकारी ओळखपत्राने तुमची ओळख पडताळण्यासाठी लॉग इन करा. यामुळे तपासणी आणि व्यवहारांमध्ये विश्वास वाढतो.',
+  'guest.settlements.title': 'तुमची देयके',
+  'guest.settlements.message': 'Turag वर विकलेल्या वाहनांसाठी तुम्हाला मिळालेले पैसे पाहण्यासाठी लॉग इन करा.',
+  'guest.payouts.title': 'तुमच्या विक्रीचे पैसे मिळवा',
+  'guest.payouts.message': 'Turag तुमच्या विक्रीचे पैसे ज्या बँक खात्यात पाठवते ते जोडण्यासाठी लॉग इन करा.',
+};

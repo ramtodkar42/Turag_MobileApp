@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 
 // Tiny app-wide store for the signed-up user (no library needed).
-// Shape: { fullName, contact (mobile), email, photo: { uri, ... } | null, role } | null
+// Shape: { fullName, contact (mobile), email, avatarUrl (the account photo) | null, role } | null
 let user = null;
 const listeners = new Set();
 
@@ -23,6 +23,11 @@ export const clearUser = () => {
 };
 
 export const useUser = () => useSyncExternalStore(subscribe, getUser);
+
+// Signed in, or browsing as a guest (no account yet): guests can browse the
+// marketplace; anything that needs an account asks them to log in first.
+export const isSignedIn = () => !!user;
+export const useSignedIn = () => useSyncExternalStore(subscribe, isSignedIn);
 
 
 

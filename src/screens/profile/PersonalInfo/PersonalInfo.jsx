@@ -1,12 +1,14 @@
-import { ActivityIndicator, StyleSheet } from 'react-native';
+import { ActivityIndicator, StyleSheet, Switch } from 'react-native';
 import { AppText, Badge, Header, KeyValueCard, ScreenContainer } from '../../../components';
 import { colors, spacing } from '../../../theme';
 import { fs } from '../../../utils/responsive';
 import { useUser } from '../../../store/userStore';
 import { ROLES } from '../../../constants/roles';
 import { LANGUAGES, useLanguage, useT } from '../../../i18n';
+import useAvatarSource from '../../../hooks/useAvatarSource';
 import ProfileHeader from './components/ProfileHeader';
 import usePersonalInfo from './usePersonalInfo';
+import useProfilePhoto from './useProfilePhoto';
 
 const ROLE_KEYS = {
   [ROLES.INDIVIDUAL]: 'profile.role.individual',
@@ -28,8 +30,11 @@ function PersonalInfo({ navigation }) {
   const t = useT();
   const language = useLanguage();
   const user = useUser();
-  const { profile, loading, error } = usePersonalInfo();
+  const { profile, loading, error, setMarketing, savingMarketing, marketingError } = usePersonalInfo();
   const languageName = LANGUAGES.find(l => l.code === language)?.nativeName;
+  // The photo saved on the account (shows on every phone and the web).
+  const photoSource = useAvatarSource(user?.avatarUrl);
+  const photo = useProfilePhoto();
 
   const cardTitle = text => (
     <AppText variant="title" style={styles.cardTitle}>
@@ -42,7 +47,10 @@ function PersonalInfo({ navigation }) {
       <ProfileHeader
         name={user?.fullName || t('profile.fallbackName')}
         role={t(ROLE_KEYS[user?.role] ?? ROLE_KEYS[ROLES.INDIVIDUAL])}
-        photoUri={user?.photo?.uri}
+        photoSource={photoSource}
+        onChangePhoto={photo.change}
+        uploading={photo.uploading}
+        error={photo.error}
       />
 
       {loading ? <ActivityIndicator color={colors.primary} style={styles.status} /> : null}
@@ -69,16 +77,36 @@ function PersonalInfo({ navigation }) {
             header={cardTitle(t('profile.info.consents'))}
             rows={profile.consents.map(consent => ({
               label: CONSENT_KEYS[consent.key] ? t(CONSENT_KEYS[consent.key]) : consent.label,
-              value: (
-                <Badge
-                  label={consent.verified ? t('profile.info.verified') : t('profile.info.pending')}
-                  tone={consent.verified ? 'success' : 'warning'}
-                  size="sm"
-                />
-              ),
+              // Marketing is the only optional one (as the web): an on / off switch.
+              value:
+                consent.key === 'MARKETING' ? (
+                  <Switch
+                    value={consent.verified}
+                    onValueChange={setMarketing}
+                    disabled={savingMarketing}
+                    trackColor={{ false: colors.border, true: colors.primary }}
+                    thumbColor={colors.white}
+                    ios_backgroundColor={colors.border}
+                    accessibilityLabel={t('profile.info.marketingSwitch')}
+                  />
+                ) : (
+                  <Badge
+                    label={consent.verified ? t('profile.info.verified') : t('profile.info.pending')}
+                    tone={consent.verified ? 'success' : 'warning'}
+                    size="sm"
+                  />
+                ),
             }))}
             style={styles.card}
           />
+          <AppText variant="caption" style={styles.note}>
+            {t('profile.info.marketingNote')}
+          </AppText>
+          {marketingError ? (
+            <AppText variant="caption" color={colors.danger} style={styles.note}>
+              {marketingError}
+            </AppText>
+          ) : null}
         </>
       ) : null}
     </ScreenContainer>
@@ -96,6 +124,9 @@ const styles = StyleSheet.create({
   },
   status: {
     marginTop: spacing.xl,
+  },
+  note: {
+    marginTop: spacing.sm,
   },
 });
 

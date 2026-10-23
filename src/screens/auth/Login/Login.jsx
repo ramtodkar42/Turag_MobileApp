@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
-import { AppText, Button, ScreenContainer } from '../../../components';
+import { AppText, Button, Icon, IconButton, ScreenContainer } from '../../../components';
 import { colors, spacing } from '../../../theme';
 import { fs, ms } from '../../../utils/responsive';
 import { isPhone, phoneError } from '../../../utils/validators';
@@ -9,13 +9,12 @@ import { sendLoginOtp } from '../../../api/services/auth.api';
 import { ROUTES } from '../../../navigation/routes';
 import useStatusBarStyle from '../../../hooks/useStatusBarStyle';
 import PhoneField from './components/PhoneField';
+import { markGuestChosen } from '../../../utils/appPrefs';
+import BrowseLink from './components/BrowseLink';
 import TermsNote from './components/TermsNote';
 
 const logo = require('../../../assets/icons/turaglogowhite.png');
 const LOGO_RATIO = 1248 / 332; // width / height of the PNG
-
-// Terms / privacy pages are wired up once their URLs are ready.
-const noop = () => {};
 
 const getPhoneProblem = phone => {
   if (phone.length < 10) {
@@ -25,9 +24,14 @@ const getPhoneProblem = phone => {
 };
 
 // Red login screen: mobile number -> OTP (VerifyOtp decides Home vs new account).
-function Login({ navigation }) {
+// Or "Browse cars without login": the marketplace as a guest (remembered, so
+// the app opens there next time).
+// params: { fromGuest? } - opened by a guest from inside the app: a close
+// button takes them back, and after logging in they return to that screen.
+function Login({ navigation, route }) {
   useStatusBarStyle('light-content');
   const t = useT();
+  const fromGuest = !!route?.params?.fromGuest;
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -60,8 +64,32 @@ function Login({ navigation }) {
     }
   };
 
+  const browseAsGuest = () => {
+    markGuestChosen();
+    navigation.reset({ index: 0, routes: [{ name: ROUTES.MAIN_TABS }] });
+  };
+
+  const openPage = (titleKey, path) => navigation.navigate(ROUTES.WEB_PAGE, { title: t(titleKey), path });
+
   return (
-    <ScreenContainer scroll backgroundColor={colors.primary}>
+    <ScreenContainer
+      scroll
+      backgroundColor={colors.primary}
+      header={
+        fromGuest ? (
+          <View style={styles.header}>
+            <IconButton
+              onPress={navigation.goBack}
+              size={ms(40)}
+              backgroundColor={colors.whiteTranslucent}
+              accessibilityLabel={t('common.close')}
+            >
+              <Icon name="close" size={ms(20)} color={colors.white} />
+            </IconButton>
+          </View>
+        ) : null
+      }
+    >
       <View style={styles.content}>
         <Image source={logo} resizeMode="contain" style={styles.logo} accessibilityLabel="Turag" />
 
@@ -80,8 +108,14 @@ function Login({ navigation }) {
           style={styles.phone}
         />
         <Button title={t('auth.getOtp')} variant="light" loading={loading} onPress={onGetOtp} style={styles.button} />
+        {fromGuest ? null : <BrowseLink onPress={browseAsGuest} style={styles.browse} />}
 
-        <TermsNote onTerms={noop} onPrivacy={noop} style={styles.terms} />
+        {/* The website's Terms / Privacy Policy, inside the app. */}
+        <TermsNote
+          onTerms={() => openPage('profile.item.terms', '/terms')}
+          onPrivacy={() => openPage('profile.item.privacyPolicy', '/privacy_policy')}
+          style={styles.terms}
+        />
       </View>
     </ScreenContainer>
   );
@@ -113,8 +147,15 @@ const styles = StyleSheet.create({
   button: {
     marginTop: spacing.xl,
   },
+  browse: {
+    marginTop: spacing.md,
+  },
+  header: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+  },
   terms: {
-    marginTop: ms(40),
+    marginTop: ms(32),
     paddingHorizontal: spacing.lg,
   },
 });

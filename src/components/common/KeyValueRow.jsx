@@ -65,17 +65,24 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
+  // The label always keeps room for itself; a long value (e.g. an account ID)
+  // wraps onto more lines instead of squeezing the label to one letter per line
+  // on narrow phones or with a bigger system font.
   label: {
     flex: 1,
+    minWidth: '35%',
   },
   value: {
     flexShrink: 1,
+    maxWidth: '60%',
   },
   stackedLabel: {
     flex: 0,
+    minWidth: 0,
   },
   stackedValue: {
     width: '100%',
+    maxWidth: '100%',
   },
   denseText: {
     fontSize: fs(13),

@@ -1,28 +1,18 @@
 // Inspector API (role 'inspector'), as the web's /inspector pages:
 // the job queue (doorstep bookings assigned to me - assigned automatically,
 // there is no accept / decline), starting the M2 inspection for a booking
-// (RC lookup -> confirm -> create, which moves the booking to ON_SITE), the
-// checklist + saved answers + photos to capture, answers, uploads, submit.
+// (RC lookup -> confirm -> create, or make / model -> identify -> create;
+// creating moves the booking to ON_SITE). The capture itself is the shared
+// inspection screen (screens/selfInspection) and its API.
 // Real backend when USE_REAL_API.inspector is true (src/api/config.js), mock otherwise.
 import { ApiError, request } from '../client';
 import { USE_REAL_API } from '../config';
 import { ENDPOINTS } from '../endpoints';
-import {
-  mapCapturedShots,
-  mapChecklist,
-  mapInspection,
-  mapJob,
-  mapShotMedia,
-} from '../mappers/inspection';
-import { sampleChecklist, sampleInspection, sampleQueue } from '../mock/inspector';
-import {
-  confirmVehicle,
-  deleteInspectionFile,
-  recordInspectionAnswer,
-  startSelfInspection,
-  submitInspection,
-  uploadInspectionFile,
-} from './valuation.api';
+import { mapJob } from '../mappers/inspection';
+import { mapVehicle } from '../mappers/valuation';
+import { sampleInspection, sampleQueue } from '../mock/inspector';
+import { confirmVehicle, proposeVehicle, startSelfInspection } from './valuation.api';
+import { normalizeRegNumber } from '../../utils/validators';
 import { tNow } from '../../i18n';
 
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -75,13 +65,36 @@ export const getInspectorJob = async bookingId => {
   return job;
 };
 
-// Starts the M2 inspection for a job, for the vehicle confirmed from its RC
-// (registrationNumber: the plate the inspector checked). Links the booking
-// (-> ON_SITE). Returns { inspectionId }.
-// Errors: 422 CHECKLIST_NOT_FOUND (no checklist for the vehicle type yet),
-//         403 FORBIDDEN (not your job), 409 INVALID_STATE_TRANSITION.
-export const startJobInspection = async ({ job, registrationNumber }) => {
-  const vehicle = await confirmVehicle(registrationNumber);
+// RC lookup on site, for the "Is this the vehicle?" card (saves nothing): the
+// registry vehicle plus fromCache (a verified registry record vs a live lookup,
+// as the web's card). 404 NOT_FOUND = no match: identify it manually instead.
+export const proposeJobVehicle = async registrationNumber => {
+  if (!USE_REAL_API.valuation) {
+    return { ...(await proposeVehicle(registrationNumber)), fromCache: false };
+  }
+  const plate = normalizeRegNumber(registrationNumber);
+  try {
+    const data = await request(ENDPOINTS.VEHICLE_PROPOSE, {
+      method: 'POST',
+      body: { registration_number: plate },
+    });
+    return { ...mapVehicle(data, { registrationNumber: plate }), fromCache: !!data.from_cache };
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) {
+      throw new ApiError({ status: 404, code: 'NOT_FOUND', message: tNow('inspector.start.notMatched') });
+    }
+    if (e instanceof ApiError && e.status === 422) {
+      throw new ApiError({ status: 422, code: 'INVALID_PLATE', message: tNow('valuation.evaluate.invalidPlate') });
+    }
+    throw e;
+  }
+};
+
+// Creates the job's M2 inspection for a saved vehicle and links the booking
+// (-> ON_SITE). Shared by the RC and the manual path, as the web.
+// 409 BOOKING_EXPIRED (the slot lapsed past the start grace) gets the
+// "ops must reschedule" message.
+const createJobInspection = async (job, vehicle) => {
   if (!real()) {
     await wait(600);
     const state = mockState();
@@ -94,129 +107,68 @@ export const startJobInspection = async ({ job, registrationNumber }) => {
       vehicle: { make: vehicle.make, model: vehicle.model, mfg_year: vehicle.year, category: job.category },
     };
     state.media[id] = [];
-    raw.inspection_id = id;
-    raw.status = 'ON_SITE';
+    if (raw) {
+      raw.inspection_id = id;
+      raw.status = 'ON_SITE';
+    }
     return { inspectionId: id };
   }
-  const data = await request(ENDPOINTS.INSPECTIONS, {
-    method: 'POST',
-    body: { vehicle_id: vehicle.vehicleId, mode: 'M2', category: job.category, booking_id: job.id },
-  });
-  return { inspectionId: data.inspection.id };
+  try {
+    const data = await request(ENDPOINTS.INSPECTIONS, {
+      method: 'POST',
+      body: { vehicle_id: vehicle.vehicleId, mode: 'M2', category: job.category, booking_id: job.id },
+    });
+    return { inspectionId: data.inspection.id };
+  } catch (e) {
+    if (e instanceof ApiError && e.code === 'BOOKING_EXPIRED') {
+      throw new ApiError({ status: e.status, code: e.code, message: tNow('inspector.start.expired') });
+    }
+    throw e;
+  }
+};
+
+// Starts the M2 inspection for a job, for the vehicle confirmed from its RC
+// (registrationNumber: the plate the inspector checked). Returns { inspectionId }.
+// Errors: 422 CHECKLIST_NOT_FOUND (no checklist for the vehicle type yet),
+//         403 FORBIDDEN (not your job), 409 INVALID_STATE_TRANSITION / BOOKING_EXPIRED.
+export const startJobInspection = async ({ job, registrationNumber }) => {
+  const vehicle = await confirmVehicle(registrationNumber);
+  return createJobInspection(job, vehicle);
+};
+
+// "Or identify manually" (when the RC lookup has no match, or isn't in the
+// catalogue): POST /vehicles/identify by make + model (+ year, fuel - fuel is
+// needed when the model isn't in the catalogue), with the job's category,
+// then the same inspection as the RC path. Returns { inspectionId }.
+export const startManualInspection = async ({ job, make, model, year, fuel }) => {
+  const yearNum = Number(year);
+  const body = {
+    make: make.trim(),
+    model: model.trim(),
+    ...(fuel ? { fuel } : {}),
+    ...(Number.isInteger(yearNum) && yearNum > 1980 ? { year: yearNum } : {}),
+    category: job.category,
+  };
+  let vehicle;
+  if (!real()) {
+    await wait(500);
+    vehicle = { vehicleId: `veh_mock_${job.id}`, make: body.make, model: body.model, year: body.year ?? null };
+  } else {
+    const data = await request(ENDPOINTS.VEHICLE_IDENTIFY, { method: 'POST', body, idempotent: true });
+    vehicle = { vehicleId: data.vehicle_id, make: data.make, model: data.model, year: data.mfg_year };
+  }
+  return createJobInspection(job, vehicle);
 };
 
 // The customer's own self-inspection (M1, as the web's "Inspect it yourself"):
 // created for the confirmed vehicle, then filled in with the same capture
-// wizard. Returns { inspectionId }.
-export const beginSelfInspection = async ({ vehicleId, category }) => {
-  const result = await startSelfInspection({ vehicleId, category });
+// wizard. consent: the ticked inspection-consent box. Returns { inspectionId }.
+export const beginSelfInspection = async ({ vehicleId, category, consent }) => {
+  const result = await startSelfInspection({ vehicleId, category, consent });
   if (!real()) {
     mockInspection(result.inspectionId);
   }
   return result;
-};
-
-// --- Capture ----------------------------------------------------------------------
-
-// Everything the capture screens need: { inspection, items (checklist for its
-// mode), shots ({ [itemCode]: [shotCode] } already uploaded), shotMedia
-// ({ 'itemCode|shotCode': [mediaId] }, what a retake replaces) }.
-export const getCaptureData = async inspectionId => {
-  if (!real()) {
-    await wait(600);
-    const state = mockState();
-    const raw = state.inspections[inspectionId];
-    if (!raw) {
-      throw new ApiError({ status: 404, code: 'NOT_FOUND', message: tNow('inspector.capture.notFound') });
-    }
-    const inspection = mapInspection(raw);
-    return {
-      inspection,
-      items: mapChecklist(sampleChecklist(), inspection.mode),
-      shots: mapCapturedShots(state.media[inspectionId]),
-      shotMedia: mapShotMedia(state.media[inspectionId]),
-    };
-  }
-  const data = await request(ENDPOINTS.inspection(inspectionId));
-  const inspection = mapInspection(data.inspection);
-  const [checklist, media] = await Promise.all([
-    request(ENDPOINTS.checklist(inspection.category, inspection.checklistVersion)),
-    request(ENDPOINTS.inspectionMedia(inspectionId)),
-  ]);
-  return {
-    inspection,
-    items: mapChecklist(checklist.checklist, inspection.mode),
-    shots: mapCapturedShots(media.items),
-    shotMedia: mapShotMedia(media.items),
-  };
-};
-
-// Saves one answer. answer: { severity, numericValue?, note?, naReason?, refurbCost? }
-// Also used by the customer's self-inspection (same backend call).
-export const saveInspectorAnswer = async (inspectionId, itemCode, answer) => {
-  if (!real()) {
-    const raw = mockInspection(inspectionId);
-    raw.items = [
-      ...raw.items.filter(i => i.item_code !== itemCode),
-      {
-        item_code: itemCode,
-        severity: answer.severity,
-        numeric_value: answer.numericValue ?? null,
-        text_note: answer.note ?? null,
-        na_reason: answer.naReason ?? null,
-        refurb_cost_minor: answer.refurbCost != null ? answer.refurbCost * 100 : null,
-      },
-    ];
-  }
-  await recordInspectionAnswer({ inspectionId, itemCode, ...answer });
-};
-
-// Uploads one photo / document for an item's shot.
-export const uploadInspectorFile = async ({ inspectionId, itemCode, shotCode, kind, file }) => {
-  const result = await uploadInspectionFile({ inspectionId, itemCode, shotCode, kind, file });
-  if (!real()) {
-    mockInspection(inspectionId);
-    mockState().media[inspectionId].push({
-      id: result.mediaId,
-      item_code: itemCode,
-      shot_code: shotCode,
-      status: 'PROCESSED',
-    });
-  }
-  return result;
-};
-
-// Deletes one uploaded file (the old one after a retake).
-export const deleteInspectorFile = async (inspectionId, mediaId) => {
-  await deleteInspectionFile(mediaId);
-  if (!real()) {
-    const media = mockState().media;
-    media[inspectionId] = (media[inspectionId] ?? []).filter(m => m.id !== mediaId);
-  }
-};
-
-// Submits for Turag's QC. Returns { status } - 'PENDING_QC', or
-// 'INTEGRITY_FAILED' (some photos failed checks: resume, retake, submit again).
-// Errors: 422 EVIDENCE_REQUIRED / SHOT_MISSING (message names what's missing).
-export const submitForQc = async inspectionId => {
-  const result = await submitInspection(inspectionId);
-  if (!real()) {
-    mockInspection(inspectionId).status = 'PENDING_QC';
-  }
-  return result;
-};
-
-// INTEGRITY_FAILED -> IN_PROGRESS, to retake the flagged photos.
-// `self`: the customer's self-inspection uses /reopen, as the web's /inspect
-// page does (only legal from INTEGRITY_FAILED); the inspector uses /resume.
-export const resumeInspection = async (inspectionId, { self = false } = {}) => {
-  if (!real()) {
-    await wait(400);
-    mockInspection(inspectionId).status = 'IN_PROGRESS';
-    return;
-  }
-  const path = self ? ENDPOINTS.inspectionReopen(inspectionId) : ENDPOINTS.inspectionResume(inspectionId);
-  await request(path, { method: 'POST' });
 };
 
 // Tests only.

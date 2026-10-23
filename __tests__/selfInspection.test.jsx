@@ -72,9 +72,15 @@ jest.mock('../src/api/services/visionScan', () => ({
 }));
 
 jest.mock('../src/utils/fileToBase64', () => ({ fileToBase64: jest.fn(async () => 'BASE64') }));
+jest.mock('../src/utils/photoDhash', () => ({ photoDhash: jest.fn(async () => null) }));
+jest.mock('../src/utils/pickImage', () => ({ pickImageFromGallery: jest.fn(async () => null) }));
 
 const api = require('../src/api/services/selfInspection.api');
 const vision = require('../src/api/services/visionScan');
+const { photoDhash } = require('../src/utils/photoDhash');
+const { pickImageFromGallery } = require('../src/utils/pickImage');
+// The jest location mock: Baner, Pune.
+const BANER = { lat: 18.559, lng: 73.7868, accuracyM: 10 };
 const SelfInspection = require('../src/screens/selfInspection/SelfInspection/SelfInspection').default;
 
 const metrics = { frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 0, left: 0, right: 0, bottom: 0 } };
@@ -217,6 +223,11 @@ describe('Self-inspection screen', () => {
     const front = root.findAll(n => n.props.accessibilityLabel === 'Front' && n.props.onPress)[0];
     await act(async () => front.props.onPress());
     await act(async () => pressable(root, 'Retake Front photo').props.onPress());
+    // Retake goes straight to the camera (photos are camera only).
+    expect(navigation.navigate).toHaveBeenLastCalledWith(ROUTES.VEHICLE_CAMERA, {
+      shot: { key: 'B1:WALK_FRONT', title: 'Front' },
+      returnTo: ROUTES.SELF_INSPECTION,
+    });
     await rerender({ captured: { key: 'B1:WALK_FRONT', file: { uri: 'file:///new.jpg', type: 'image/jpeg' } } });
     // Tried once, refused (still checking) -> the new photo is uploaded anyway, no error shown.
     expect(api.deleteSelfMedia).toHaveBeenCalledWith('med_old');
@@ -239,6 +250,7 @@ describe('Self-inspection screen', () => {
       shotCode: 'WALK_FRONT',
       kind: 'PHOTO',
       file,
+      gps: BANER, // where it was taken (best effort, as the web)
     });
     expect(vision.analyzeDamageWithOpenAI).toHaveBeenCalledWith('BASE64', expect.objectContaining({ itemCode: 'B1', shotHint: 'WALK_FRONT' }));
     expect(api.saveAiFinding).toHaveBeenCalledWith(
@@ -246,6 +258,34 @@ describe('Self-inspection screen', () => {
       expect.objectContaining({ shot_code: 'WALK_FRONT', has_damage: true, damage_type: 'SCRATCH', repair_cost_minor: 200000 }),
     );
     expect(hasText(tree.root, '1 of 51 done')).toBe(true);
+  });
+
+  test('photos are camera only: no Gallery option, Take photo opens the camera', async () => {
+    const root = await render();
+    expect(root.findAll(n => n.props.title === 'Gallery').length).toBe(0);
+    const take = root.findAll(n => n.props.title === 'Take photo' && n.props.onPress)[0];
+    await act(async () => take.props.onPress());
+    expect(navigation.navigate).toHaveBeenCalledWith(ROUTES.VEHICLE_CAMERA, {
+      shot: { key: 'B1:WALK_FRONT', title: 'Front' },
+      returnTo: ROUTES.SELF_INSPECTION,
+    });
+    expect(pickImageFromGallery).not.toHaveBeenCalled();
+  });
+
+  test('a photo that looks like another angle gets a hint and stays on that angle', async () => {
+    photoDhash.mockResolvedValue('ffff0000ffff0000');
+    const root = await render();
+    await act(async () => pressable(root, 'Add Front photo').props.onPress());
+    await rerender({ captured: { key: 'B1:WALK_FRONT', file: { uri: 'file:///a.jpg', type: 'image/jpeg' } } });
+    // The first photo has nothing to look like: moved on.
+    expect(hasText(root, 'Front-left corner')).toBe(true);
+    await act(async () => pressable(root, 'Add Front-left corner photo').props.onPress());
+    await rerender({ captured: { key: 'B1:WALK_FRONT_LEFT', file: { uri: 'file:///b.jpg', type: 'image/jpeg' } } });
+    // Uploaded anyway (advisory only), but the hint is shown and it waits there.
+    expect(api.uploadSelfEvidence).toHaveBeenCalledTimes(2);
+    expect(hasText(root, 'This looks a lot like your Front photo')).toBe(true);
+    expect(hasText(root, 'Photo 2 of 11')).toBe(true);
+    photoDhash.mockResolvedValue(null);
   });
 
   test('checklist: 11 questions; an answer saves with the web body', async () => {
@@ -342,5 +382,65 @@ describe('Self-inspection screen', () => {
     expect(hasText(root, 'Self-inspection submitted')).toBe(true);
     expect(api.estimateFinalValue).toHaveBeenCalledWith({ vehicle_id: 'veh_1', stage: 'DECLARED', inspection_id: 'insp_1' });
     expect(hasText(root, '₹4,50,000')).toBe(true);
+  });
+});
+
+// The inspection officer's doorstep inspection (M2) uses the same screen, as
+// the web's inspector capture is the M1 flow's M2 equivalent.
+describe('inspector (M2) on the same capture screen', () => {
+  const m2Sections = fixture.checklist.sections
+    .map(s => ({
+      group_code: s.group_code,
+      label: s.label,
+      items: s.items.filter(it => it.applicable_modes.includes('M2') && !(it.gate && it.evidence_requirement?.shots)),
+    }))
+    .filter(s => s.items.length > 0);
+  const m2 = { ...inspection, mode: 'M2' };
+
+  test('inspector wording: title and badge', async () => {
+    api.getSelfInspection.mockResolvedValue({ inspection: m2, sections: m2Sections, media: [] });
+    const root = await render({ bookingId: 'bkg_1' });
+    expect(hasText(root, 'Vehicle inspection')).toBe(true);
+    expect(hasText(root, 'Turag inspection')).toBe(true);
+    expect(hasText(root, 'Self-inspection')).toBe(false);
+  });
+
+  test('after submit: sent to QC, and "Back to jobs" (no Garage)', async () => {
+    api.getSelfInspection.mockResolvedValue({ inspection: { ...m2, status: 'PENDING_QC' }, sections: m2Sections, media: [] });
+    const root = await render({ bookingId: 'bkg_1' });
+    expect(hasText(root, 'Inspection submitted')).toBe(true);
+    expect(root.findAll(n => n.props.title === 'Go to your garage').length).toBe(0);
+    const back = root.findAll(n => n.props.title === 'Back to jobs' && n.props.onPress)[0];
+    await act(async () => back.props.onPress());
+    expect(navigation.reset).toHaveBeenCalledWith({
+      index: 0,
+      routes: [{ name: ROUTES.INSPECTOR_TABS, params: { screen: ROUTES.INSPECTIONS } }],
+    });
+  });
+
+  test('answers: inspector severity words and all 10 "can\'t check" reasons', async () => {
+    const AnswerControls = require('../src/screens/selfInspection/SelfInspection/components/AnswerControls').default;
+    const { InspectorModeContext } = require('../src/screens/selfInspection/SelfInspection/inspectorMode');
+    const { ChoiceChip, SelectField } = require('../src/components');
+    await act(async () => {
+      tree = ReactTestRenderer.create(
+        <SafeAreaProvider initialMetrics={metrics}>
+          <InspectorModeContext.Provider value>
+            <AnswerControls label="Engine" state={{ severity: 'NOT_ASSESSABLE', note: '', cost: '', num: '', naReason: '' }} />
+          </InspectorModeContext.Provider>
+        </SafeAreaProvider>,
+      );
+    });
+    expect(tree.root.findAllByType(ChoiceChip).map(c => c.props.label)).toEqual([
+      'OK',
+      'Minor',
+      'Moderate',
+      'Major',
+      'Critical',
+      'N/A',
+    ]);
+    const reasons = tree.root.findByType(SelectField).props.options.map(o => o.value);
+    expect(reasons).toHaveLength(10);
+    expect(reasons).toEqual(expect.arrayContaining(['VEHICLE_STATIC', 'OWNER_REFUSED']));
   });
 });

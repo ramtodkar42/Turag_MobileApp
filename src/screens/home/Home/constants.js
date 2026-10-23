@@ -118,6 +118,18 @@ export const QUICK_FILTERS = [
       { value: 'B', labelKey: 'home.filter.grade.b' },
     ],
   },
+  {
+    // Turag tier (as the web's "Turag tier" filter): from the verified
+    // inspection and the asking price - see marketplace.tier.note.*.
+    id: 'tier',
+    labelKey: 'home.filter.tier',
+    icon: 'shieldCheck',
+    options: [
+      { value: 'PREMIUM', labelKey: 'marketplace.tier.PREMIUM' },
+      { value: 'ASSURED', labelKey: 'marketplace.tier.ASSURED' },
+      { value: 'BUDGET', labelKey: 'marketplace.tier.BUDGET' },
+    ],
+  },
 ];
 
 // None on at first: Home shows every vehicle. { [filter id]: option value }
@@ -148,9 +160,11 @@ export const fitFilters = filters => {
 };
 
 // Category tabs. `comingSoon`: not on the marketplace yet (no request is made).
+// Commercial ({ id: 'commercial', labelKey: 'home.tab.commercial' }) is left
+// out until the marketplace lists commercial vehicles (stores reject
+// placeholder "coming soon" pages).
 export const CATEGORIES = [
   { id: 'all', labelKey: 'home.tab.all' },
   { id: 'cars', labelKey: 'home.tab.cars' },
   { id: 'bikes', labelKey: 'home.tab.bikes' },
-  { id: 'commercial', labelKey: 'home.tab.commercial', comingSoon: true },
 ];

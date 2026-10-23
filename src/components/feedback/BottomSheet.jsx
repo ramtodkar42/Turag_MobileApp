@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react';
-import { Animated, Easing, Modal, Pressable, StyleSheet, View } from 'react-native';
+import { Animated, Easing, KeyboardAvoidingView, Modal, Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radius, spacing } from '../../theme';
 import { MAX_CONTENT_WIDTH } from '../../constants/layout';
+import useKeyboardVisible from '../../hooks/useKeyboardVisible';
 
 const HIDDEN_OFFSET = 400;
 const SLIDE_MS = 250;
@@ -10,6 +11,7 @@ const SLIDE_MS = 250;
 // Simple bottom sheet on core Modal (no extra library).
 function BottomSheet({ visible, onClose, dismissible = true, children, style }) {
   const insets = useSafeAreaInsets();
+  const keyboardOpen = useKeyboardVisible();
   const translateY = useRef(new Animated.Value(HIDDEN_OFFSET)).current;
 
   useEffect(() => {
@@ -37,18 +39,21 @@ function BottomSheet({ visible, onClose, dismissible = true, children, style }) 
       statusBarTranslucent
       onRequestClose={close}
     >
-      <View style={styles.backdrop}>
+      {/* The sheet rises with the keyboard (a counter offer, a location search):
+          the modal has its own window, which Android 15+ no longer shrinks for
+          the keyboard - see ScreenContainer. */}
+      <KeyboardAvoidingView style={styles.backdrop} behavior="padding">
         <Pressable style={StyleSheet.absoluteFill} onPress={close} />
         <Animated.View
           style={[
             styles.sheet,
-            { paddingBottom: insets.bottom + spacing.lg, transform: [{ translateY }] },
+            { paddingBottom: (keyboardOpen ? 0 : insets.bottom) + spacing.lg, transform: [{ translateY }] },
             style,
           ]}
         >
           {children}
         </Animated.View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

@@ -60,6 +60,9 @@ export default function useMarketplace() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  // A new search's results are on their way while the previous cards stay on
+  // screen (no placeholders, no blink): the grid shows them under a soft veil.
+  const [updating, setUpdating] = useState(false);
   const [error, setError] = useState(null);
   // { n, force }: force = ignore the cache (pull-to-refresh, data changed).
   const [reload, setReload] = useState({ n: 0, force: false });
@@ -71,6 +74,9 @@ export default function useMarketplace() {
   // searchKey -> { items, nextCursor, firstPage (signature), fetchedAt }
   const cache = useRef(new Map());
   const lastListedCount = useRef(listedCount);
+  // How many cards are on screen now (read when a new search starts).
+  const shownCount = useRef(0);
+  shownCount.current = vehicles.length;
 
   const comingSoon = !!CATEGORIES.find(c => c.id === category)?.comingSoon;
   const searchKey = JSON.stringify([debouncedQuery.trim(), category, filters]);
@@ -105,6 +111,7 @@ export default function useMarketplace() {
       setNextCursor(null);
       setError(null);
       setLoading(false);
+      setUpdating(false);
       setRefreshing(false);
       return;
     }
@@ -119,6 +126,7 @@ export default function useMarketplace() {
       setNextCursor(cached.nextCursor);
       setError(null);
       setLoading(false);
+      setUpdating(false);
       // A fresh, NON-empty result is trusted as is. An empty cached result is
       // always re-checked (e.g. switching back to a tab that was briefly empty
       // / offline) so a tab that now has vehicles doesn't keep showing "none".
@@ -126,9 +134,15 @@ export default function useMarketplace() {
         return;
       }
     } else if (!force) {
-      // A new search: placeholders until the first page arrives.
-      setVehicles([]);
-      setLoading(true);
+      if (shownCount.current > 0) {
+        // A new search over cards already on screen: keep them (veiled) until
+        // the new ones arrive, then swap - smooth, no placeholders.
+        setUpdating(true);
+      } else {
+        // Nothing on screen yet: placeholders until the first page arrives.
+        setVehicles([]);
+        setLoading(true);
+      }
     }
 
     const [q, cat, chosen] = JSON.parse(searchKey);
@@ -154,12 +168,16 @@ export default function useMarketplace() {
       .catch(e => {
         // With cached results on screen, a failed quiet check stays quiet.
         if (id === requestId.current && !cached) {
+          // The previous search's cards don't belong to this one.
+          setVehicles([]);
+          setNextCursor(null);
           setError(e.message || tNow('home.error.load'));
         }
       })
       .finally(() => {
         if (id === requestId.current) {
           setLoading(false);
+          setUpdating(false);
           setRefreshing(false);
         }
       });
@@ -206,11 +224,16 @@ export default function useMarketplace() {
 
   // One quick filter's choice; null / '' clears it. Other filters stay, except
   // a model that doesn't belong to a newly picked make. 'vehicle' (Car / Bike)
-  // is the category tab.
-  const setFilter = (id, value) => {
+  // is the category tab. `inCategory`: switch to that tab too (e.g. a car brand
+  // picked on the search screen while Bikes was open shows on All).
+  const setFilter = (id, value, { inCategory } = {}) => {
     if (id === 'vehicle') {
       changeCategory(value || 'all');
       return;
+    }
+    const target = inCategory ?? category;
+    if (inCategory) {
+      setCategory(inCategory);
     }
     setFilters(prev => {
       const next = { ...prev };
@@ -219,7 +242,7 @@ export default function useMarketplace() {
       } else {
         delete next[id];
       }
-      return prune(next, category);
+      return prune(next, target);
     });
   };
 
@@ -259,7 +282,9 @@ export default function useMarketplace() {
     hasFilters: Object.keys(filters).length > 0 || debouncedQuery.trim() !== '',
     // A text search on its way: the typing pause before it's sent, then the
     // first page loading (cached results show at once, so no flash for them).
-    searching: query.trim() !== '' && (query.trim() !== debouncedQuery.trim() || loading),
+    searching: query.trim() !== '' && (query.trim() !== debouncedQuery.trim() || loading || updating),
+    // New results on their way over the cards on screen (any search / filter / tab).
+    updating,
     category,
     setCategory: changeCategory,
     comingSoon,

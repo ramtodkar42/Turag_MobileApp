@@ -6,6 +6,7 @@ export const ENDPOINTS = {
   LOGOUT: '/auth/logout',
   ME: '/me',
   EMAIL_START: '/me/email/start',
+  MY_AVATAR: '/me/avatar', // the profile photo: POST a JPEG, GET it back (signed in)
   CONSENTS: '/consents',
   NOTIFICATIONS: '/notifications',
   NOTIFICATIONS_READ: '/notifications/read',
@@ -35,6 +36,7 @@ export const ENDPOINTS = {
   BOOKINGS: '/inspection-bookings',
   BOOKING_SLOTS: '/inspection-bookings/slots',
   BOOKING_QUEUE: '/inspection-bookings/queue', // inspector: my jobs
+  VEHICLE_IDENTIFY: '/vehicles/identify', // inspector: identify by make / model when the RC lookup can't
   inspection: id => `/inspections/${encodeURIComponent(id)}`,
   inspectionIdentityExtract: id => `/inspections/${encodeURIComponent(id)}/identity-extract`,
   inspectionIdentityVerify: id => `/inspections/${encodeURIComponent(id)}/identity-verify`,
@@ -47,6 +49,9 @@ export const ENDPOINTS = {
   bookingPay: id => `/inspection-bookings/${encodeURIComponent(id)}/pay`,
   bookingPaySimulate: id => `/inspection-bookings/${encodeURIComponent(id)}/pay/simulate`,
   bookingMessages: id => `/inspection-bookings/${encodeURIComponent(id)}/messages`,
+  VERIFICATION: '/verification', // the customer's identity verification (ID document + selfie)
+  SERVICE_AREA_CHECK: '/service-area/check', // public: is doorstep inspection offered at this place?
+  SERVICE_AREA_LEADS: '/service-area/leads', // "notify me" when Turag launches in a city
   report: inspectionId => `/reports/${encodeURIComponent(inspectionId)}`,
   reportPdf: inspectionId => `/reports/${encodeURIComponent(inspectionId)}/pdf`,
   reportShare: inspectionId => `/reports/${encodeURIComponent(inspectionId)}/share`,
@@ -56,8 +61,38 @@ export const ENDPOINTS = {
   offerAction: (id, action) => `/offers/${encodeURIComponent(id)}/${action}`,
   order: id => `/orders/${encodeURIComponent(id)}`,
   orderCancel: id => `/orders/${encodeURIComponent(id)}/cancel`,
+  orderTokenPayment: id => `/orders/${encodeURIComponent(id)}/token-payment`,
+  orderTokenPaymentSimulate: id => `/orders/${encodeURIComponent(id)}/token-payment/simulate`,
+  orderHandover: id => `/orders/${encodeURIComponent(id)}/handover`,
+  transferChecklist: id => `/orders/${encodeURIComponent(id)}/transfer-checklist`,
+  transferDocument: (id, itemCode) =>
+    `/orders/${encodeURIComponent(id)}/transfer-checklist/${encodeURIComponent(itemCode)}/document`,
+  payment: id => `/payments/${encodeURIComponent(id)}`,
+  LOAN_APPLICATIONS: '/loan-applications',
+
+  // Seller payouts: the bank account sales are paid to (verified by Turag), and the settlements
+  PAYOUT_ACCOUNTS: '/payout-accounts',
+  payoutAccountActivate: id => `/payout-accounts/${encodeURIComponent(id)}/activate`,
+  payoutAccountProof: id => `/payout-accounts/${encodeURIComponent(id)}/proof`, // POST the file, GET it back
+  SETTLEMENTS: '/settlements',
+  settlementReceipt: id => `/settlements/${encodeURIComponent(id)}/receipt`,
   LISTINGS: '/listings',
   myListing: id => `/listings/${encodeURIComponent(id)}`,
   listingSubmit: id => `/listings/${encodeURIComponent(id)}/submit`,
   myListingOffers: id => `/listings/${encodeURIComponent(id)}/offers`,
+
+  // Business accounts (members of an organization): dealer listings, and the
+  // lender / yard portfolio, intake, yard and bulk intake imports
+  MY_ORGANIZATIONS: '/me/organizations',
+  DEALER_BROWSE: '/dealer/listings',
+  dealerListings: orgId => `/dealer/orgs/${encodeURIComponent(orgId)}/listings`,
+  dealerListingWithdraw: (orgId, listingId) => `/dealer/orgs/${encodeURIComponent(orgId)}/listings/${encodeURIComponent(listingId)}/withdraw`,
+  orgPortfolio: orgId => `/orgs/${encodeURIComponent(orgId)}/portfolio`,
+  orgIntake: orgId => `/orgs/${encodeURIComponent(orgId)}/intake`,
+  orgIntakeItem: (orgId, intakeId) => `/orgs/${encodeURIComponent(orgId)}/intake/${encodeURIComponent(intakeId)}`,
+  orgYard: orgId => `/orgs/${encodeURIComponent(orgId)}/yard`,
+  orgYardItem: (orgId, placementId) => `/orgs/${encodeURIComponent(orgId)}/yard/${encodeURIComponent(placementId)}`,
+  orgIntakeImports: orgId => `/orgs/${encodeURIComponent(orgId)}/intake-imports`,
+  orgIntakeImport: (orgId, importId) => `/orgs/${encodeURIComponent(orgId)}/intake-imports/${encodeURIComponent(importId)}`,
+  orgIntakeImportRows: (orgId, importId) => `/orgs/${encodeURIComponent(orgId)}/intake-imports/${encodeURIComponent(importId)}/rows`,
 };

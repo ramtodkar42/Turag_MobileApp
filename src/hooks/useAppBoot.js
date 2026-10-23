@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { getMe } from '../api/services/profile.api';
 import { hasSession, onSessionExpired, restoreSession, updateSession } from '../api/session';
 import { clearSession } from '../api/tokenStorage';
-import { checkFreshInstall, hasSeenIntro, markIntroSeen } from '../utils/appPrefs';
+import { checkFreshInstall, hasChosenGuest, hasSeenIntro, markIntroSeen } from '../utils/appPrefs';
 import { initLanguage } from '../i18n';
 import { initialRouteFor } from '../navigation/authRoutes';
 import { resetTo } from '../navigation/navigationRef';
@@ -25,7 +25,8 @@ const startFresh = async () => {
 // 1. Read the saved session and the app language from the keychain (no
 //    network) and pick the first screen, so a signed-in user lands on Home at
 //    once, already in their language. Signed out: the intro slides only until
-//    they've been seen once, then Login.
+//    they've been seen once, then Login (or the marketplace, for someone who
+//    chose to browse without logging in).
 // 2. Once the screens are showing, check the session with the backend in the
 //    background (refreshes the token, updates the user). Offline is fine: the
 //    user keeps using the app.
@@ -42,8 +43,8 @@ export default function useAppBoot() {
   useEffect(() => {
     let active = true;
     startFresh()
-      .then(() => Promise.all([restoreSession(), initLanguage(), hasSeenIntro()]))
-      .then(([session, , introSeen]) => {
+      .then(() => Promise.all([restoreSession(), initLanguage(), hasSeenIntro(), hasChosenGuest()]))
+      .then(([session, , introSeen, guest]) => {
         if (!active) {
           return;
         }
@@ -55,7 +56,7 @@ export default function useAppBoot() {
             markIntroSeen();
           }
         }
-        setInitialRoute(initialRouteFor(session, { introSeen }));
+        setInitialRoute(initialRouteFor(session, { introSeen, guest }));
       });
     return () => {
       active = false;
@@ -80,7 +81,8 @@ export default function useAppBoot() {
     const phone = getUser()?.contact;
     getMe({ phone })
       .then(({ user }) => {
-        // Keep what only the device knows (photo, "what brings you").
+        // Keep what only the device knows ("what brings you"); the profile photo
+        // (avatarUrl) comes from the account.
         const merged = { ...getUser(), ...user, contact: phone ?? user.contact };
         setUser(merged);
         updateSession({ user: merged });

@@ -6,7 +6,8 @@ import { colors, radius, shadows, spacing } from '../../theme';
 import { fs } from '../../utils/responsive';
 
 // Marketplace grid card. Parent decides columns via getGridColumns().
-function VehicleCard({ image, loading, title, meta = [], price, badge, topRight, onPress, style }) {
+// bottomLeft: on the photo's bottom-left corner (e.g. the Turag tier).
+function VehicleCard({ image, loading, title, meta = [], price, badge, topRight, bottomLeft, onPress, style }) {
   const details = [...meta, price].filter(Boolean);
 
   return (
@@ -18,6 +19,7 @@ function VehicleCard({ image, loading, title, meta = [], price, badge, topRight,
         <VehicleImage source={image} loading={loading} style={styles.image} />
         {badge ? <Badge label={badge} tone="verified" size="sm" style={styles.badge} /> : null}
         {topRight ? <View style={styles.topRight}>{topRight}</View> : null}
+        {bottomLeft ? <View style={styles.bottomLeft}>{bottomLeft}</View> : null}
       </View>
       <AppText variant="title" align="center" numberOfLines={1} style={styles.title}>
         {title}
@@ -57,6 +59,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: spacing.xs,
     right: spacing.xs,
+  },
+  bottomLeft: {
+    position: 'absolute',
+    bottom: spacing.xs,
+    left: spacing.xs,
   },
   // Smaller than the default title/caption so long names fit in 2 columns.
   title: {

@@ -46,9 +46,9 @@ export const recordSelfAnswer = (inspectionId, itemCode, body) =>
 
 // One evidence file for an (item, shot): kind 'PHOTO' | 'DOCUMENT' | 'VIDEO'.
 // Exact duplicates are refused before uploading (DUPLICATE_FILE).
-// Returns { mediaId, status }.
-export const uploadSelfEvidence = ({ inspectionId, itemCode, shotCode, kind, file }) =>
-  uploadInspectionFile({ inspectionId, itemCode, shotCode, kind, file });
+// gps (optional): { lat, lng, accuracyM? }. Returns { mediaId, status }.
+export const uploadSelfEvidence = ({ inspectionId, itemCode, shotCode, kind, file, gps }) =>
+  uploadInspectionFile({ inspectionId, itemCode, shotCode, kind, file, gps });
 
 export const deleteSelfMedia = mediaId => deleteInspectionFile(mediaId);
 

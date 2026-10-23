@@ -5,8 +5,9 @@ import { fs, ms } from '../../../../utils/responsive';
 
 // A card with an icon tile, a title and a line of text, and one full-width
 // button (e.g. "Chat with your inspector" -> Open chat, the report -> View).
-// button: { title, onPress, disabled?, variant? }
-function ActionPanel({ icon, title, text, button, style }) {
+// button: { title, onPress, disabled?, loading?, variant? }; children: extra
+// lines under the button (e.g. a status / error message).
+function ActionPanel({ icon, title, text, button, style, children }) {
   return (
     <Card style={style}>
       <View style={styles.top}>
@@ -29,10 +30,12 @@ function ActionPanel({ icon, title, text, button, style }) {
           fullWidth
           variant={button.variant ?? 'primary'}
           disabled={button.disabled}
+          loading={button.loading}
           onPress={button.onPress}
           style={styles.button}
         />
       ) : null}
+      {children}
     </Card>
   );
 }

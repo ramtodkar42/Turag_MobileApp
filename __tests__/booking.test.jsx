@@ -20,6 +20,7 @@ import ConfirmDialog from '../src/components/feedback/ConfirmDialog';
 import BookAppointment from '../src/screens/booking/BookAppointment/BookAppointment';
 import BookingSummary from '../src/screens/booking/BookingSummary/BookingSummary';
 import BookingPayment from '../src/screens/booking/BookingPayment/BookingPayment';
+import BookingComingSoon from '../src/screens/booking/BookingComingSoon/BookingComingSoon';
 import PaymentStatus from '../src/screens/booking/PaymentStatus/PaymentStatus';
 import BookingConfirmed from '../src/screens/booking/BookingConfirmed/BookingConfirmed';
 import MyBookings from '../src/screens/account/MyBookings/MyBookings';
@@ -30,6 +31,20 @@ import { endSession, startSession } from '../src/api/session';
 import { formatPhone } from '../src/utils/format';
 import { getPhoneError, phoneError, validateProfile } from '../src/utils/validators';
 import { ROUTES } from '../src/navigation/routes';
+
+// Identity verification (the web's step before paying): verified unless a test says otherwise.
+jest.mock('../src/api/services/verification.api', () => ({
+  ...jest.requireActual('../src/api/services/verification.api'),
+  getMyVerification: jest.fn(async () => ({ id: 'ver_1', status: 'APPROVED', docType: 'PAN' })),
+  submitVerification: jest.fn(async () => ({ id: 'ver_2', status: 'PENDING_REVIEW', docType: 'AADHAAR' })),
+}));
+
+// The service area (doorstep inspections city by city): served unless a test says otherwise.
+jest.mock('../src/api/services/serviceArea.api', () => ({
+  checkServiceability: jest.fn(async () => true),
+  notifyCityLaunch: jest.fn(async () => ({ leadId: 'sal_1' })),
+}));
+const serviceArea = require('../src/api/services/serviceArea.api');
 
 // Pages reload when they come back into view; here, once after mounting.
 jest.mock('@react-navigation/native', () => {
@@ -45,12 +60,22 @@ const metrics = {
   insets: { top: 0, left: 0, right: 0, bottom: 0 },
 };
 
+// As the web's /book: Home / Office, the address, building / flat, an optional
+// landmark and the pincode. The city / area / state come from the map (none
+// when the address is typed by hand); the server decides if the place is served.
 const address = {
-  line1: 'Flat 1009, Sahyadri Residency',
-  area: 'Baner',
-  city: 'PUNE',
+  place: 'home',
+  address: 'Baner Road, Baner',
+  building: 'Flat 1009, Sahyadri Residency',
+  landmark: '',
   pincode: '411015',
+  city: '',
+  locality: '',
+  state: '',
 };
+const BUILDING = 'Building / flat / house';
+const ADDRESS = 'Address';
+const LANDMARK = 'Landmark (optional)';
 const vehicle = {
   vehicleId: 'veh_1',
   make: 'KIA',
@@ -104,10 +129,12 @@ const field = (root, label) => root.findAllByType(TextField).find(f => f.props.l
 
 // Types the address into the booking form (as the web's /book: typed for each booking).
 const fillAddress = async (root, value = address) => {
-  await act(async () => field(root, 'Flat / House no., Building').props.onChangeText(value.line1));
-  await act(async () => field(root, 'Area / Locality').props.onChangeText(value.area));
+  await act(async () => field(root, ADDRESS).props.onChangeText(value.address));
+  await act(async () => field(root, BUILDING).props.onChangeText(value.building));
+  if (value.landmark) await act(async () => field(root, LANDMARK).props.onChangeText(value.landmark));
   await act(async () => field(root, 'Pincode').props.onChangeText(value.pincode));
 };
+const chip = (root, label) => root.findAllByType(ChoiceChip).find(c => c.props.label === label);
 
 describe('Book a doorstep inspection', () => {
   const pickFirstFreeTime = async root => {
@@ -127,7 +154,7 @@ describe('Book a doorstep inspection', () => {
 
     // Vehicle known: no type choice.
     expect(hasText(root, 'KIA Seltos 2023')).toBe(true);
-    expect(root.findAllByType(ChoiceChip)).toHaveLength(0);
+    expect(chip(root, 'Car')).toBeUndefined();
     expect(hasText(root, '₹799 · paid when you confirm the booking')).toBe(true);
     expect(button(root, 'Continue').props.disabled).toBe(true);
 
@@ -150,8 +177,8 @@ describe('Book a doorstep inspection', () => {
       vehicle,
       valuation: { valuationId: 'val_1' },
       category: 'PASSENGER',
-      // Typed by hand, no map pin (optional): no city / geo.
-      address: { ...address, city: null, geo: null },
+      // Typed by hand, no map pin (optional): no geo, no city (the pincode tells the server).
+      address: { ...address, geo: null },
       slot,
       preparation: { rcPresent: true, openSpace: false, keysAvailable: false },
       price: 799,
@@ -178,27 +205,101 @@ describe('Book a doorstep inspection', () => {
     const navigation = nav();
     const root = await render(<BookAppointment navigation={navigation} route={{ params: {} }} />);
     await advance(600);
-    const chips = root.findAllByType(ChoiceChip);
-    expect(chips.map(c => c.props.label)).toEqual(['Car', 'Two-wheeler']);
-    await act(async () => chips[1].props.onPress());
+    expect(chip(root, 'Car')).toBeDefined();
+    await act(async () => chip(root, 'Two-wheeler').props.onPress());
     await pickFirstFreeTime(root);
-    await fillAddress(root, { ...address, area: 'Wakad', pincode: '411057' });
+    await fillAddress(root, { ...address, address: 'Wakad Road, Wakad', pincode: '411057' });
     await act(async () => button(root, 'Continue').props.onPress());
     expect(navigation.navigate).toHaveBeenCalledWith(
       ROUTES.BOOKING_SUMMARY,
       expect.objectContaining({
         category: 'TWO_WHEELER',
         vehicle: null,
-        address: expect.objectContaining({ area: 'Wakad', pincode: '411057' }),
+        address: expect.objectContaining({ address: 'Wakad Road, Wakad', pincode: '411057' }),
       }),
     );
   });
 
-  test('no city chips: the city comes from the pinned place', async () => {
+  test('as the web: Home / Office, no city to pick (never lists the cities served), building and landmark sent', async () => {
+    const navigation = nav();
+    const root = await render(<BookAppointment navigation={navigation} route={{ params: {} }} />);
+    await advance(600);
+    expect(chip(root, 'Pune')).toBeUndefined();
+    expect(chip(root, 'Pimpri-Chinchwad')).toBeUndefined();
+    expect(hasText(root, 'Pune')).toBe(false);
+    await act(async () => chip(root, 'Office').props.onPress());
+    expect(chip(root, 'Office').props.selected).toBe(true);
+
+    const picker = root.findAll(n => n.props.onSlotChange && n.props.days)[0];
+    const slot = picker.props.days.find(d => d.key === picker.props.dayKey).slots.find(s => s.available);
+    await act(async () => picker.props.onSlotChange(slot));
+    // The building is optional (as the web): address + pincode are enough.
+    await act(async () => field(root, ADDRESS).props.onChangeText('Wakad Road, Wakad'));
+    await act(async () => field(root, 'Pincode').props.onChangeText('411057'));
+    expect(button(root, 'Continue').props.disabled).toBe(false);
+    await act(async () => field(root, LANDMARK).props.onChangeText('near Phoenix Mall'));
+    await act(async () => button(root, 'Continue').props.onPress());
+    expect(navigation.navigate).toHaveBeenCalledWith(
+      ROUTES.BOOKING_SUMMARY,
+      expect.objectContaining({
+        address: {
+          place: 'office',
+          address: 'Wakad Road, Wakad',
+          building: '',
+          landmark: 'near Phoenix Mall',
+          pincode: '411057',
+          city: '',
+          locality: '',
+          state: '',
+          geo: null,
+        },
+      }),
+    );
+    // Asked the server first: is this place served? (the pincode, no city typed)
+    expect(serviceArea.checkServiceability).toHaveBeenCalledWith({ city: '', pincode: '411057' });
+  });
+
+  test('a place Turag doesn’t serve yet: "Coming soon" instead of the summary', async () => {
+    serviceArea.checkServiceability.mockResolvedValueOnce(false);
+    const navigation = nav();
+    const root = await render(<BookAppointment navigation={navigation} route={{ params: { vehicle } }} />);
+    await advance(600);
+    const slot = await pickFirstFreeTime(root);
+    await fillAddress(root, { ...address, pincode: '400053' });
+    await act(async () => button(root, 'Continue').props.onPress());
+    expect(navigation.navigate).toHaveBeenCalledWith(ROUTES.BOOKING_COMING_SOON, {
+      place: { city: 'PIN 400053', locality: null, state: null, pincode: '400053' },
+      category: 'PASSENGER',
+      vehicleId: 'veh_1',
+      slotAt: slot.slotAt,
+    });
+    expect(navigation.navigate).not.toHaveBeenCalledWith(ROUTES.BOOKING_SUMMARY, expect.anything());
+  });
+
+  test('no live payment gateway yet: "Payments are coming soon" and nothing can be booked', async () => {
+    jest.spyOn(bookingApi, 'getBookingSlots').mockResolvedValueOnce({
+      price: 799,
+      enabled: true,
+      paymentsAvailable: false,
+      days: [{ key: '2026-10-23', time: 1, slots: [{ slotAt: '2026-10-23T04:30:00.000Z', time: 1, available: true }] }],
+    });
+    const navigation = nav();
+    const root = await render(<BookAppointment navigation={navigation} route={{ params: {} }} />);
+    await advance(600);
+    expect(hasText(root, 'Payments are coming soon')).toBe(true);
+    await pickFirstFreeTime(root);
+    await fillAddress(root);
+    expect(button(root, 'Continue').props.disabled).toBe(true);
+    await act(async () => button(root, 'Inspect it yourself').props.onPress());
+    expect(navigation.navigate).toHaveBeenCalledWith(ROUTES.EVALUATE_CHAT);
+  });
+
+  test('an address shorter than 4 characters is not enough (as the web)', async () => {
     const root = await render(<BookAppointment navigation={nav()} route={{ params: {} }} />);
     await advance(600);
-    expect(root.findAll(n => n.props.label === 'Pimpri-Chinchwad' && n.props.onPress)).toHaveLength(0);
-    expect(root.findAll(n => n.props.label === 'Pune' && n.props.onPress)).toHaveLength(0);
+    await pickFirstFreeTime(root);
+    await fillAddress(root, { ...address, address: 'Abc' });
+    expect(button(root, 'Continue').props.disabled).toBe(true);
   });
 
   describe('finding the spot (OpenStreetMap)', () => {
@@ -240,11 +341,11 @@ describe('Book a doorstep inspection', () => {
     };
     const mapOf = root => root.findAll(n => n.props.onMessage && n.props.source?.html)[0];
 
-    test('tapping the map pins the spot and fills area, pincode and city; flat / building is cleared', async () => {
+    test('tapping the map pins the spot and fills address, pincode and city; flat / building is cleared', async () => {
       const navigation = nav();
       const root = await open(navigation);
       await pickFirstFreeTime(root);
-      await act(async () => field(root, 'Flat / House no., Building').props.onChangeText('Flat 12, Sai Heights'));
+      await act(async () => field(root, BUILDING).props.onChangeText('Flat 12, Sai Heights'));
 
       expect(mapOf(root).props.source.html).toContain('tile.openstreetmap.org');
       await act(async () =>
@@ -254,17 +355,18 @@ describe('Book a doorstep inspection', () => {
       expect(global.fetch.mock.calls[0][0]).toMatch(/nominatim\.openstreetmap\.org\/reverse\?lat=18\.559&lon=73\.7868/);
       expect(global.fetch.mock.calls[0][1].headers['User-Agent']).toMatch(/Turag/);
       // A new place: the old flat / building doesn't belong to it - typed again.
-      expect(field(root, 'Flat / House no., Building').props.value).toBe('');
-      expect(field(root, 'Area / Locality').props.value).toBe('Baner Road, Baner');
+      expect(field(root, BUILDING).props.value).toBe('');
+      expect(field(root, ADDRESS).props.value).toBe('Baner Road, Baner');
       expect(field(root, 'Pincode').props.value).toBe('411045');
       expect(hasText(root, 'Baner Road, Baner, Pune, 411045')).toBe(true);
 
-      await act(async () => field(root, 'Flat / House no., Building').props.onChangeText('Flat 12, Sai Heights'));
+      await act(async () => field(root, BUILDING).props.onChangeText('Flat 12, Sai Heights'));
       await act(async () => button(root, 'Continue').props.onPress());
       expect(navigation.navigate).toHaveBeenCalledWith(
         ROUTES.BOOKING_SUMMARY,
         expect.objectContaining({
-          address: expect.objectContaining({ city: 'PUNE', geo: { lat: 18.559, lng: 73.7868 } }),
+          // The map's city and area, as the web sends them (the server decides if it's served).
+          address: expect.objectContaining({ city: 'Pune', locality: 'Baner', geo: { lat: 18.559, lng: 73.7868 } }),
         }),
       );
     });
@@ -278,8 +380,8 @@ describe('Book a doorstep inspection', () => {
 
       const result = root.findAll(n => n.props.accessibilityRole === 'button' && hasText(n, 'Phoenix Mall of the Millennium'))[0];
       await act(async () => result.props.onPress());
-      expect(field(root, 'Flat / House no., Building').props.value).toBe('Phoenix Mall of the Millennium');
-      expect(field(root, 'Area / Locality').props.value).toBe('Mumbai-Bengaluru Highway, Wakad');
+      expect(field(root, BUILDING).props.value).toBe('Phoenix Mall of the Millennium');
+      expect(field(root, ADDRESS).props.value).toBe('Mumbai-Bengaluru Highway, Wakad');
       expect(field(root, 'Pincode').props.value).toBe('411057');
       expect(global.fetch).toHaveBeenCalledTimes(1); // the search result already had the address
 
@@ -288,8 +390,8 @@ describe('Book a doorstep inspection', () => {
         mapOf(root).props.onMessage({ nativeEvent: { data: JSON.stringify({ lat: 18.559, lng: 73.7868 }) } }),
       );
       await advance(200);
-      expect(field(root, 'Flat / House no., Building').props.value).toBe('');
-      expect(field(root, 'Area / Locality').props.value).toBe('Baner Road, Baner');
+      expect(field(root, BUILDING).props.value).toBe('');
+      expect(field(root, ADDRESS).props.value).toBe('Baner Road, Baner');
       expect(field(root, 'Pincode').props.value).toBe('411045');
     });
 
@@ -298,13 +400,18 @@ describe('Book a doorstep inspection', () => {
       const current = root.findAll(n => n.props.accessibilityLabel === 'Use my current location' && n.props.onPress)[0];
       await act(async () => current.props.onPress());
       await advance(200);
-      expect(field(root, 'Area / Locality').props.value).toBe('Baner Road, Baner');
+      expect(field(root, ADDRESS).props.value).toBe('Baner Road, Baner');
       expect(field(root, 'Pincode').props.value).toBe('411045');
     });
 
-    test('no Home / Work choice: just the address', async () => {
+    test('a typed landmark stays when a new spot is pinned', async () => {
       const root = await open();
-      expect(root.findAll(n => (n.props.label === 'Home' || n.props.label === 'Work') && n.props.onPress)).toHaveLength(0);
+      await act(async () => field(root, LANDMARK).props.onChangeText('near X Mall'));
+      await act(async () =>
+        mapOf(root).props.onMessage({ nativeEvent: { data: JSON.stringify({ lat: 18.559, lng: 73.7868 }) } }),
+      );
+      await advance(200);
+      expect(field(root, LANDMARK).props.value).toBe('near X Mall');
     });
 
     test('current location: quick network position first, then GPS if that is slow', async () => {
@@ -355,14 +462,29 @@ describe('Book a doorstep inspection', () => {
       expect(global.fetch).not.toHaveBeenCalled();
     });
 
-    test('a spot outside Pune / Pimpri-Chinchwad: a warning', async () => {
+    test('a spot in a city Turag doesn’t serve: no warning on the form (never lists the cities served); the server decides', async () => {
       global.fetch = jest.fn(() =>
-        json({ ...baner, display_name: 'Andheri, Mumbai', address: { suburb: 'Andheri', city: 'Mumbai', postcode: '400053' } }),
+        json({
+          ...baner,
+          display_name: 'Andheri, Mumbai',
+          address: { road: 'SV Road', suburb: 'Andheri', city: 'Mumbai', state: 'Maharashtra', postcode: '400053' },
+        }),
       );
-      const root = await open();
+      serviceArea.checkServiceability.mockResolvedValueOnce(false);
+      const navigation = nav();
+      const root = await open(navigation);
+      await pickFirstFreeTime(root);
       await act(async () => mapOf(root).props.onMessage({ nativeEvent: { data: JSON.stringify({ lat: 19.1, lng: 72.8 }) } }));
       await advance(200);
-      expect(hasText(root, 'outside Pune and Pimpri-Chinchwad')).toBe(true);
+      expect(hasText(root, 'outside')).toBe(false);
+      await act(async () => button(root, 'Continue').props.onPress());
+      expect(serviceArea.checkServiceability).toHaveBeenCalledWith({ city: 'Mumbai', pincode: '400053' });
+      expect(navigation.navigate).toHaveBeenCalledWith(
+        ROUTES.BOOKING_COMING_SOON,
+        expect.objectContaining({
+          place: { city: 'Mumbai', locality: 'Andheri', state: 'Maharashtra', pincode: '400053' },
+        }),
+      );
     });
   });
 
@@ -394,12 +516,71 @@ describe('Book a doorstep inspection', () => {
   });
 });
 
+describe('Coming soon to a city Turag doesn’t serve yet', () => {
+  const params = {
+    place: { city: 'Mumbai', locality: 'Andheri', state: 'Maharashtra', pincode: '400053' },
+    category: 'PASSENGER',
+    vehicleId: 'veh_1',
+    slotAt: '2026-10-23T04:30:00.000Z',
+  };
+
+  test('names the city (never the ones served); "Notify me" saves the opt-in, then "You’re on the list"', async () => {
+    const navigation = nav();
+    const root = await render(<BookingComingSoon navigation={navigation} route={{ params }} />);
+    expect(hasText(root, 'We’re coming soon to Mumbai')).toBe(true);
+    expect(hasText(root, 'Pune')).toBe(false);
+    expect(hasText(root, 'By continuing you agree to be contacted')).toBe(true);
+
+    await act(async () => button(root, 'Notify me when you launch').props.onPress());
+    expect(serviceArea.notifyCityLaunch).toHaveBeenCalledWith({ ...params.place, category: 'PASSENGER', vehicleId: 'veh_1', slotAt: params.slotAt });
+    expect(hasText(root, 'You’re on the list')).toBe(true);
+    expect(hasText(root, 'go live in Mumbai')).toBe(true);
+
+    await act(async () => button(root, 'Back to booking').props.onPress());
+    expect(navigation.goBack).toHaveBeenCalled();
+  });
+
+  test('saving fails: a message, and "Notify me" can be tried again', async () => {
+    serviceArea.notifyCityLaunch.mockRejectedValueOnce(new Error('offline'));
+    const root = await render(<BookingComingSoon navigation={nav()} route={{ params }} />);
+    await act(async () => button(root, 'Notify me when you launch').props.onPress());
+    expect(hasText(root, 'We couldn’t save your details.')).toBe(true);
+    expect(button(root, 'Notify me when you launch')).toBeDefined();
+  });
+
+  test('the server turns the city down while booking: the same screen, not an error', async () => {
+    jest
+      .spyOn(bookingApi, 'createInspectionBooking')
+      .mockRejectedValueOnce(new ApiError({ status: 422, code: 'CITY_NOT_SERVICEABLE', message: 'x' }));
+    const navigation = nav();
+    const route = {
+      params: {
+        category: 'PASSENGER',
+        address: { ...address, city: 'Mumbai', locality: 'Andheri', state: 'Maharashtra', pincode: '400053' },
+        slot: { slotAt: params.slotAt },
+        preparation: {},
+        vehicle: { vehicleId: 'veh_1' },
+        price: 799,
+      },
+    };
+    const root = await render(<BookingPayment navigation={navigation} route={route} />);
+    const pay = root.findAllByType(Button).find(b => /Pay/.test(b.props.title));
+    await act(async () => pay.props.onPress());
+    expect(navigation.navigate).toHaveBeenCalledWith(ROUTES.BOOKING_COMING_SOON, {
+      place: params.place,
+      category: 'PASSENGER',
+      vehicleId: 'veh_1',
+      slotAt: params.slotAt,
+    });
+  });
+});
+
 describe('Booking summary and confirmation', () => {
   const params = {
     vehicle,
     valuation: { valuationId: 'val_1' },
     category: 'PASSENGER',
-    address: { ...address, id: 'a1' },
+    address: { ...address, city: 'Pune', id: 'a1' }, // picked on the map
     slot: { slotAt: '2026-10-07T04:30:00.000Z', time: Date.parse('2026-10-07T04:30:00.000Z'), available: true },
     preparation: { rcPresent: true, openSpace: true, keysAvailable: false },
     price: 799,
@@ -422,7 +603,7 @@ describe('Booking summary and confirmation', () => {
     expect(rows).toEqual([
       ['Date', '07/10/2026'],
       ['Time', '10:00 am'],
-      ['Place', 'Baner, Pune'],
+      ['Place', 'Flat 1009, Sahyadri Residency, Baner Road, Baner, Pune'],
       ['On the day', 'Original RC, Open space'],
       ['Inspection fee', '₹799'],
       ['Total payable', '₹799'],
@@ -501,7 +682,10 @@ describe('Booking summary and confirmation', () => {
     expect(hasText(root, 'We are verifying your payment status.')).toBe(true);
     await advance(2000); // pay, then load the paid booking
     expect(pay).toHaveBeenCalledTimes(1);
-    expect(pay).toHaveBeenCalledWith(booking.id);
+    expect(pay).toHaveBeenCalledWith(
+      booking.id,
+      expect.objectContaining({ amountMinor: 79900, label: 'Doorstep inspection fee' }),
+    );
     expect(navigation.reset).toHaveBeenCalledWith({
       index: 1,
       routes: [
@@ -542,6 +726,29 @@ describe('Booking summary and confirmation', () => {
     const listed = bookingApi.getMyBookings();
     await advance(600);
     expect((await listed).some(b => b.id === id)).toBe(false);
+  });
+
+  test('not verified yet: "Verify your identity" comes before paying (as the web)', async () => {
+    const verificationApi = require('../src/api/services/verification.api');
+    verificationApi.getMyVerification.mockResolvedValueOnce(null);
+    const navigation = nav();
+    const root = await render(<BookingPayment navigation={navigation} route={{ params }} />);
+    await act(async () => {
+      button(root, 'Pay ₹799').props.onPress();
+    });
+    await advance(1000);
+    expect(navigation.navigate).toHaveBeenCalledWith(ROUTES.VERIFY_IDENTITY, {
+      booking: expect.objectContaining({ status: 'PENDING_PAYMENT' }),
+      method: 'UPI',
+    });
+  });
+
+  test('a rejected ID is asked again; one under review goes straight to payment', async () => {
+    const verificationApi = require('../src/api/services/verification.api');
+    expect(verificationApi.needsVerification({ status: 'REJECTED' })).toBe(true);
+    expect(verificationApi.needsVerification({ status: 'PENDING_REVIEW' })).toBe(false);
+    expect(verificationApi.needsVerification({ status: 'APPROVED' })).toBe(false);
+    expect(verificationApi.needsVerification(null)).toBe(true);
   });
 
   test('the time was just taken: a clear message to pick another', async () => {
@@ -664,8 +871,22 @@ describe('real backend', () => {
       [['2026-10-07T06:30:00.000Z', true]],
     ]);
 
+    // Older servers don't send payments_available: payments count as open.
+    expect(slots.paymentsAvailable).toBe(true);
+
     fetch.mockResolvedValueOnce(reply(200, { slots: [], price: null }));
-    expect(await bookingApi.getBookingSlots()).toEqual({ price: null, enabled: false, days: [] });
+    expect(await bookingApi.getBookingSlots()).toEqual({
+      price: null,
+      enabled: false,
+      paymentsAvailable: true,
+      days: [],
+    });
+
+    // No live payment gateway yet (staging today).
+    fetch.mockResolvedValueOnce(
+      reply(200, { slots: [], price: { amount_minor: 79900, currency: 'INR' }, payments_available: false }),
+    );
+    expect((await bookingApi.getBookingSlots()).paymentsAvailable).toBe(false);
   });
 
   test('pay: initiates the fee, and on the test gateway completes it (as the web on staging)', async () => {
@@ -682,7 +903,7 @@ describe('real backend', () => {
         }),
       )
       .mockResolvedValueOnce(reply(200, { status: 'processed' }));
-    await expect(bookingApi.payForBooking('bkg_1')).resolves.toEqual({ paymentId: 'pay_1' });
+    await expect(bookingApi.payForBooking('bkg_1')).resolves.toEqual({ paymentId: 'pay_1', confirmed: true });
     expect(fetch.mock.calls[0][0]).toMatch(/\/inspection-bookings\/bkg_1\/pay$/);
     expect(fetch.mock.calls[0][1].headers['Idempotency-Key']).toBeTruthy();
     expect(fetch.mock.calls[1][0]).toMatch(/\/inspection-bookings\/bkg_1\/pay\/simulate$/);
@@ -704,6 +925,59 @@ describe('real backend', () => {
     );
     await expect(bookingApi.payForBooking('bkg_1')).rejects.toMatchObject({ code: 'PAYMENT_UNAVAILABLE' });
     expect(fetch).toHaveBeenCalledTimes(1); // never "simulates" a real payment
+  });
+
+  // (After the test above: from here on the Razorpay SDK is a fake.)
+  test('pay: Razorpay opens on the way to pay chosen in the app, with the user’s details', async () => {
+    const open = jest.fn(async () => ({ razorpay_payment_id: 'pay_rzp' }));
+    jest.doMock('react-native-razorpay', () => ({ __esModule: true, default: { open } }));
+    fetch
+      .mockResolvedValueOnce(
+        reply(200, {
+          payment: {
+            payment_id: 'pay_3',
+            provider_order_id: 'order_ABC',
+            amount: { amount_minor: 79900, currency: 'INR' },
+            key_id: 'rzp_test_abc',
+            redirect_url: null,
+          },
+        }),
+      )
+      // The webhook has confirmed it by the first check.
+      .mockResolvedValueOnce(
+        reply(200, {
+          bookings: [
+            {
+              booking_id: 'bkg_1',
+              mode: 'DOORSTEP',
+              category: 'PASSENGER',
+              status: 'ASSIGNED',
+              address_line: 'Baner Road, Baner',
+              pincode: '411015',
+              city: 'PUNE',
+              slot_at: '2026-10-07T04:30:00.000Z',
+              price: { amount_minor: 79900, currency: 'INR' },
+              inspector_assigned: true,
+              fee_paid: true,
+              created_at: '2026-10-05T10:00:00.000Z',
+            },
+          ],
+        }),
+      );
+    const done = bookingApi.payForBooking('bkg_1', {
+      method: 'NET_BANKING',
+      prefill: { name: 'Ram Todkar', contact: '+919876543210' },
+    });
+    // (Real timers here: the first status check comes after 2.5 s.)
+    await expect(done).resolves.toEqual({ paymentId: 'pay_3', confirmed: true });
+    expect(open).toHaveBeenCalledWith(
+      expect.objectContaining({
+        key: 'rzp_test_abc',
+        order_id: 'order_ABC',
+        // Net banking chosen in the app: Razorpay opens on it, not asking again.
+        prefill: { name: 'Ram Todkar', contact: '+919876543210', method: 'netbanking' },
+      }),
+    );
   });
 
   test('create sends the web’s body (signed in) and maps the booking', async () => {
@@ -729,7 +1003,7 @@ describe('real backend', () => {
     );
     const booking = await bookingApi.createInspectionBooking({
       category: 'PASSENGER',
-      address: { ...address, geo: { lat: 18.559, lng: 73.7868 } },
+      address: { ...address, city: 'Pune', geo: { lat: 18.559, lng: 73.7868 } }, // picked on the map
       slotAt: '2026-10-07T04:30:00.000Z',
       preparation: { rcPresent: true, openSpace: false, keysAvailable: true },
       vehicleId: 'veh_1',
@@ -742,15 +1016,19 @@ describe('real backend', () => {
     expect(JSON.parse(init.body)).toEqual({
       category: 'PASSENGER',
       mode: 'DOORSTEP',
-      address_line: 'Flat 1009, Sahyadri Residency, Baner',
+      // As the web: the address, then building and landmark on their own.
+      address_line: 'Baner Road, Baner',
+      building: 'Flat 1009, Sahyadri Residency',
+      landmark: null,
       pincode: '411015',
-      city: 'PUNE',
+      city: 'Pune', // the map's city, raw (the server resolves it)
       geo_lat: 18.559,
       geo_lng: 73.7868,
       slot_at: '2026-10-07T04:30:00.000Z',
       preparation: { rc_present: true, open_space: false, keys_available: true },
       vehicle_id: 'veh_1',
       valuation_id: 'val_1',
+      inspection_consent: true,
     });
     expect(booking).toEqual(
       expect.objectContaining({ id: 'bkg_1', status: 'REQUESTED', inspectorAssigned: false, price: 799, city: 'Pune' }),

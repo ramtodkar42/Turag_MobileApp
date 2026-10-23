@@ -62,9 +62,11 @@ function Saved({ navigation }) {
 
   const onSubmitSearch = () => addRecentSearch({ query, image: vehicles[0]?.image });
 
-  // A recent search runs on the marketplace (Home), where all vehicles are.
+  // A recent search runs on the marketplace (Home), where all vehicles are: the
+  // text again, or the brand / price filter it was.
   const openRecent = useCallback(
-    value => navigation.navigate(ROUTES.MARKET, { query: value }),
+    item =>
+      navigation.navigate(ROUTES.MARKET, item.filter ? { filter: item.filter } : { query: item.query }),
     [navigation],
   );
 

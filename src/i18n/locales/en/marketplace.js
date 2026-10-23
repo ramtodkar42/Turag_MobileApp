@@ -118,4 +118,13 @@ export default {
   'marketplace.colour.BEIGE': 'Beige',
   'marketplace.colour.GOLD': 'Gold',
   'marketplace.colour.MAROON': 'Maroon',
+  'marketplace.tier.PREMIUM': 'Turag Premium',
+  'marketplace.tier.ASSURED': 'Turag Assured',
+  'marketplace.tier.BUDGET': 'Turag Budget',
+  'marketplace.tier.short.PREMIUM': 'Premium',
+  'marketplace.tier.short.ASSURED': 'Assured',
+  'marketplace.tier.short.BUDGET': 'Budget',
+  'marketplace.tier.note.PREMIUM': 'Turag Verified inspection, grade A or A+, condition score 8.5/10 or higher, asking price Rs 10 lakh or more.',
+  'marketplace.tier.note.ASSURED': 'Turag Verified inspection, grade B or better, condition score 7/10 or higher.',
+  'marketplace.tier.note.BUDGET': 'Listed by a verified seller. Not yet Turag Verified at grade B and 7/10 or higher.',
 };

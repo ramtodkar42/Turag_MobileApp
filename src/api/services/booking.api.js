@@ -10,6 +10,7 @@ import { ENDPOINTS } from '../endpoints';
 import { mapBooking, mapBookingMessage, mapSlots } from '../mappers/booking';
 import { sampleBookings, sampleMessages, sampleSlots } from '../mock/account';
 import { savePaymentRef } from '../paymentRefs';
+import { isTestGateway, openRazorpayCheckout } from '../razorpay';
 import { tNow } from '../../i18n';
 
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -18,7 +19,8 @@ const real = () => USE_REAL_API.bookings;
 // --- Booking a doorstep inspection ------------------------------------------
 
 // Offered times and the price (public, no sign-in).
-// Returns { price (₹ | null), enabled (false = booking switched off), days: [...] }.
+// Returns { price (₹ | null), enabled (false = booking switched off),
+//   paymentsAvailable (false = no live payment gateway yet: can't book), days: [...] }.
 export const getBookingSlots = async () => {
   if (!real()) {
     await wait(500);
@@ -28,11 +30,13 @@ export const getBookingSlots = async () => {
 };
 
 // Books the inspection. booking: {
-//   category ('PASSENGER' | 'TWO_WHEELER'), address ({ line1, area, city ('PUNE' | 'PCMC'), pincode }),
+//   category ('PASSENGER' | 'TWO_WHEELER'),
+//   address ({ address, building?, landmark?, city? (the map's city name), pincode, geo? }),
 //   slotAt (exact string from getBookingSlots), preparation ({ rcPresent, openSpace, keysAvailable }),
 //   vehicleId?, valuationId?
 // }. Returns the booking - PENDING_PAYMENT until payForBooking().
-// Errors: 422 BOOKING_SLOT_UNAVAILABLE (time no longer offered), 503 BOOKING_UNAVAILABLE.
+// Errors: 422 BOOKING_SLOT_UNAVAILABLE (time no longer offered), 503 BOOKING_UNAVAILABLE,
+// CITY_NOT_SERVICEABLE (the address is in a city Turag doesn't serve yet).
 export const createInspectionBooking = async ({
   category,
   address,
@@ -44,9 +48,14 @@ export const createInspectionBooking = async ({
   const body = {
     category,
     mode: 'DOORSTEP',
-    address_line: [address.line1, address.area].filter(Boolean).join(', ').trim(),
+    // As the web: the address, then the building / flat and landmark on their own.
+    address_line: address.address.trim(),
+    building: address.building?.trim() || null,
+    landmark: address.landmark?.trim() || null,
     pincode: address.pincode,
-    city: address.city,
+    // The map's city name, as typed by the map (the web sends it raw too): the
+    // server decides if it's served and stores its own city label.
+    city: address.city || null,
     // The exact spot pinned on the map (optional, as the web).
     geo_lat: address.geo?.lat ?? null,
     geo_lng: address.geo?.lng ?? null,
@@ -69,6 +78,8 @@ export const createInspectionBooking = async ({
       category,
       status: 'PENDING_PAYMENT',
       address_line: body.address_line,
+      building: body.building,
+      landmark: body.landmark,
       pincode: body.pincode,
       city: body.city,
       slot_at: slotAt,
@@ -89,44 +100,8 @@ export const createInspectionBooking = async ({
 
 // --- Paying the booking fee -------------------------------------------------
 
-// The test gateway (staging / dev): it has no checkout screen - the payment is
-// completed with /pay/simulate, as the web does there.
-const isTestGateway = payment =>
-  String(payment?.key_id ?? '').includes('stub') || String(payment?.provider_order_id ?? '').startsWith('order_stub');
-
-export const PAYMENT_UNAVAILABLE = 'PAYMENT_UNAVAILABLE';
-export const PAYMENT_CANCELLED = 'PAYMENT_CANCELLED';
-
-// Opens the Razorpay checkout modal for a real-gateway handoff (as the web's
-// openRazorpayCheckout). Lazy-requires the native SDK so a build without it
-// falls back to "payment unavailable". The modal is a UI affordance only - the
-// payment is captured by the verified server webhook, never by this call.
-// Rejects PAYMENT_CANCELLED if the payer closes / fails the modal.
-const openRazorpayCheckout = async ({ keyId, orderId, amountMinor, description, prefill }) => {
-  let RazorpayCheckout;
-  try {
-    RazorpayCheckout = require('react-native-razorpay').default;
-  } catch {
-    throw new ApiError({ code: PAYMENT_UNAVAILABLE, message: tNow('booking.summary.payUnavailable') });
-  }
-  try {
-    await RazorpayCheckout.open({
-      key: keyId,
-      order_id: orderId,
-      amount: amountMinor ?? undefined,
-      currency: 'INR',
-      name: 'Turag',
-      description: description || tNow('booking.summary.payDescription'),
-      prefill: prefill ?? {},
-      theme: { color: '#E82127' },
-    });
-  } catch (e) {
-    throw new ApiError({
-      code: PAYMENT_CANCELLED,
-      message: e?.description || tNow('booking.summary.payError'),
-    });
-  }
-};
+// The Razorpay window and the test gateway: shared with the vehicle token (src/api/razorpay.js).
+export { PAYMENT_CANCELLED, PAYMENT_UNAVAILABLE } from '../razorpay';
 
 // The server webhook captures the payment; poll the booking until the fee shows
 // paid. Returns the paid booking, or null if it hasn't confirmed in time (the
@@ -145,9 +120,10 @@ const waitForBookingPaid = async (bookingId, { tries = 12, delayMs = 2500 } = {}
 // Pays the doorstep inspection fee for a PENDING_PAYMENT booking. The test
 // gateway (stub) auto-completes via /pay/simulate; a real gateway opens Razorpay
 // checkout, then polls until the webhook marks the fee paid. Safe to retry.
-// opts: { amountMinor, label, prefill } for the checkout modal.
+// opts: { amountMinor, label, prefill ({ name, email, contact }), method ('UPI' |
+// 'CARD' | 'NET_BANKING') } for the checkout modal.
 // Returns { paymentId, confirmed }.
-export const payForBooking = async (bookingId, { amountMinor, label, prefill } = {}) => {
+export const payForBooking = async (bookingId, { amountMinor, label, prefill, method } = {}) => {
   if (!real()) {
     await wait(700);
     const raw = mockState().bookings.find(b => b.booking_id === bookingId);
@@ -178,6 +154,7 @@ export const payForBooking = async (bookingId, { amountMinor, label, prefill } =
     amountMinor: amountMinor ?? payment.amount_minor ?? null,
     description: label,
     prefill,
+    method,
   });
   const paid = await waitForBookingPaid(bookingId);
   return { paymentId: payment.payment_id, confirmed: !!paid?.feePaid };

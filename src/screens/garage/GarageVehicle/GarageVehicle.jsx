@@ -1,12 +1,15 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   AppText,
+  Badge,
   Button,
   ButtonRow,
   Header,
   Icon,
   InfoNote,
+  InspectionConsent,
   KeyValueCard,
   ScreenContainer,
   ValueCard,
@@ -19,23 +22,36 @@ import { useT } from '../../../i18n';
 import { codeLabel, keyLabel } from '../../../i18n/vehicleLabels';
 import { supportsSelfInspection } from '../../../api/mappers/valuation';
 import { startSelfInspection } from '../../../api/services/valuation.api';
-import { removeFromGarageById } from '../../../store/garageStore';
+import { loadGarage, removeFromGarageById, useGarage } from '../../../store/garageStore';
 import useConfirmDialog from '../../../hooks/useConfirmDialog';
+import { phaseAction, phaseBadge, phaseHintKey } from '../garagePhase';
 
 // One of the user's own vehicles (from the Garage): details, pre-estimated
-// value, and the next steps - as on the web's Garage card (ADR-0038):
-//   not inspection-eligible -> self-inspect now / book an inspector
-//   eligible + listed       -> view listing
-//   eligible + valued       -> list this vehicle
-// plus "View report" (once there's an inspection) and "Remove from garage".
+// value, where it is (the web's Garage card stages, see garagePhase) and the
+// next step:
+//   not inspected      -> self-inspect now / book an inspector
+//   self-inspection on -> continue it (never a second one)
+//   with Turag         -> wait (a submitted self-inspection: view its summary;
+//                         rejected: book an inspector)
+//   inspected          -> list it / view its listing
+// plus "View report" (once the inspection is finished) and "Remove from garage".
+// It shows the Garage's latest copy of the vehicle, refreshed when the page
+// comes back into view (e.g. after the self-inspection).
 function GarageVehicle({ navigation, route }) {
   const t = useT();
-  const { vehicle } = route.params;
+  const garage = useGarage();
+  const vehicle = garage.find(v => v.id === route.params.vehicle.id) ?? route.params.vehicle;
   const name = `${vehicle.make} ${vehicle.model} ${vehicle.year}`;
+  useFocusEffect(
+    useCallback(() => {
+      loadGarage();
+    }, []),
+  );
 
-  // A vehicle can only be listed once a report-ready inspection makes it
-  // eligible; until then we offer the two ways to get it inspected.
-  const needsInspection = !vehicle.inspectionEligible && !vehicle.listingId;
+  const action = phaseAction(vehicle);
+  const badge = phaseBadge(vehicle);
+  const hintKey = phaseHintKey(vehicle);
+  const needsInspection = action === 'inspect';
   const canSelfInspect = supportsSelfInspection(vehicle); // M1 is cars-only
   const valuationParam = vehicle.valuationId
     ? { valuationId: vehicle.valuationId, estimatedValue: vehicle.estimatedValue }
@@ -44,6 +60,10 @@ function GarageVehicle({ navigation, route }) {
   const [starting, setStarting] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [error, setError] = useState('');
+  // Inspection consent for a self-inspection (ticked to start one).
+  const [consent, setConsent] = useState(false);
+  const openPolicy = () =>
+    navigation.navigate(ROUTES.WEB_PAGE, { title: t('profile.item.privacyPolicy'), path: '/privacy_policy' });
   const { confirm, dialog } = useConfirmDialog();
 
   const bookInspector = () =>
@@ -61,6 +81,7 @@ function GarageVehicle({ navigation, route }) {
       const { inspectionId } = await startSelfInspection({
         vehicleId: vehicle.vehicleId,
         category: vehicle.category,
+        consent,
       });
       navigation.navigate(ROUTES.SELF_INSPECTION, {
         inspectionId,
@@ -73,6 +94,14 @@ function GarageVehicle({ navigation, route }) {
       setStarting(false);
     }
   };
+
+  // The self-inspection already started (continue it) / submitted (its summary).
+  const openSelfInspection = () =>
+    navigation.navigate(ROUTES.SELF_INSPECTION, {
+      inspectionId: vehicle.inspectionId,
+      vehicle,
+      valuation: valuationParam,
+    });
 
   const viewReport = () =>
     navigation.navigate(ROUTES.INSPECTION_REPORT, { inspectionId: vehicle.inspectionId });
@@ -105,32 +134,56 @@ function GarageVehicle({ navigation, route }) {
         <Icon name="bookmark" size={ms(20)} color={colors.heading} filled />
       </View>
       <AppText variant="caption">{t('garage.vehicle.match')}</AppText>
+      <View style={styles.stage}>
+        <Badge label={t(badge.labelKey)} tone={badge.tone} size="sm" style={styles.badge} />
+        {hintKey ? <AppText variant="caption">{t(hintKey)}</AppText> : null}
+      </View>
       <AppText variant="title" style={styles.detailsTitle}>
         {t('garage.vehicle.details')}
       </AppText>
     </View>
   );
 
-  // The primary next step, gated on inspection eligibility (as the web).
-  let primary;
-  if (needsInspection) {
+  // The primary next step for the vehicle's stage (as the web's Garage card).
+  let primary = null;
+  if (action === 'resume' || action === 'summary') {
+    primary = (
+      <Button
+        title={t(action === 'resume' ? 'garage.card.continue' : 'garage.card.viewSummary')}
+        variant={action === 'resume' ? 'primary' : 'outline'}
+        disabled={removing}
+        onPress={openSelfInspection}
+      />
+    );
+  } else if (action === null) {
+    primary = null; // with Turag: nothing to do but wait (the chip says so)
+  } else if (needsInspection) {
     primary = canSelfInspect ? (
-      <ButtonRow>
-        <Button
-          title={t(starting ? 'garage.vehicle.selfInspecting' : 'garage.vehicle.selfInspect')}
-          style={styles.flex}
-          loading={starting}
-          disabled={starting || removing}
-          onPress={selfInspect}
+      <View>
+        {/* As the web: the self-inspection starts only once the consent is ticked. */}
+        <InspectionConsent
+          checked={consent}
+          onToggle={() => setConsent(c => !c)}
+          onOpenPolicy={openPolicy}
+          style={styles.consent}
         />
-        <Button
-          title={t('garage.vehicle.bookInspector')}
-          variant="outline"
-          style={styles.flex}
-          disabled={starting || removing}
-          onPress={bookInspector}
-        />
-      </ButtonRow>
+        <ButtonRow>
+          <Button
+            title={t(starting ? 'garage.vehicle.selfInspecting' : 'garage.vehicle.selfInspect')}
+            style={styles.flex}
+            loading={starting}
+            disabled={!consent || starting || removing}
+            onPress={selfInspect}
+          />
+          <Button
+            title={t('garage.vehicle.bookInspector')}
+            variant="outline"
+            style={styles.flex}
+            disabled={starting || removing}
+            onPress={bookInspector}
+          />
+        </ButtonRow>
+      </View>
     ) : (
       <Button
         title={t('garage.vehicle.bookInspector')}
@@ -138,7 +191,7 @@ function GarageVehicle({ navigation, route }) {
         onPress={bookInspector}
       />
     );
-  } else if (vehicle.listingId) {
+  } else if (action === 'view') {
     primary = (
       <Button
         title={t('garage.card.viewListing')}
@@ -146,7 +199,7 @@ function GarageVehicle({ navigation, route }) {
         onPress={() => navigation.navigate(ROUTES.MY_LISTING, { listingId: vehicle.listingId })}
       />
     );
-  } else if (vehicle.valuationId) {
+  } else if (action === 'list') {
     primary = (
       <Button
         title={t('garage.vehicle.createListing')}
@@ -173,9 +226,9 @@ function GarageVehicle({ navigation, route }) {
       ) : null}
       {primary}
       <View style={styles.secondary}>
-        {/* Only once a self / inspector inspection is done (report-ready) — a
-            report exists only when the vehicle is inspection-eligible. */}
-        {vehicle.inspectionId && vehicle.inspectionEligible ? (
+        {/* Only once the latest inspection is finished (as the web: the
+            report is put together from a finished inspection). */}
+        {vehicle.inspectionId && vehicle.reportReady ? (
           <Button
             title={t('garage.vehicle.viewReport')}
             size="sm"
@@ -260,6 +313,13 @@ const styles = StyleSheet.create({
     fontSize: fs(18),
     lineHeight: fs(24),
   },
+  stage: {
+    marginTop: spacing.sm,
+    gap: spacing.xs,
+  },
+  badge: {
+    alignSelf: 'flex-start',
+  },
   detailsTitle: {
     marginTop: spacing.md,
     fontSize: fs(14),
@@ -279,6 +339,9 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   // Buttons share a row, so less side padding keeps labels on one line.
+  consent: {
+    marginBottom: spacing.md,
+  },
   flex: {
     flex: 1,
     paddingHorizontal: spacing.sm,

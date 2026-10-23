@@ -18,7 +18,8 @@ const CHAT_CLOSED = new Set(['CANCELLED', 'FULFILLED']);
 
 // GET /inspection-bookings item ->
 // { id, status, category, mode, slotAt (ms), address, pincode, city, price (₹),
-//   inspectorAssigned, inspectionId (report), canCancel, chatOpen, ... }
+//   inspectorAssigned, inspectionId (report), canCancel, chatOpen,
+//   building, landmark, location ({ latitude, longitude } | null), ... }
 export const mapBooking = b => ({
   id: b.booking_id,
   status: b.status,
@@ -37,6 +38,9 @@ export const mapBooking = b => ({
   cityCode: b.city ?? null, // 'PUNE' | 'PCMC' | null
   building: b.building ?? null,
   landmark: b.landmark ?? null,
+  // The customer's map pin on the doorstep (null when none was set).
+  location:
+    b.geo_lat != null && b.geo_lng != null ? { latitude: Number(b.geo_lat), longitude: Number(b.geo_lng) } : null,
   createdAt: toTime(b.created_at),
   canCancel: CANCELLABLE.has(b.status),
   chatOpen: !!b.inspector_assigned && !CHAT_CLOSED.has(b.status),
@@ -65,7 +69,10 @@ export const mapSlots = data => {
     day.slots.push({ slotAt: slot.slot_at, time, available: slot.available !== false });
   });
   days.sort((a, b) => a.time - b.time).forEach(day => day.slots.sort((a, b) => a.time - b.time));
-  return { price, enabled: price != null, days };
+  // payments_available: false while no live payment gateway is set up - the
+  // slots and price are real but the fee can't be taken, so nothing can be
+  // booked yet. Older servers don't send it (= available).
+  return { price, enabled: price != null, paymentsAvailable: data?.payments_available !== false, days };
 };
 
 // Chat message -> { id, text, mine, createdAt (ms) }

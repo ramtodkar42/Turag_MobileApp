@@ -3,7 +3,8 @@ import { AppText, ChoiceChip, FadeIn, SelectField, TextField } from '../../../..
 import { colors, fonts, spacing } from '../../../../theme';
 import { fs } from '../../../../utils/responsive';
 import { useT } from '../../../../i18n';
-import { NA_REASONS, SEVERITY_CHOICES } from '../constants';
+import { NA_REASONS, NA_REASONS_INSPECTOR, SEVERITY_CHOICES } from '../constants';
+import { useInspectorMode } from '../inspectorMode';
 import SaveStatus from './SaveStatus';
 
 const COSTED = new Set(['MODERATE', 'MAJOR', 'CRITICAL']);
@@ -29,6 +30,8 @@ function AnswerControls({
   onCommit,
 }) {
   const t = useT();
+  // The inspection officer gets the inspector wording and all 10 reasons (as the web).
+  const inspector = useInspectorMode();
   const sev = state.severity;
   const na = sev === 'NOT_ASSESSABLE';
 
@@ -61,7 +64,7 @@ function AnswerControls({
           {SEVERITY_CHOICES.map(choice => (
             <ChoiceChip
               key={choice.value}
-              label={t(choice.labelKey)}
+              label={t(inspector ? `selfInspection.severityInspector.${choice.value}` : choice.labelKey)}
               selected={sev === choice.value}
               onPress={disabled ? undefined : () => onSeverity(choice.value)}
               style={styles.choice}
@@ -75,7 +78,10 @@ function AnswerControls({
           <SelectField
             label={t('selfInspection.answer.whyCant')}
             value={state.naReason || undefined}
-            options={NA_REASONS.map(reason => ({ value: reason, label: t(`selfInspection.na.${reason}`) }))}
+            options={(inspector ? NA_REASONS_INSPECTOR : NA_REASONS).map(reason => ({
+              value: reason,
+              label: t(`selfInspection.na.${reason}`),
+            }))}
             onChange={onNaReason}
             placeholder={t('selfInspection.answer.chooseReason')}
           />

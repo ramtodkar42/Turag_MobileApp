@@ -45,7 +45,7 @@ export const mapOffer = o => {
   };
 };
 
-// OrderView -> { id, listingId, offerId, agreedPrice (₹), status, cancelReason, vehicle }
+// OrderView -> { id, listingId, offerId, agreedPrice (₹), status, cancelReason, vehicle, handoverAt }
 export const mapOrder = o => ({
   id: o.order_id,
   listingId: o.listing_id,
@@ -56,6 +56,33 @@ export const mapOrder = o => ({
   vehicle: vehicleOf(o.vehicle),
   createdAt: toTime(o.created_at),
   updatedAt: toTime(o.updated_at),
+  handoverAt: toTime(o.handover_at),
+});
+
+// Ownership-transfer checklist item (§8.1) -> { code, label, required,
+// responsible ('SELLER' | 'BUYER' | 'OPS'), status ('PENDING' | 'PROVIDED' |
+// 'VERIFIED' | 'WAIVED' | 'NOT_APPLICABLE'), document ({ fileName,
+// contentType, size, uploadedAt }) | null }
+export const mapTransferItem = i => ({
+  code: i.code,
+  label: i.label,
+  required: !!i.required,
+  responsible: i.responsible,
+  status: i.status,
+  document: i.document
+    ? {
+        fileName: i.document.file_name,
+        contentType: i.document.content_type,
+        size: i.document.size_bytes ?? 0,
+        uploadedAt: toTime(i.document.uploaded_at),
+      }
+    : null,
+});
+
+// The checklist -> { version, items }.
+export const mapTransferChecklist = c => ({
+  version: c?.version ?? 1,
+  items: (c?.items ?? []).map(mapTransferItem),
 });
 
 // What the seller can do with a listing in each status (backend state machine).
@@ -74,6 +101,12 @@ export const mapMyListing = l => ({
   },
   askPrice: toRupees(l.ask_price),
   sellerNote: l.seller_note ?? null,
+  // Where the vehicle is (buyers see the area, city and state), null on older listings.
+  location: l.location
+    ? { city: l.location.city ?? '', state: l.location.state ?? '', locality: l.location.locality ?? null }
+    : null,
+  // The pinned inspection, if any - its report is what buyers see.
+  inspectionId: l.inspection_id ?? null,
   grade: l.verification?.grade ?? null,
   turagVerified: !!l.verification?.turag_verified,
   verificationLabel: l.verification?.verification_label ?? null,

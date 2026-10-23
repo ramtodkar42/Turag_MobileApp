@@ -41,6 +41,7 @@ const garageVehicle = {
   model: 'Creta',
   year: 2022,
   estimatedValue: 1150000,
+  inspectionEligible: true, // valued and inspected: listable (ADR-0038)
 };
 
 let tree;
@@ -99,6 +100,17 @@ describe('List this vehicle', () => {
     await act(async () => root.findByType(CheckRow).props.onToggle());
     expect(button(root, 'Create listing').props.disabled).toBe(false);
 
+    // Where the vehicle is: city + state are required (as the web) - says so, creates nothing.
+    await act(async () => {
+      button(root, 'Create listing').props.onPress();
+    });
+    expect(hasText(root, 'Set your city and state using the map.')).toBe(true);
+    expect(create).not.toHaveBeenCalled();
+    await act(async () => field(root, 'City').props.onChangeText('Pune'));
+    await act(async () => field(root, 'State').props.onChangeText('Maharashtra'));
+    await act(async () => field(root, 'Pincode').props.onChangeText('411045'));
+    expect(hasText(root, 'Set your city and state using the map.')).toBe(false);
+
     await act(async () => {
       button(root, 'Create listing').props.onPress();
     });
@@ -110,6 +122,17 @@ describe('List this vehicle', () => {
         inspectionId: null,
         askPrice: 1190000,
         sellerNote: '  Single owner, full service history.  ',
+        location: {
+          city: 'Pune',
+          state: 'Maharashtra',
+          locality: null,
+          pincode: '411045',
+          address_line: null,
+          building: null,
+          landmark: null,
+          geo_lat: null,
+          geo_lng: null,
+        },
         idempotencyKey: expect.any(String),
       }),
     );

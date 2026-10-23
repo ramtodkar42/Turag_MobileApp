@@ -8,13 +8,15 @@ import { useT } from '../../../../i18n';
 const SIZE = ms(44);
 
 // Round vehicle photo with the search text underneath (max 2 lines).
+// onPress(item): a typed search, or a brand / price picked on the search screen.
 function RecentSearchItem({ item, onPress }) {
   const t = useT();
+  const label = item.labelKey ? t(item.labelKey) : item.query;
   return (
     <Pressable
-      onPress={() => onPress(item.query)}
+      onPress={() => onPress(item)}
       accessibilityRole="button"
-      accessibilityLabel={t('saved.recent.a11y', { query: item.query })}
+      accessibilityLabel={t('saved.recent.a11y', { query: label })}
       style={({ pressed }) => [styles.item, pressed && styles.pressed]}
     >
       <View style={styles.circle}>
@@ -25,7 +27,7 @@ function RecentSearchItem({ item, onPress }) {
         )}
       </View>
       <AppText variant="caption" align="center" numberOfLines={2} style={styles.label}>
-        {item.query}
+        {label}
       </AppText>
     </Pressable>
   );

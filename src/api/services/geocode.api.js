@@ -43,8 +43,9 @@ const cityCode = text => {
   return null;
 };
 
-// Nominatim result -> { lat, lng, title, subtitle, building, street, area, pincode, city, cityName }
-// area: locality; city: 'PUNE' | 'PCMC' | null (outside the booking cities).
+// Nominatim result -> { lat, lng, title, subtitle, building, street, area, pincode, city, cityName, state }
+// area: locality; city: 'PUNE' | 'PCMC' | null (any other city); cityName / state:
+// as the map names them (e.g. "Mumbai", "Maharashtra") - what the backend gets.
 export const mapPlace = item => {
   const a = item.address ?? {};
   const building = [a.house_number, a.building || a.amenity || a.shop].filter(Boolean).join(', ');
@@ -64,6 +65,7 @@ export const mapPlace = item => {
     pincode: postcode.length === 6 ? postcode : '',
     city: cityCode(`${cityName} ${a.city_district ?? ''} ${a.county ?? ''} ${item.display_name ?? ''}`),
     cityName,
+    state: a.state || '',
   };
 };
 

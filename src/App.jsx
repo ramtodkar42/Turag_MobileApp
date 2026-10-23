@@ -9,6 +9,7 @@ import useAppBoot from './hooks/useAppBoot';
 import PushBanner from './push/PushBanner';
 import OfflineBanner from './components/feedback/OfflineBanner';
 import SplashScreen from './screens/common/SplashScreen';
+import LoginPrompt from './screens/auth/LoginPrompt/LoginPrompt';
 
 function App() {
   const boot = useAppBoot();
@@ -32,6 +33,8 @@ function App() {
           <NavigationContainer ref={navigationRef} onReady={boot.onNavigationReady}>
             <RootNavigator initialRoute={boot.initialRoute} />
           </NavigationContainer>
+          {/* Guests: "Log in to continue" when they try something that needs an account. */}
+          <LoginPrompt />
           {/* On top of every screen: a push that arrives while the app is open. */}
           <PushBanner />
           {/* A slim bar when the device loses its connection. */}

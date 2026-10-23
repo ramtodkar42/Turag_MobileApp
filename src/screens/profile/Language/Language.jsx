@@ -1,8 +1,7 @@
 import { StyleSheet, View } from 'react-native';
-import { AppText, Header, InfoNote, ScreenContainer } from '../../../components';
+import { AppText, Header, InfoNote, LanguageOption, ScreenContainer } from '../../../components';
 import { colors, radius, shadows, spacing } from '../../../theme';
 import { LANGUAGES, setLanguage, useLanguage, useT } from '../../../i18n';
-import LanguageOption from './components/LanguageOption';
 
 // Profile > Language: pick the app language. Applies at once to every screen
 // and is remembered on this phone. Each language is written in its own script

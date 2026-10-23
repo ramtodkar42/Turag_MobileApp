@@ -16,7 +16,10 @@ import {
 import { analyzeDamageWithOpenAI } from '../../../api/services/visionScan';
 import { DUPLICATE_FILE } from '../../../api/services/valuation.api';
 import { fileToBase64 } from '../../../utils/fileToBase64';
+import { photoDhash } from '../../../utils/photoDhash';
+import { getPhotoLocation } from '../../../utils/photoLocation';
 import { tNow } from '../../../i18n';
+import { shotName } from './labels';
 import {
   buildAiFinding,
   buildCanonicalProfile,
@@ -29,6 +32,7 @@ import {
   crossValidateVehicle,
   decideForSavedSeverity,
   explainIntegrityFailure,
+  findNearDuplicate,
   findingToShotRead,
   humanizeSubmitError,
   isPhotoGridItem,
@@ -113,6 +117,8 @@ export default function useSelfInspection(inspectionId) {
   const [uploading, setUploading] = useState({});
   const [removing, setRemoving] = useState({});
   const [slotMsg, setSlotMsg] = useState({});
+  // The last finished upload: { key, n } (n counts up, so the same slot twice still changes).
+  const [lastUpload, setLastUpload] = useState(null);
   const liveMedia = useRef(new Set());
   const [persisted, setPersisted] = useState({});
   const [analysis, setAnalysis] = useState({});
@@ -129,6 +135,9 @@ export default function useSelfInspection(inspectionId) {
   // Photos waiting to be removed in the background (replaced by a retake while
   // the server was still checking them). Stops when the screen closes.
   const pendingRemoval = useRef(new Set());
+  // Fingerprints of the photos uploaded on this visit, for the "looks like
+  // your other photo" hint (as the web: this session only). { hash, label, mediaId }
+  const seenDhash = useRef([]);
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
@@ -182,6 +191,7 @@ export default function useSelfInspection(inspectionId) {
       const found = {};
       const states = {};
       liveMedia.current = new Set();
+      seenDhash.current = [];
       // Oldest first, so an angle's last file is its newest photo.
       const media = [...data.media].sort((a, b) => String(a.created_at ?? '').localeCompare(String(b.created_at ?? '')));
       for (const mv of media) {
@@ -227,7 +237,23 @@ export default function useSelfInspection(inspectionId) {
         });
 
       if (ins.status !== 'IN_PROGRESS') {
-        setScreen(ins.status === 'DRAFT' ? 'not-editable' : 'submitted');
+        if (ins.status === 'DRAFT') {
+          setScreen('not-editable');
+          return;
+        }
+        // Opened again later (Garage "Continue" / "View summary"): the same
+        // result screen as right after submit - a failed photo check offers
+        // "Retake photos" with what needs retaking.
+        setFinalStatus(ins.status);
+        if (ins.status === 'INTEGRITY_FAILED') {
+          try {
+            const labels = buildItemLabelMap(data.sections.flatMap(s => s.items));
+            setIntegrityItems(explainIntegrityFailure(data.media, labels).map(r => r.item));
+          } catch {
+            // keep the general retake message
+          }
+        }
+        setScreen('submitted');
         return;
       }
       setScreen('ready');
@@ -374,6 +400,7 @@ export default function useSelfInspection(inspectionId) {
 
   const forgetAsset = useCallback((code, shotCode, id) => {
     liveMedia.current.delete(id);
+    seenDhash.current = seenDhash.current.filter(d => d.mediaId !== id);
     setMediaFiles(prev => ({ ...prev, [code]: (prev[code] ?? []).filter(f => f.id !== id) }));
     setMediaCount(c => ({ ...c, [code]: Math.max(0, (c[code] ?? 0) - 1) }));
     setThumbs(t => {
@@ -482,6 +509,11 @@ export default function useSelfInspection(inspectionId) {
       }
       setUploading(u => ({ ...u, [key]: true }));
       const later = [];
+      // Started right away so they run alongside the upload steps: where the
+      // photo was taken (best effort, as the web) and the photo's fingerprint.
+      const gpsPromise = getPhotoLocation();
+      const isPhoto = kind === 'PHOTO' && String(file.type ?? 'image/jpeg').startsWith('image/');
+      const dhashPromise = isPhoto ? photoDhash(file) : Promise.resolve(null);
       try {
         if (replace) {
           const oldIds = (mediaFiles[code] ?? [])
@@ -500,8 +532,19 @@ export default function useSelfInspection(inspectionId) {
             }
           }
         }
-        const mv = await uploadSelfEvidence({ inspectionId, itemCode: code, shotCode, kind, file });
+        const gps = await gpsPromise;
+        const mv = await uploadSelfEvidence({ inspectionId, itemCode: code, shotCode, kind, file, gps });
         liveMedia.current.add(mv.mediaId);
+        // "Looks like your other photo": advisory only, never blocks (adjacent
+        // angles of a car can look alike) - the web's near-duplicate hint.
+        const hash = await dhashPromise;
+        if (hash) {
+          const hit = findNearDuplicate(hash, seenDhash.current);
+          if (hit && hit.label !== shotCode) {
+            setMsg(key, { kind: 'warn', text: tNow('selfInspection.warn.nearDuplicate', { label: shotName(tNow, hit.label) }) });
+          }
+          seenDhash.current = [...seenDhash.current, { hash, label: shotCode, mediaId: mv.mediaId }];
+        }
         setMediaFiles(prev => ({
           ...prev,
           [code]: [...(prev[code] ?? []).filter(f => f.id !== mv.mediaId), { id: mv.mediaId, shotCode, status: mv.status }],
@@ -513,6 +556,7 @@ export default function useSelfInspection(inspectionId) {
         });
         // The replaced photo(s) the server still holds: remove in the background.
         later.forEach(id => removeInBackground(code, shotCode, id));
+        setLastUpload(prev => ({ key, n: (prev?.n ?? 0) + 1 }));
         const isImage = String(file.type ?? 'image/jpeg').startsWith('image/');
         if (isImage && file.uri) setThumbs(t => ({ ...t, [mv.mediaId]: file.uri }));
         // The advisory damage read for each walkaround photo (never saved as an answer).
@@ -721,6 +765,7 @@ export default function useSelfInspection(inspectionId) {
     uploading,
     removing,
     slotMsg,
+    lastUpload,
     addEvidence,
     deleteShot,
     persisted,

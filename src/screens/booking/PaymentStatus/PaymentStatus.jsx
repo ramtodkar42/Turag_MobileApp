@@ -6,10 +6,10 @@ import usePaymentStatus from './usePaymentStatus';
 
 // "Hold On - we are verifying your payment status": shown while the fee is
 // paid and checked (see usePaymentStatus). No back button.
-// params: { booking } - the booking being paid (PENDING_PAYMENT)
+// params: { booking, method } - the booking being paid (PENDING_PAYMENT) and how
 function PaymentStatus({ navigation, route }) {
   const t = useT();
-  usePaymentStatus({ navigation, booking: route.params.booking });
+  usePaymentStatus({ navigation, booking: route.params.booking, method: route.params.method });
 
   return (
     <ScreenContainer footer={<InfoNote>{t('booking.payment.dontLeave')}</InfoNote>}>

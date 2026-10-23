@@ -265,13 +265,18 @@ export default function useEvaluateChat({ navigation }) {
   };
 
   // Start self-inspection: creates it once, then the step-by-step checklist.
-  const startSelf = async () => {
+  // consent: the inspection-consent box under the button (ticked to get here).
+  const startSelf = async consent => {
     const id = session.current;
     const { vehicle, valuation } = data.current;
     setStarting(true);
     try {
       if (!data.current.inspectionId) {
-        const created = await beginSelfInspection({ vehicleId: vehicle.vehicleId, category: vehicle.category });
+        const created = await beginSelfInspection({
+          vehicleId: vehicle.vehicleId,
+          category: vehicle.category,
+          consent,
+        });
         data.current.inspectionId = created.inspectionId;
       }
       if (id === session.current) {

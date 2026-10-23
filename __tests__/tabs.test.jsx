@@ -8,6 +8,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import RootNavigator from '../src/navigation/RootNavigator';
 import { Icon, SearchBar } from '../src/components';
+import { clearUser, setUser } from '../src/store/userStore';
 import { ROUTES } from '../src/navigation/routes';
 
 const metrics = {
@@ -41,6 +42,10 @@ const tabIcons = root =>
     const icon = tab(root, label).findByType(Icon);
     return { name: icon.props.name, filled: icon.props.filled };
   });
+
+// Signed in (a guest gets the login prompts instead - see guest.test.jsx).
+beforeEach(() => setUser({ fullName: 'Test User', role: 'individual' }));
+afterEach(() => clearUser());
 
 beforeEach(() => jest.useFakeTimers());
 

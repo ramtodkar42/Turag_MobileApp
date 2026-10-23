@@ -1,7 +1,8 @@
 import { fs } from '../utils/responsive';
 import fonts from './fonts';
 
-// Satoshi for titles, Space Grotesk for subtitles/body.
+// Jost for titles (the web's), DejaVu Sans for subtitles/body (fonts.js).
+// (Before: Inter for body like the web; earlier Satoshi + Space Grotesk.)
 // Change a size here and every screen using that variant updates.
 const typography = {
   h1: { fontFamily: fonts.title.bold, fontSize: fs(32), lineHeight: fs(40) },

@@ -10,11 +10,13 @@ import { ROUTES } from '../../../navigation/routes';
 import { currentHomeRoute } from '../../../navigation/homeRoute';
 import { refreshNotifications } from '../../../store/notificationStore';
 import { tNow } from '../../../i18n';
+import { paymentPrefill } from '../paymentPrefill';
 
 // Pays the booking's fee once, then opens "Booking confirmed" (Back from there
 // goes Home). On failure it goes back to the payment screen with the error.
 // Android back is ignored meanwhile (iOS swipe-back is off for this screen).
-export default function usePaymentStatus({ navigation, booking }) {
+// method: the way to pay chosen on the payment screen (opens straight in Razorpay).
+export default function usePaymentStatus({ navigation, booking, method }) {
   const started = useRef(false);
 
   useEffect(() => {
@@ -33,6 +35,8 @@ export default function usePaymentStatus({ navigation, booking }) {
         ({ confirmed } = await payForBooking(booking.id, {
           amountMinor: booking.price != null ? Math.round(booking.price * 100) : undefined,
           label: tNow('booking.summary.payDescription'),
+          prefill: paymentPrefill(),
+          method,
         }));
       } catch (e) {
         // The user's own cancel / an unavailable gateway carries a clear message;
@@ -46,12 +50,16 @@ export default function usePaymentStatus({ navigation, booking }) {
       }
       // Only the server confirms payment (the verified webhook). If it hasn't yet
       // (webhook delayed / not reachable), don't claim "confirmed": open the
-      // booking, which shows its real status from the server.
+      // booking, which shows its real status from the server - and, while it's
+      // still unpaid (the backend doesn't list those), this booking with "Pay now".
       const paid = confirmed ? await getMyBooking(booking.id).catch(() => null) : null;
       if (!paid?.feePaid) {
         navigation.reset({
           index: 1,
-          routes: [{ name: currentHomeRoute() }, { name: ROUTES.BOOKING_DETAILS, params: { bookingId: booking.id } }],
+          routes: [
+            { name: currentHomeRoute() },
+            { name: ROUTES.BOOKING_DETAILS, params: { bookingId: booking.id, booking } },
+          ],
         });
         return;
       }
@@ -63,5 +71,5 @@ export default function usePaymentStatus({ navigation, booking }) {
         routes: [{ name: currentHomeRoute() }, { name: ROUTES.BOOKING_CONFIRMED, params: { booking: paid } }],
       });
     })();
-  }, [booking, navigation]);
+  }, [booking, method, navigation]);
 }

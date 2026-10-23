@@ -9,7 +9,22 @@ export default {
   'home.bannerText': 'Verified cars at the best prices, just a tap away.',
   'home.location': 'Pune, Maharashtra',
   'home.openSearch': 'Search vehicles',
+  'home.language.button': 'Language: {language}. Change language',
   'home.closeSearch': 'Close search',
+  // Search screen
+  'search.placeholder': 'Search by brand or model',
+  'search.suggestions': 'Suggestions',
+  'search.searchFor': 'Search for "{query}"',
+  'search.allOfBrand': 'All {brand} vehicles',
+  'search.noSuggestions': 'No matching brands or models. Tap above to search anyway.',
+  'search.recent.title': 'Recent searches',
+  'search.recent.clear': 'Clear recent searches',
+  'search.recent.clearButton': 'Clear',
+  'search.recent.clearTitle': 'Clear recent searches?',
+  'search.recent.clearMessage': 'Your recent searches will be removed from this phone.',
+  'search.recent.edit': 'Edit "{query}"',
+  'search.priceRange': 'Price range',
+  'search.brands': 'Popular brands',
   'home.searching': 'Searching for "{query}"...',
   // Voice search
   'home.voice.start': 'Search by voice',
@@ -72,4 +87,5 @@ export default {
   'home.searched.title': 'No vehicles found',
   'home.searched.message': 'No vehicles match “{query}” right now.',
   'home.notificationsUnread': 'Notifications, {count} unread',
+  'home.filter.tier': 'Turag tier',
 };

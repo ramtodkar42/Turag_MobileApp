@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
+import AppText from '../common/AppText';
 import FillImage from '../common/FillImage';
 import PaginationDots from '../common/PaginationDots';
 import VehicleImage from './VehicleImage';
@@ -11,7 +12,8 @@ const VIEWABILITY = { itemVisiblePercentThreshold: 50 };
 // button top-left, bookmark top-right, "Verified" bottom-left). Falls back to
 // the "No Image" frame when there are no photos.
 // rounded: rounded corners (false for an edge-to-edge photo).
-// dotsBelow: red / grey dots under the photo instead of white ones on it.
+// dotsBelow: red / grey dots under the photo instead of white ones on it - and
+// the photo's caption (images[i].label, e.g. "Front Left") above them, if any.
 // cornerInset: extra top space for the top corners (e.g. the status bar).
 function ImageCarousel({
   images = [],
@@ -44,6 +46,7 @@ function ImageCarousel({
   );
 
   const top = { top: spacing.sm + cornerInset };
+  const caption = images[index]?.label ?? null;
   const dots =
     images.length > 1 ? (
       <PaginationDots
@@ -84,6 +87,11 @@ function ImageCarousel({
         {bottomLeft ? <View style={styles.bottomLeft}>{bottomLeft}</View> : null}
         {bottomRight ? <View style={styles.bottomRight}>{bottomRight}</View> : null}
       </View>
+      {dotsBelow && caption ? (
+        <AppText variant="caption" color={colors.heading} align="center" numberOfLines={1} style={styles.caption}>
+          {caption}
+        </AppText>
+      ) : null}
       {dotsBelow ? dots : null}
     </View>
   );
@@ -107,6 +115,10 @@ const styles = StyleSheet.create({
   },
   dotsBelow: {
     marginTop: spacing.sm,
+  },
+  caption: {
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.lg,
   },
   topLeft: {
     position: 'absolute',

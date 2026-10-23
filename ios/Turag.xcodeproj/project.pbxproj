@@ -11,16 +11,23 @@
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
-		8499A5292A6740AA881F7397 /* Satoshi-Black.otf in Resources */ = {isa = PBXBuildFile; fileRef = 495A9AC7024D426683196B43 /* Satoshi-Black.otf */; };
-		2E5AF2A202D245CE98696707 /* Satoshi-Bold.otf in Resources */ = {isa = PBXBuildFile; fileRef = 182A126CAEF5430B8C1FED45 /* Satoshi-Bold.otf */; };
-		0E964BB1FD2E479987543225 /* Satoshi-Medium.otf in Resources */ = {isa = PBXBuildFile; fileRef = D830EAFAA6DB4D91846147E3 /* Satoshi-Medium.otf */; };
-		CB9858DB06A84E6586320505 /* Satoshi-Regular.otf in Resources */ = {isa = PBXBuildFile; fileRef = 940502DBFD54485E8D22A5FD /* Satoshi-Regular.otf */; };
-		9A88E24B2B2C4EE8AF611B78 /* SpaceGrotesk-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 37A802D3B3674422874BC54A /* SpaceGrotesk-Bold.ttf */; };
-		50398D4B3B114FE0B575097E /* SpaceGrotesk-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 4CA20D8B27384FB181F50B23 /* SpaceGrotesk-Medium.ttf */; };
-		0E747C5352774D67A58B10A7 /* SpaceGrotesk-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = C8A9F6C614434D9EAFE3BB34 /* SpaceGrotesk-Regular.ttf */; };
 		3813E7B8C9F28F57E33D6AE3 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 013E265C9980800732F4D3F2 /* GoogleService-Info.plist */; };
 		007A3680E4D84373BE09E8B0 /* BootSplash.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 05984658B6F048DA9BF8940D /* BootSplash.storyboard */; };
 		4A11BD6C35634F2B9EC332B3 /* Colors.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 41C7EE3F69CE4A139A80CEBA /* Colors.xcassets */; };
+		505A7D41A3E24693952BC0D7 /* Satoshi-Black.otf in Resources */ = {isa = PBXBuildFile; fileRef = 715C8DAB43F8408C8B1D0DB0 /* Satoshi-Black.otf */; };
+		63835A03818A44C1B772607D /* Satoshi-Bold.otf in Resources */ = {isa = PBXBuildFile; fileRef = 8FCBC10EA0BB455B997F4B6B /* Satoshi-Bold.otf */; };
+		D89D8020C4074899807966DD /* Satoshi-Medium.otf in Resources */ = {isa = PBXBuildFile; fileRef = A68C52D4BDB446CAB8936A88 /* Satoshi-Medium.otf */; };
+		B10B715FC8D5456986619F31 /* Satoshi-Regular.otf in Resources */ = {isa = PBXBuildFile; fileRef = 8B8A9604F3FE4A2CBDE2BEA5 /* Satoshi-Regular.otf */; };
+		B6A5530818204F99B736A308 /* DejaVuSans-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 84268DA7D9E64CD691357973 /* DejaVuSans-Bold.ttf */; };
+		F688B1C100B044AEA57EBE20 /* DejaVuSans.ttf in Resources */ = {isa = PBXBuildFile; fileRef = DFFF4CA7CA074E1284BCCAB3 /* DejaVuSans.ttf */; };
+		97048BD4BEC34491A90847F6 /* Inter-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7E7B4BB10A2B4FAE957A6C3C /* Inter-Medium.ttf */; };
+		A36A4555ED1B4D6597382C22 /* Inter-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A33243AEBF5C4D94B1E97BBC /* Inter-Regular.ttf */; };
+		0E113ADA1162474F8BBAE3DE /* Jost-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = DD9C720DC87E4C2A9B0A768B /* Jost-Bold.ttf */; };
+		94B882A3CD5741D1832A0A9B /* Jost-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 548C8D1CB5494EF48B849AEE /* Jost-Medium.ttf */; };
+		EADBA37777C14093860F9A1B /* Jost-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 680F46623C754B679A0C7197 /* Jost-SemiBold.ttf */; };
+		53C515BE65064839927327B9 /* SpaceGrotesk-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 931DFDD36597453DAD1C896F /* SpaceGrotesk-Bold.ttf */; };
+		0E5F6A68A0F94D03A761F401 /* SpaceGrotesk-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = BF69166C4FEC44BBBDB7A2AB /* SpaceGrotesk-Medium.ttf */; };
+		B78430AF8B8B4A7A903070ED /* SpaceGrotesk-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 20E3E57A4C5B4616BB38759E /* SpaceGrotesk-Regular.ttf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -34,17 +41,24 @@
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = Turag/AppDelegate.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = Turag/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
-		495A9AC7024D426683196B43 /* Satoshi-Black.otf */ = {isa = PBXFileReference; name = "Satoshi-Black.otf"; path = "../src/assets/fonts/Satoshi-Black.otf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		182A126CAEF5430B8C1FED45 /* Satoshi-Bold.otf */ = {isa = PBXFileReference; name = "Satoshi-Bold.otf"; path = "../src/assets/fonts/Satoshi-Bold.otf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		D830EAFAA6DB4D91846147E3 /* Satoshi-Medium.otf */ = {isa = PBXFileReference; name = "Satoshi-Medium.otf"; path = "../src/assets/fonts/Satoshi-Medium.otf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		940502DBFD54485E8D22A5FD /* Satoshi-Regular.otf */ = {isa = PBXFileReference; name = "Satoshi-Regular.otf"; path = "../src/assets/fonts/Satoshi-Regular.otf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		37A802D3B3674422874BC54A /* SpaceGrotesk-Bold.ttf */ = {isa = PBXFileReference; name = "SpaceGrotesk-Bold.ttf"; path = "../src/assets/fonts/SpaceGrotesk-Bold.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		4CA20D8B27384FB181F50B23 /* SpaceGrotesk-Medium.ttf */ = {isa = PBXFileReference; name = "SpaceGrotesk-Medium.ttf"; path = "../src/assets/fonts/SpaceGrotesk-Medium.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		C8A9F6C614434D9EAFE3BB34 /* SpaceGrotesk-Regular.ttf */ = {isa = PBXFileReference; name = "SpaceGrotesk-Regular.ttf"; path = "../src/assets/fonts/SpaceGrotesk-Regular.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
 		013E265C9980800732F4D3F2 /* GoogleService-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = "GoogleService-Info.plist"; path = "Turag/GoogleService-Info.plist"; sourceTree = "<group>"; };
 		E998A4D3E3E1F5AA5155254A /* Turag.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = Turag.entitlements; path = Turag/Turag.entitlements; sourceTree = "<group>"; };
 		05984658B6F048DA9BF8940D /* BootSplash.storyboard */ = {isa = PBXFileReference; name = "BootSplash.storyboard"; path = "Turag/BootSplash.storyboard"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
 		41C7EE3F69CE4A139A80CEBA /* Colors.xcassets */ = {isa = PBXFileReference; name = "Colors.xcassets"; path = "Turag/Colors.xcassets"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = folder.assetcatalog; explicitFileType = undefined; includeInIndex = 0; };
+		715C8DAB43F8408C8B1D0DB0 /* Satoshi-Black.otf */ = {isa = PBXFileReference; name = "Satoshi-Black.otf"; path = "../src/assets/fonts/Satoshi-Black.otf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		8FCBC10EA0BB455B997F4B6B /* Satoshi-Bold.otf */ = {isa = PBXFileReference; name = "Satoshi-Bold.otf"; path = "../src/assets/fonts/Satoshi-Bold.otf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		A68C52D4BDB446CAB8936A88 /* Satoshi-Medium.otf */ = {isa = PBXFileReference; name = "Satoshi-Medium.otf"; path = "../src/assets/fonts/Satoshi-Medium.otf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		8B8A9604F3FE4A2CBDE2BEA5 /* Satoshi-Regular.otf */ = {isa = PBXFileReference; name = "Satoshi-Regular.otf"; path = "../src/assets/fonts/Satoshi-Regular.otf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		84268DA7D9E64CD691357973 /* DejaVuSans-Bold.ttf */ = {isa = PBXFileReference; name = "DejaVuSans-Bold.ttf"; path = "../src/assets/fonts/DejaVuSans-Bold.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		DFFF4CA7CA074E1284BCCAB3 /* DejaVuSans.ttf */ = {isa = PBXFileReference; name = "DejaVuSans.ttf"; path = "../src/assets/fonts/DejaVuSans.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		7E7B4BB10A2B4FAE957A6C3C /* Inter-Medium.ttf */ = {isa = PBXFileReference; name = "Inter-Medium.ttf"; path = "../src/assets/fonts/Inter-Medium.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		A33243AEBF5C4D94B1E97BBC /* Inter-Regular.ttf */ = {isa = PBXFileReference; name = "Inter-Regular.ttf"; path = "../src/assets/fonts/Inter-Regular.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		DD9C720DC87E4C2A9B0A768B /* Jost-Bold.ttf */ = {isa = PBXFileReference; name = "Jost-Bold.ttf"; path = "../src/assets/fonts/Jost-Bold.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		548C8D1CB5494EF48B849AEE /* Jost-Medium.ttf */ = {isa = PBXFileReference; name = "Jost-Medium.ttf"; path = "../src/assets/fonts/Jost-Medium.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		680F46623C754B679A0C7197 /* Jost-SemiBold.ttf */ = {isa = PBXFileReference; name = "Jost-SemiBold.ttf"; path = "../src/assets/fonts/Jost-SemiBold.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		931DFDD36597453DAD1C896F /* SpaceGrotesk-Bold.ttf */ = {isa = PBXFileReference; name = "SpaceGrotesk-Bold.ttf"; path = "../src/assets/fonts/SpaceGrotesk-Bold.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		BF69166C4FEC44BBBDB7A2AB /* SpaceGrotesk-Medium.ttf */ = {isa = PBXFileReference; name = "SpaceGrotesk-Medium.ttf"; path = "../src/assets/fonts/SpaceGrotesk-Medium.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		20E3E57A4C5B4616BB38759E /* SpaceGrotesk-Regular.ttf */ = {isa = PBXFileReference; name = "SpaceGrotesk-Regular.ttf"; path = "../src/assets/fonts/SpaceGrotesk-Regular.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -126,13 +140,20 @@
 		6B8EDB16442E486FB58407E8 /* Resources */ = {
 			isa = "PBXGroup";
 			children = (
-				495A9AC7024D426683196B43 /* Satoshi-Black.otf */,
-				182A126CAEF5430B8C1FED45 /* Satoshi-Bold.otf */,
-				D830EAFAA6DB4D91846147E3 /* Satoshi-Medium.otf */,
-				940502DBFD54485E8D22A5FD /* Satoshi-Regular.otf */,
-				37A802D3B3674422874BC54A /* SpaceGrotesk-Bold.ttf */,
-				4CA20D8B27384FB181F50B23 /* SpaceGrotesk-Medium.ttf */,
-				C8A9F6C614434D9EAFE3BB34 /* SpaceGrotesk-Regular.ttf */,
+				715C8DAB43F8408C8B1D0DB0 /* Satoshi-Black.otf */,
+				8FCBC10EA0BB455B997F4B6B /* Satoshi-Bold.otf */,
+				A68C52D4BDB446CAB8936A88 /* Satoshi-Medium.otf */,
+				8B8A9604F3FE4A2CBDE2BEA5 /* Satoshi-Regular.otf */,
+				84268DA7D9E64CD691357973 /* DejaVuSans-Bold.ttf */,
+				DFFF4CA7CA074E1284BCCAB3 /* DejaVuSans.ttf */,
+				7E7B4BB10A2B4FAE957A6C3C /* Inter-Medium.ttf */,
+				A33243AEBF5C4D94B1E97BBC /* Inter-Regular.ttf */,
+				DD9C720DC87E4C2A9B0A768B /* Jost-Bold.ttf */,
+				548C8D1CB5494EF48B849AEE /* Jost-Medium.ttf */,
+				680F46623C754B679A0C7197 /* Jost-SemiBold.ttf */,
+				931DFDD36597453DAD1C896F /* SpaceGrotesk-Bold.ttf */,
+				BF69166C4FEC44BBBDB7A2AB /* SpaceGrotesk-Medium.ttf */,
+				20E3E57A4C5B4616BB38759E /* SpaceGrotesk-Regular.ttf */,
 			);
 			name = Resources;
 			sourceTree = "<group>";
@@ -201,15 +222,22 @@
 				81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3813E7B8C9F28F57E33D6AE3 /* GoogleService-Info.plist in Resources */,
-				8499A5292A6740AA881F7397 /* Satoshi-Black.otf in Resources */,
-				2E5AF2A202D245CE98696707 /* Satoshi-Bold.otf in Resources */,
-				0E964BB1FD2E479987543225 /* Satoshi-Medium.otf in Resources */,
-				CB9858DB06A84E6586320505 /* Satoshi-Regular.otf in Resources */,
-				9A88E24B2B2C4EE8AF611B78 /* SpaceGrotesk-Bold.ttf in Resources */,
-				50398D4B3B114FE0B575097E /* SpaceGrotesk-Medium.ttf in Resources */,
-				0E747C5352774D67A58B10A7 /* SpaceGrotesk-Regular.ttf in Resources */,
 				007A3680E4D84373BE09E8B0 /* BootSplash.storyboard in Resources */,
 				4A11BD6C35634F2B9EC332B3 /* Colors.xcassets in Resources */,
+				505A7D41A3E24693952BC0D7 /* Satoshi-Black.otf in Resources */,
+				63835A03818A44C1B772607D /* Satoshi-Bold.otf in Resources */,
+				D89D8020C4074899807966DD /* Satoshi-Medium.otf in Resources */,
+				B10B715FC8D5456986619F31 /* Satoshi-Regular.otf in Resources */,
+				B6A5530818204F99B736A308 /* DejaVuSans-Bold.ttf in Resources */,
+				F688B1C100B044AEA57EBE20 /* DejaVuSans.ttf in Resources */,
+				97048BD4BEC34491A90847F6 /* Inter-Medium.ttf in Resources */,
+				A36A4555ED1B4D6597382C22 /* Inter-Regular.ttf in Resources */,
+				0E113ADA1162474F8BBAE3DE /* Jost-Bold.ttf in Resources */,
+				94B882A3CD5741D1832A0A9B /* Jost-Medium.ttf in Resources */,
+				EADBA37777C14093860F9A1B /* Jost-SemiBold.ttf in Resources */,
+				53C515BE65064839927327B9 /* SpaceGrotesk-Bold.ttf in Resources */,
+				0E5F6A68A0F94D03A761F401 /* SpaceGrotesk-Medium.ttf in Resources */,
+				B78430AF8B8B4A7A903070ED /* SpaceGrotesk-Regular.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

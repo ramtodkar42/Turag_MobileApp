@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
+import useLocationFill from '../../../hooks/useLocationFill';
 import useAddressForm from './useAddressForm';
-import useLocationFill from './useLocationFill';
 
 // Booking form (as the web's /book): vehicle type, day + time (from the
 // offered slots), the address (typed here, sent with the booking) and the
@@ -17,7 +17,7 @@ export default function useBookingForm({ vehicle, slots }) {
   // Optional exact spot pinned on the map: { lat, lng } (sent as geo_lat / geo_lng).
   const [geo, setGeo] = useState(null);
   // Map tap / search / current location -> pin + fill the address fields.
-  const location = useLocationFill({ addressForm, setGeo });
+  const location = useLocationFill({ fillFrom: addressForm.fillFrom, setGeo });
   const [preparation, setPreparation] = useState({
     rcPresent: false,
     openSpace: false,
@@ -40,7 +40,8 @@ export default function useBookingForm({ vehicle, slots }) {
   const togglePreparation = key => setPreparation(prev => ({ ...prev, [key]: !prev[key] }));
 
   const address = addressForm.isComplete ? { ...addressForm.toPayload(), geo } : null;
-  const ready = !!slots?.enabled && !!slot && !!address;
+  // No live payment gateway (slots.paymentsAvailable false): nothing can be booked yet.
+  const ready = !!slots?.enabled && !!slots?.paymentsAvailable && !!slot && !!address;
 
   return {
     addressForm,

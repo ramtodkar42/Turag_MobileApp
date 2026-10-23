@@ -1,26 +1,21 @@
 import { useRef } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
-import {
-  AppText,
-  CurrentLocationButton,
-  Icon,
-  LocationPicker,
-  PlaceSearch,
-  TextField,
-} from '../../../../components';
-import { colors, spacing } from '../../../../theme';
-import { ms } from '../../../../utils/responsive';
+import { StyleSheet, View } from 'react-native';
+import { ChoiceChip, PlaceFinder, TextField } from '../../../../components';
+import { spacing } from '../../../../theme';
 import { useT } from '../../../../i18n';
 
-const TONE_COLORS = { error: colors.danger, warning: colors.warning };
+const PLACES = ['home', 'office'];
 
 // Where the vehicle will be (as the web's /book, plus search and current
-// location): search a place or use the phone's location, or tap the map to
-// pin it - the address fields below fill in from that spot; the user adds the
-// flat / house number. form: useAddressForm(); location: useLocationFill().
+// location): Home / Office, then search a place or use the phone's location,
+// or tap the map to pin it - the address fields below fill in from that spot
+// (and the city / area / state, sent with the booking); the user adds the
+// building / flat and a landmark.
+// form: useAddressForm(); location: useLocationFill().
 function AddressFields({ form, geo, location, style }) {
   const t = useT();
-  const areaRef = useRef(null);
+  const buildingRef = useRef(null);
+  const landmarkRef = useRef(null);
   const pincodeRef = useRef(null);
 
   const next = ref => ({
@@ -29,66 +24,51 @@ function AddressFields({ form, geo, location, style }) {
     onSubmitEditing: () => ref.current?.focus(),
   });
 
-  let status = null;
-  if (location.busy === 'address') {
-    status = (
-      <View style={styles.statusRow}>
-        <ActivityIndicator size="small" color={colors.primary} />
-        <AppText variant="caption">{t('booking.address.findingAddress')}</AppText>
-      </View>
-    );
-  } else if (location.message) {
-    status = (
-      <AppText variant="caption" color={TONE_COLORS[location.message.tone]} accessibilityLiveRegion="polite">
-        {location.message.text}
-      </AppText>
-    );
-  } else if (location.place) {
-    status = (
-      <View style={styles.statusRow}>
-        <Icon name="navigation" size={ms(14)} color={colors.success} />
-        <AppText variant="caption" color={colors.body} style={styles.flex} numberOfLines={2}>
-          {[location.place.title, location.place.subtitle].filter(Boolean).join(', ')}
-        </AppText>
-      </View>
-    );
-  } else if (geo) {
-    status = (
-      <AppText variant="caption">
-        {t('booking.address.location', { lat: geo.lat.toFixed(5), lng: geo.lng.toFixed(5) })}
-      </AppText>
-    );
-  }
-
   return (
     <View style={[styles.fields, style]}>
-      {/* Find the spot */}
-      <PlaceSearch onSelect={location.choosePlace} />
-      <LocationPicker value={geo} onChange={location.pinAt}>
-        <CurrentLocationButton onPress={location.useCurrent} loading={location.busy === 'current'} />
-      </LocationPicker>
-      <View style={styles.status}>
-        {status ?? <AppText variant="caption">{t('booking.address.pinHint')}</AppText>}
+      {/* Home / Office */}
+      <View style={styles.row} accessibilityRole="radiogroup">
+        {PLACES.map(p => (
+          <ChoiceChip
+            key={p}
+            label={t(`booking.place.${p}`)}
+            selected={form.values.place === p}
+            onPress={() => form.set('place')(p)}
+            style={styles.flex}
+          />
+        ))}
       </View>
 
-      {/* The address (filled from the spot; the flat / house number is typed) */}
+      {/* Find the spot */}
+      <PlaceFinder geo={geo} location={location} hint={t('booking.address.pinHint')} />
+
+      {/* The address (filled from the spot; the building / flat and landmark are typed) */}
       <TextField
-        label={t('booking.address.line1')}
-        placeholder={t('booking.address.line1Placeholder')}
-        value={form.values.line1}
-        onChangeText={form.set('line1')}
-        valid={form.valid.line1}
+        label={t('booking.address.address')}
+        placeholder={t('booking.address.addressPlaceholder')}
+        value={form.values.address}
+        onChangeText={form.set('address')}
+        valid={form.valid.address}
         autoCapitalize="words"
-        {...next(areaRef)}
+        {...next(buildingRef)}
       />
       <TextField
-        ref={areaRef}
-        label={t('booking.address.area')}
-        placeholder={t('booking.address.areaPlaceholder')}
-        value={form.values.area}
-        onChangeText={form.set('area')}
-        valid={form.valid.area}
+        ref={buildingRef}
+        label={t('booking.address.building')}
+        placeholder={t('booking.address.buildingPlaceholder')}
+        value={form.values.building}
+        onChangeText={form.set('building')}
+        valid={form.valid.building}
         autoCapitalize="words"
+        {...next(landmarkRef)}
+      />
+      <TextField
+        ref={landmarkRef}
+        label={t('booking.address.landmark')}
+        placeholder={t('booking.address.landmarkPlaceholder')}
+        value={form.values.landmark}
+        onChangeText={form.set('landmark')}
+        autoCapitalize="sentences"
         {...next(pincodeRef)}
       />
       <TextField
@@ -102,7 +82,6 @@ function AddressFields({ form, geo, location, style }) {
         maxLength={6}
         returnKeyType="done"
       />
-      <AppText variant="caption">{t('booking.address.cityNote')}</AppText>
     </View>
   );
 }
@@ -111,14 +90,9 @@ const styles = StyleSheet.create({
   fields: {
     gap: spacing.md,
   },
-  status: {
-    marginTop: -spacing.xs,
-    minHeight: ms(18),
-  },
-  statusRow: {
+  row: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
+    gap: spacing.sm,
   },
   flex: {
     flex: 1,

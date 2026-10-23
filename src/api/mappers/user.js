@@ -13,6 +13,9 @@ export const mapUser = (apiUser, { phone } = {}) => {
     contact: phone ?? apiUser?.phone_masked ?? '',
     email: apiUser?.email ?? '',
     emailVerified: !!apiUser?.email_verified,
+    // The profile photo saved on the account (changes when a new one is uploaded),
+    // or null. The picture itself is GET /me/avatar with the login token.
+    avatarUrl: apiUser?.avatar_url ?? null,
     roles,
     role: isInspector(roles) ? ROLES.INSPECTOR : ROLES.INDIVIDUAL,
   };

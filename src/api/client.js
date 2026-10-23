@@ -5,7 +5,8 @@ import { getOnline, reportOffline, reportOnline } from '../store/networkStore';
 // The one place that talks to the Turag backend. Services call `request()`;
 // screens never use fetch directly.
 //
-// - JSON in / JSON out; backend errors ({ error: { code, message } }) become ApiError.
+// - JSON in / JSON out (or a FormData body for file uploads); backend errors
+//   ({ error: { code, message } }) become ApiError.
 // - Signed-in calls get "Authorization: Bearer <access token>". When the token has
 //   expired, the session refreshes it once and the call is retried, so the user
 //   never sees it.
@@ -118,17 +119,23 @@ async function send(path, { method, body, headers, token, timeoutMs }) {
   }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  // A FormData body (files) goes as multipart: fetch sets the content type
+  // with its boundary itself. A Blob body (one file's bytes) goes as it is,
+  // with the content type the caller puts in `headers`.
+  const isForm =
+    (typeof FormData !== 'undefined' && body instanceof FormData) ||
+    (typeof Blob !== 'undefined' && body instanceof Blob);
   let res;
   try {
     res = await fetch(`${API_BASE_URL}${path}`, {
       method,
       headers: {
         Accept: 'application/json',
-        ...(body !== undefined ? { 'Content-Type': 'application/json' } : null),
+        ...(body !== undefined && !isForm ? { 'Content-Type': 'application/json' } : null),
         ...(token ? { Authorization: `Bearer ${token}` } : null),
         ...headers,
       },
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
       credentials: 'omit',
       signal: controller.signal,
     });

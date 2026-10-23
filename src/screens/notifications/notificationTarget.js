@@ -7,6 +7,8 @@ const TARGETS = [
   { pattern: /^\/account\/bookings\/([^/?#]+)\/?$/, route: ROUTES.BOOKING_DETAILS, param: 'bookingId' },
   // offer_countered / offer_accepted / offer_declined / order_* (buyer)
   { pattern: /^\/buy\/offers\/?$/, route: ROUTES.MY_OFFERS },
+  // One offer (the web's /buy/offers/{id})
+  { pattern: /^\/buy\/offers\/([^/?#]+)\/?$/, route: ROUTES.OFFER_DETAILS, param: 'offerId' },
   // offer_received / offer_withdrawn / ... (seller)
   { pattern: /^\/sell\/([^/?#]+)\/?$/, route: ROUTES.MY_LISTING, param: 'listingId' },
   // booking_assigned / booking_cancelled (the inspector's copy)

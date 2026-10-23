@@ -2,6 +2,34 @@
   "migIndex": 1,
   "data": [
     {
+      "path": "src/assets/fonts/DejaVuSans-Bold.ttf",
+      "sha1": "b423ebfc46f18b2344a39e094b80ad750a2740fc"
+    },
+    {
+      "path": "src/assets/fonts/DejaVuSans.ttf",
+      "sha1": "bbf4ffb55ff0245a88e185353c010a4edaca80ea"
+    },
+    {
+      "path": "src/assets/fonts/Inter-Medium.ttf",
+      "sha1": "6bf9891732478e6d170f5ed43262faa3581cc0b4"
+    },
+    {
+      "path": "src/assets/fonts/Inter-Regular.ttf",
+      "sha1": "2b0195ff9817449bda803aab0f0df6a8491c44f2"
+    },
+    {
+      "path": "src/assets/fonts/Jost-Bold.ttf",
+      "sha1": "1223a8fb5e3b2a2525d7136ba1c49996bc2b68fd"
+    },
+    {
+      "path": "src/assets/fonts/Jost-Medium.ttf",
+      "sha1": "fb246fb0926d40bac4deaaa01e1e2e960e9bf54c"
+    },
+    {
+      "path": "src/assets/fonts/Jost-SemiBold.ttf",
+      "sha1": "3badc368d4199d576d9bf192ba1d3c078704ad83"
+    },
+    {
       "path": "src/assets/fonts/Satoshi-Black.otf",
       "sha1": "d92baad4dab9ca55bc72f1a8a0a6de72829e709f"
     },

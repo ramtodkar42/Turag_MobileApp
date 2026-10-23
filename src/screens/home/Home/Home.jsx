@@ -1,5 +1,6 @@
-import { useCallback, useEffect } from 'react';
-import { ActivityIndicator, Animated, FlatList, StyleSheet } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, FlatList, StyleSheet, View } from 'react-native';
+import { ms } from '../../../utils/responsive';
 import {
   AppRefreshControl,
   FloatingAIButton,
@@ -8,16 +9,17 @@ import {
   useTabBarSpace,
   VehicleGridCard,
 } from '../../../components';
-import { colors, spacing } from '../../../theme';
+import { colors, radius, spacing } from '../../../theme';
 import useVehicleGrid from '../../../hooks/useVehicleGrid';
 import { useUser } from '../../../store/userStore';
 import { addRecentSearch } from '../../../store/recentSearchStore';
 import useNotificationBadge from '../../../hooks/useNotificationBadge';
 import useKeyboardVisible from '../../../hooks/useKeyboardVisible';
-import usePulse from '../../../hooks/usePulse';
 import { loadSaved } from '../../../store/savedStore';
+import { requireLogin } from '../../../store/loginPromptStore';
 import { ROUTES } from '../../../navigation/routes';
 import HomeListHeader from './components/HomeListHeader';
+import LanguageMenu from './components/LanguageMenu';
 import ListStatus from './components/ListStatus';
 import useMarketplace from './useMarketplace';
 
@@ -36,10 +38,14 @@ function Home({ navigation, route }) {
   // the bell's count stays fresh while Home is shown.
   const unreadCount = useNotificationBadge();
 
-  // Saved vehicles too, so the hearts show what's already saved.
+  // Saved vehicles too, so the hearts show what's already saved (guests have
+  // none; loads as soon as they log in).
+  const signedIn = !!user;
   useEffect(() => {
-    loadSaved();
-  }, []);
+    if (signedIn) {
+      loadSaved();
+    }
+  }, [signedIn]);
 
   // A recent search tapped on the Saved tab opens Home with that search.
   const incomingQuery = route?.params?.query;
@@ -49,6 +55,24 @@ function Home({ navigation, route }) {
       navigation.setParams({ query: undefined });
     }
   }, [incomingQuery, setQuery, navigation]);
+
+  // A price range / brand picked on the search screen: that filter (instead of
+  // a typed search).
+  const incomingFilter = route?.params?.filter;
+  const { setFilter } = market;
+  useEffect(() => {
+    if (incomingFilter) {
+      setQuery('');
+      setFilter(incomingFilter.id, incomingFilter.value, { inCategory: incomingFilter.category });
+      navigation.setParams({ filter: undefined });
+    }
+  }, [incomingFilter, setFilter, setQuery, navigation]);
+
+  // The search button opens the search screen (Home's tab picks its prices / brands).
+  const openSearch = useCallback(
+    () => navigation.navigate(ROUTES.SEARCH, { vehicle: market.filters.vehicle ?? null }),
+    [navigation, market.filters.vehicle],
+  );
 
   // Opened with { refresh } (e.g. "See Listing on Marketplace"): reload the grid.
   const refreshSignal = route?.params?.refresh;
@@ -60,29 +84,54 @@ function Home({ navigation, route }) {
     }
   }, [refreshSignal, reload, navigation]);
 
+  // The language menu drops just below the language pill. Both are measured
+  // inside this screen (one coordinate system), so it lines up on every phone.
+  const screenRef = useRef(null);
+  const [languageAt, setLanguageAt] = useState(null);
+  const openLanguage = useCallback(anchor => {
+    if (!anchor || !screenRef.current) return;
+    anchor.measureLayout(
+      screenRef.current,
+      (x, y, _width, height) => setLanguageAt({ left: x, top: y + height + ms(8) }),
+      () => {},
+    );
+  }, []);
+  const closeLanguage = useCallback(() => setLanguageAt(null), []);
+
   // Keyboard "search" key: remember the search with its first result's photo.
   const onSubmitSearch = () =>
     addRecentSearch({ query: market.query, image: market.vehicles[0]?.image });
 
-  // While a search runs, the cards on screen gently fade in and out, so it's
-  // clear new results are coming (a new search then shows the grey cards).
-  const cardOpacity = usePulse(market.searching);
+  // While new results are on their way, the cards on screen stay put under a
+  // soft white veil that fades in once and out once (no blinking loop; the
+  // cards themselves never fade, so their shadows don't flash on Android).
+  const veil = useRef(new Animated.Value(0)).current;
+  const busy = market.searching || market.updating;
+  useEffect(() => {
+    Animated.timing(veil, {
+      toValue: busy ? 1 : 0,
+      duration: busy ? 160 : 220,
+      useNativeDriver: true,
+    }).start();
+  }, [busy, veil]);
 
   const renderItem = useCallback(
     ({ item }) => (
-      <Animated.View style={{ opacity: cardOpacity }}>
+      <View>
         <VehicleGridCard
           vehicle={item}
           width={cardWidth}
           onPress={() => navigation.navigate(ROUTES.VEHICLE_LISTING, { vehicle: item })}
         />
-      </Animated.View>
+        <Animated.View pointerEvents="none" style={[styles.veil, { opacity: veil }]} />
+      </View>
     ),
-    [cardWidth, navigation, cardOpacity],
+    [cardWidth, navigation, veil],
   );
 
   return (
     <ScreenContainer padded={false}>
+      <View ref={screenRef} collapsable={false} style={styles.screen}>
       <FlatList
         key={columns}
         data={market.vehicles}
@@ -95,9 +144,14 @@ function Home({ navigation, route }) {
             market={market}
             unreadCount={unreadCount}
             onSubmitSearch={onSubmitSearch}
-            onNotificationsPress={() => navigation.navigate(ROUTES.NOTIFICATIONS)}
+            onNotificationsPress={() =>
+              requireLogin('notifications') && navigation.navigate(ROUTES.NOTIFICATIONS)
+            }
+            onLanguagePress={openLanguage}
+            onOpenSearch={openSearch}
           />
         }
+        onScrollBeginDrag={languageAt ? closeLanguage : undefined}
         ListEmptyComponent={<ListStatus market={market} grid={grid} onRetry={market.retry} />}
         ListFooterComponent={
           market.loadingMore ? <ActivityIndicator color={colors.primary} style={styles.more} /> : null
@@ -122,11 +176,26 @@ function Home({ navigation, route }) {
       <PinnedToBottom offset={tabBarSpace + spacing.xl} hidden={keyboardOpen} style={styles.ai}>
         <FloatingAIButton onPress={() => navigation.navigate(ROUTES.CHAT_SPLASH)} />
       </PinnedToBottom>
+
+      <LanguageMenu at={languageAt} onClose={closeLanguage} />
+      </View>
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
+  veil: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    borderRadius: radius.lg,
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+  },
   row: {
     paddingHorizontal: spacing.lg,
   },

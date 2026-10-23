@@ -3,6 +3,7 @@ import { clearSaved } from './savedStore';
 import { clearRecentSearches } from './recentSearchStore';
 import { clearGarage } from './garageStore';
 import { clearNotifications } from './notificationStore';
+import { clearMyOrganizations } from '../hooks/useMyOrganizations';
 
 // Forgets the signed-in user's data kept in memory (on log out or when the
 // session ends), so the next person on this phone starts clean.
@@ -12,4 +13,5 @@ export const signOutLocally = () => {
   clearRecentSearches();
   clearGarage();
   clearNotifications();
+  clearMyOrganizations();
 };

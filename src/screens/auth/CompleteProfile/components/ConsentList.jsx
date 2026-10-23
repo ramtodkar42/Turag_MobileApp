@@ -22,7 +22,7 @@ function ConsentList({ items, values, onToggle, onOpenLink, error, style }) {
                   <AppText
                     variant="caption"
                     color={colors.primary}
-                    onPress={() => onOpenLink(t(item.linkKey))}
+                    onPress={() => onOpenLink(t(item.linkKey), item.path)}
                     style={styles.link}
                   >
                     {t(item.linkKey)}

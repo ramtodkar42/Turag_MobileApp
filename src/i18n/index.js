@@ -17,9 +17,10 @@ import { loadLanguage, saveLanguage } from './storage';
 // is used for 1 and '<key>_other' otherwise (when they exist).
 
 export const LANGUAGES = [
-  { code: 'en', name: 'English', nativeName: 'English' },
-  { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी' },
-  { code: 'mr', name: 'Marathi', nativeName: 'मराठी' },
+  // short: the 1-2 letter mark on the Home header's language button.
+  { code: 'en', name: 'English', nativeName: 'English', short: 'EN' },
+  { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी', short: 'हि' },
+  { code: 'mr', name: 'Marathi', nativeName: 'मराठी', short: 'म' },
 ];
 export const DEFAULT_LANGUAGE = 'en';
 

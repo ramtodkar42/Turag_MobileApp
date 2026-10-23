@@ -26,5 +26,19 @@ export const NA_REASONS = [
   'TIME_CONSTRAINT',
 ];
 
+// The inspection officer's (M2) "can't check" reasons - the web inspector's 10.
+export const NA_REASONS_INSPECTOR = [
+  'VEHICLE_STATIC',
+  'NO_KEY',
+  'NO_BATTERY',
+  'ACCESS_BLOCKED',
+  'OWNER_REFUSED',
+  'UNSAFE',
+  'TOOL_UNAVAILABLE',
+  'PART_MISSING',
+  'WEATHER',
+  'TIME_CONSTRAINT',
+];
+
 // Identity / usage items that live with the documents (the web's DETAIL_ITEM_CODES).
 export const DETAIL_ITEM_CODES = ['P1', 'A1', 'O1', 'O2'];

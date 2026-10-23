@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import {
   AppText,
@@ -17,9 +18,12 @@ import { formatINR } from '../../../utils/format';
 import { formatRegNumber } from '../../../utils/validators';
 import useRemoteData from '../../../hooks/useRemoteData';
 import { getBookingSlots } from '../../../api/services/booking.api';
+import { checkServiceability } from '../../../api/services/serviceArea.api';
 import { ROUTES } from '../../../navigation/routes';
 import { useT } from '../../../i18n';
+import { comingSoonPlace } from '../comingSoonPlace';
 import AddressFields from './components/AddressFields';
+import PaymentsSoonCard from './components/PaymentsSoonCard';
 import SlotPicker from './components/SlotPicker';
 import { BOOKING_CATEGORIES, PREPARATION } from './constants';
 import useBookingForm from './useBookingForm';
@@ -35,17 +39,40 @@ function BookAppointment({ navigation, route }) {
   const { vehicle, valuation } = route.params ?? {};
   const { data: slots, loading, error, reload } = useRemoteData(getBookingSlots);
   const form = useBookingForm({ vehicle, slots });
+  const [checking, setChecking] = useState(false);
+  // Slots and price are real, but no live payment gateway yet (as the web).
+  const paymentsSoon = !!slots && slots.enabled && !slots.paymentsAvailable;
 
-  const onContinue = () =>
+  // Continue: first ask the server whether doorstep inspections are offered at
+  // this address (as the web, before checkout). Not yet: "Coming soon to <city>",
+  // where the user can ask to be told when Turag launches there.
+  const onContinue = async () => {
+    if (checking) {
+      return;
+    }
+    const { address } = form;
+    setChecking(true);
+    const serviceable = await checkServiceability({ city: address.city, pincode: address.pincode });
+    setChecking(false);
+    if (!serviceable) {
+      navigation.navigate(ROUTES.BOOKING_COMING_SOON, {
+        place: comingSoonPlace(address),
+        category: form.category,
+        vehicleId: vehicle?.vehicleId ?? null,
+        slotAt: form.slot?.slotAt ?? null,
+      });
+      return;
+    }
     navigation.navigate(ROUTES.BOOKING_SUMMARY, {
       vehicle: vehicle ?? null,
       valuation: valuation ?? null,
       category: form.category,
-      address: form.address,
+      address,
       slot: form.slot,
       preparation: form.preparation,
       price: slots.price,
     });
+  };
 
   let slotsBody;
   if (loading) {
@@ -84,7 +111,7 @@ function BookAppointment({ navigation, route }) {
               {t('booking.feeNow', { amount: formatINR(slots.price) })}
             </AppText>
           ) : null}
-          <Button title={t('common.continue')} onPress={onContinue} disabled={!form.ready} />
+          <Button title={t('common.continue')} onPress={onContinue} disabled={!form.ready} loading={checking} />
         </View>
       }
     >
@@ -93,6 +120,13 @@ function BookAppointment({ navigation, route }) {
         subtitle={t('booking.appointment.subtitle')}
         style={styles.card}
       />
+
+      {paymentsSoon ? (
+        <PaymentsSoonCard
+          onInspectYourself={() => navigation.navigate(ROUTES.EVALUATE_CHAT)}
+          style={styles.card}
+        />
+      ) : null}
 
       {/* 1 · Vehicle */}
       <TitledCard title={t('booking.section.vehicle')} style={styles.card}>

@@ -4,6 +4,8 @@ import { openWaitingPush, startPush } from '../push/pushNotifications';
 import { TabBar } from '../components';
 import { colors } from '../theme';
 import { useT } from '../i18n';
+import { useSignedIn } from '../store/userStore';
+import { requireLogin } from '../store/loginPromptStore';
 
 const Tab = createBottomTabNavigator();
 
@@ -18,15 +20,20 @@ const renderTabBar = props => <TabBar {...props} />;
 // tab: { name, titleKey (i18n), icon (components/icons/iconPaths.js), component, opens? }
 // `opens`: the tab doesn't switch; it opens this full-screen flow instead
 // (flows with their own back button and bottom button, no tab bar).
+// `loginReason`: that flow needs an account - a guest is asked to log in.
 function RoleTabs({ tabs, initialRouteName }) {
   const t = useT();
+  const signedIn = useSignedIn();
 
   // Signed in and past sign-up (the app's home is showing): turn on push, and
-  // open a push that was tapped to launch / reopen the app.
+  // open a push that was tapped to launch / reopen the app. Guests get no
+  // pushes; this runs as soon as they log in.
   useEffect(() => {
-    startPush();
-    openWaitingPush();
-  }, []);
+    if (signedIn) {
+      startPush();
+      openWaitingPush();
+    }
+  }, [signedIn]);
 
   return (
     <Tab.Navigator
@@ -34,7 +41,7 @@ function RoleTabs({ tabs, initialRouteName }) {
       screenOptions={screenOptions}
       initialRouteName={initialRouteName}
     >
-      {tabs.map(({ name, titleKey, icon, component, opens }) => (
+      {tabs.map(({ name, titleKey, icon, component, opens, loginReason }) => (
         <Tab.Screen
           key={name}
           name={name}
@@ -45,7 +52,9 @@ function RoleTabs({ tabs, initialRouteName }) {
               ? ({ navigation }) => ({
                   tabPress: e => {
                     e.preventDefault();
-                    navigation.navigate(opens);
+                    if (!loginReason || requireLogin(loginReason)) {
+                      navigation.navigate(opens);
+                    }
                   },
                 })
               : undefined

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { AppText, Button, ButtonRow } from '../../../../components';
+import { AppText, Button, ButtonRow, InspectionConsent } from '../../../../components';
 import { colors, spacing } from '../../../../theme';
+import { ROUTES } from '../../../../navigation/routes';
 import { useT } from '../../../../i18n';
 import { ACCIDENT_OPTIONS } from '../../constants';
 import SaveVehicleButton from '../../components/SaveVehicleButton';
@@ -14,6 +15,9 @@ import QuickReplies from './QuickReplies';
 function EvaluateFooter({ chat, navigation }) {
   const t = useT();
   const [saveError, setSaveError] = useState('');
+  const [consent, setConsent] = useState(false);
+  const openPolicy = () =>
+    navigation.navigate(ROUTES.WEB_PAGE, { title: t('profile.item.privacyPolicy'), path: '/privacy_policy' });
 
   switch (chat.step) {
     case STEPS.REG:
@@ -86,7 +90,19 @@ function EvaluateFooter({ chat, navigation }) {
     case STEPS.SELF:
       return (
         <View style={styles.stack}>
-          <Button title={t('valuation.self.start')} onPress={chat.startSelf} loading={chat.starting} />
+          {/* As the web: the self-inspection starts only once the consent is ticked. */}
+          <InspectionConsent
+            checked={consent}
+            onToggle={() => setConsent(c => !c)}
+            onOpenPolicy={openPolicy}
+            style={styles.consent}
+          />
+          <Button
+            title={t('valuation.self.start')}
+            onPress={() => chat.startSelf(consent)}
+            loading={chat.starting}
+            disabled={!consent}
+          />
           <Button
             title={t('valuation.mode.inspector')}
             variant="outline"
@@ -106,6 +122,9 @@ const styles = StyleSheet.create({
   },
   error: {
     marginBottom: spacing.sm,
+  },
+  consent: {
+    marginBottom: spacing.xs,
   },
   // Two buttons share the row, so less side padding keeps labels on one line.
   flex: {

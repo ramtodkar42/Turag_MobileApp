@@ -20,14 +20,16 @@ import { createListing } from '../../../api/services/sellerListing.api';
 import { loadGarage } from '../../../store/garageStore';
 import { ROUTES } from '../../../navigation/routes';
 import { useT } from '../../../i18n';
+import LocationSection from './components/LocationSection';
+import useListingLocation from './useListingLocation';
 
 const MAX_PRICE_DIGITS = 9; // up to ₹99,99,99,999
 const MAX_NOTE = 2000; // backend limit
 
 // List a valued Garage vehicle (as the web's listing form): asking price
 // (starts at the estimate - guidance, not a limit), an optional note to
-// buyers, and the ownership attestation. Creates a DRAFT, then opens it so
-// the seller can submit it for review.
+// buyers, where the vehicle is (city + state required), and the ownership
+// attestation. Creates a DRAFT, then opens it so the seller can submit it for review.
 // params: { vehicle } (Garage vehicle: vehicleId, valuationId, inspectionId?, estimatedValue)
 function CreateListing({ navigation, route }) {
   const t = useT();
@@ -39,6 +41,9 @@ function CreateListing({ navigation, route }) {
   const [attested, setAttested] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
+  // Where the vehicle is: city + state are required by the backend.
+  const location = useListingLocation();
+  const [showLocationErrors, setShowLocationErrors] = useState(false);
   // One key per listing attempt: a retry after a network error can't create two.
   const key = useRef(null);
   const name = [vehicle.make, vehicle.model, vehicle.year].filter(Boolean).join(' ');
@@ -62,6 +67,11 @@ function CreateListing({ navigation, route }) {
     if (creating) {
       return;
     }
+    // As the web: the button stays tappable and says what's missing.
+    if (!location.complete) {
+      setShowLocationErrors(true);
+      return;
+    }
     key.current = key.current ?? newIdempotencyKey();
     setCreating(true);
     setError('');
@@ -72,6 +82,7 @@ function CreateListing({ navigation, route }) {
         inspectionId: vehicle.inspectionId ?? null,
         askPrice: Number(price),
         sellerNote: note,
+        location: location.toPayload(),
         idempotencyKey: key.current,
         vehicle,
       });
@@ -144,6 +155,8 @@ function CreateListing({ navigation, route }) {
         />
       </View>
 
+      <LocationSection form={location} showErrors={showLocationErrors} style={styles.section} />
+
       <TitledCard title={t('selling.create.ownershipTitle')} style={styles.card}>
         <AppText variant="caption" color={colors.body} style={styles.ownership}>
           {t('selling.create.ownershipBody')}
@@ -158,6 +171,11 @@ function CreateListing({ navigation, route }) {
 
       <InfoNote style={styles.card}>{t('selling.create.moderationNote')}</InfoNote>
 
+      {showLocationErrors && !location.complete ? (
+        <AppText variant="caption" color={colors.danger} style={styles.card}>
+          {t('selling.create.location.missing')}
+        </AppText>
+      ) : null}
       {error ? (
         <AppText variant="caption" color={colors.danger} style={styles.card}>
           {error}
@@ -174,6 +192,9 @@ const styles = StyleSheet.create({
   fields: {
     marginTop: spacing.lg,
     gap: spacing.md,
+  },
+  section: {
+    marginTop: spacing.lg,
   },
   help: {
     marginTop: -spacing.sm,

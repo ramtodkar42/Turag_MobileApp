@@ -23,6 +23,9 @@ const VEHICLE_TYPES = { PASSENGER: 'Four Wheeler', TWO_WHEELER: 'Two Wheeler' };
 
 export const GRADE_LABELS = { A_PLUS: 'A+', A: 'A', B: 'B', C: 'C', D: 'D', E: 'E' };
 
+// Turag vehicle tiers (the web's vehicle-tier.ts), lowest first.
+export const TIERS = ['BUDGET', 'ASSURED', 'PREMIUM'];
+
 const VERIFICATION_LABELS = {
   TURAG_VERIFIED: 'TURAG Verified',
   VERIFIED_NOT_TURAG: 'Verified',
@@ -76,6 +79,12 @@ const vehicleFields = item => ({
   vehicleType: VEHICLE_TYPES[item.category] ?? 'Vehicle',
   vehicleTypeKey: vehicleTypeKey(item.category),
   city: cityLabel(item.city),
+  // The seller's area and state (free text from the map): "Baner, Pune".
+  locality: item.locality || null,
+  state: item.state || null,
+  place: [item.locality, cityLabel(item.city)].filter(Boolean).join(', ') || null,
+  // 'BUDGET' | 'ASSURED' | 'PREMIUM' (from the verified inspection + price), null on older servers.
+  tier: TIERS.includes(item.tier) ? item.tier : null,
   price: toRupees(item.ask_price),
   reserved: item.status === 'RESERVED',
   fairPrice: mapFairPrice(item.fair_price),
@@ -143,12 +152,15 @@ const PHOTO_CATEGORY_ORDER = [
   'EXTRAS',
 ];
 
-// [{ category, url }] -> [{ category, images: [{ uri }] }]. Empty for older
-// listings without categories (the screen then shows the flat gallery).
+// [{ category, url, shot_code?, label? }] -> [{ category, images: [{ uri, label, shotCode }] }].
+// label: the photo's caption ("Front Left", "Instrument Cluster"), null on older
+// servers. Empty for older listings without categories (the flat gallery shows).
 const mapPhotoGroups = (photosByCategory = []) =>
   PHOTO_CATEGORY_ORDER.map(category => ({
     category,
-    images: photosByCategory.filter(p => p.category === category).map(p => ({ uri: p.url })),
+    images: photosByCategory
+      .filter(p => p.category === category)
+      .map(p => ({ uri: p.url, label: p.label || null, shotCode: p.shot_code ?? null })),
   })).filter(group => group.images.length > 0);
 
 // Vehicle page (GET /marketplace/listings/{id}).

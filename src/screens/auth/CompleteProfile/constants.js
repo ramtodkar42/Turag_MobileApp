@@ -8,12 +8,14 @@ export const PURPOSES = [
 
 // Terms & Conditions rows. `required` ones must be ticked to continue.
 // Text = prefix + link (underlined, opens the page) + suffix, as i18n keys.
+// `path`: the website page the link opens (in the app).
 export const CONSENTS = [
   {
     key: 'terms',
     prefixKey: 'auth.consent.terms.prefix',
     linkKey: 'auth.consent.terms.link',
     suffixKey: 'auth.consent.terms.suffix',
+    path: '/terms',
     required: true,
   },
   {
@@ -21,6 +23,7 @@ export const CONSENTS = [
     prefixKey: 'auth.consent.privacy.prefix',
     linkKey: 'auth.consent.privacy.link',
     suffixKey: 'auth.consent.privacy.suffix',
+    path: '/privacy_policy',
     required: true,
   },
   {
