@@ -36,7 +36,11 @@ function BookingConfirmed({ navigation, route }) {
           <ReceiptLink receipt={receipt} />
           <Button
             title={t('booking.confirmed.track')}
-            onPress={() => navigation.replace(ROUTES.BOOKING_DETAILS, { bookingId: booking.id })}
+            onPress={() =>
+              navigation.replace(ROUTES.BOOKING_DETAILS, {
+                bookingId: booking.id,
+              })
+            }
           />
         </View>
       }
@@ -44,7 +48,11 @@ function BookingConfirmed({ navigation, route }) {
       <PopIn>
         <HeaderCard
           title={t('booking.confirmed.title')}
-          subtitle={t(booking.inspectorAssigned ? 'booking.confirmed.assigned' : 'booking.confirmed.subtitle')}
+          subtitle={t(
+            booking.inspectorAssigned
+              ? 'booking.confirmed.assigned'
+              : 'booking.confirmed.subtitle',
+          )}
           right={<CheckCircle size={ms(24)} />}
           style={styles.card}
         />
@@ -52,7 +60,11 @@ function BookingConfirmed({ navigation, route }) {
 
       {receipt ? (
         <FadeIn>
-          <ReceiptCard receipt={receipt} status={t(status.labelKey)} style={styles.receipt} />
+          <ReceiptCard
+            receipt={receipt}
+            status={t(status.labelKey)}
+            style={styles.receipt}
+          />
         </FadeIn>
       ) : null}
     </ScreenContainer>

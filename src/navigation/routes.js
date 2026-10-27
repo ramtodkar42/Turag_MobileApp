@@ -30,11 +30,11 @@ export const ROUTES = {
   GARAGE_VEHICLE: 'GarageVehicle',
 
   // Booking a doorstep inspection (Appoint an Inspector / My inspections):
-  // BookAppointment -> BookingSummary -> BookingPayment -> PaymentStatus ->
-  // BookingConfirmed -> BookingDetails. The fee is paid to confirm the booking.
+  // BookAppointment -> BookingSummary ("Pay") -> PaymentStatus (opens the
+  // payment page) -> BookingConfirmed -> BookingDetails. The fee is paid to
+  // confirm the booking.
   BOOK_APPOINTMENT: 'BookAppointment',
   BOOKING_SUMMARY: 'BookingSummary',
-  BOOKING_PAYMENT: 'BookingPayment', // pick how to pay the fee
   VERIFY_IDENTITY: 'VerifyIdentity', // ID document + selfie before paying (when not verified yet)
   PAYMENT_STATUS: 'PaymentStatus', // "Hold On" while the payment is verified
   BOOKING_CONFIRMED: 'BookingConfirmed',

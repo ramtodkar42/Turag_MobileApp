@@ -23,7 +23,12 @@ function ReceiptLink({ receipt, style }) {
         disabled={!receipt}
       />
       {message ? (
-        <AppText variant="caption" align="center" color={TONES[message.tone]} accessibilityLiveRegion="polite">
+        <AppText
+          variant="caption"
+          align="center"
+          color={TONES[message.tone]}
+          accessibilityLiveRegion="polite"
+        >
           {message.text}
         </AppText>
       ) : null}

@@ -1,5 +1,10 @@
 import { StyleSheet, View } from 'react-native';
-import { AppText, MenuGroup, ScreenContainer, useTabBarSpace } from '../../../components';
+import {
+  AppText,
+  MenuGroup,
+  ScreenContainer,
+  useTabBarSpace,
+} from '../../../components';
 import { spacing } from '../../../theme';
 import { fs } from '../../../utils/responsive';
 import { ROUTES } from '../../../navigation/routes';
@@ -9,6 +14,8 @@ import { useSignedIn } from '../../../store/userStore';
 import useMyOrganizations from '../../../hooks/useMyOrganizations';
 import { PROFILE_MENU } from './menu';
 import useAccountActions from './useAccountActions';
+import useDeleteAccount from './useDeleteAccount';
+import DeleteAccountSheet from './components/DeleteAccountSheet';
 
 // The menu a guest sees: the same cards, without Log Out / Delete. Pages that
 // need an account ask them to log in when opened (accountScreen).
@@ -29,13 +36,17 @@ function Profile({ navigation }) {
   const languageName = LANGUAGES.find(l => l.code === language)?.nativeName;
   const tabBarSpace = useTabBarSpace();
   const { confirm, dialog } = useConfirmDialog();
-  const actions = useAccountActions(navigation, confirm);
+  const deleteAccount = useDeleteAccount(navigation);
+  const actions = useAccountActions(navigation, confirm, deleteAccount.show);
 
   const onItemPress = item => {
     if (item.action) {
       actions[item.action]();
     } else if (item.web) {
-      navigation.navigate(ROUTES.WEB_PAGE, { title: t(item.labelKey), path: item.web });
+      navigation.navigate(ROUTES.WEB_PAGE, {
+        title: t(item.labelKey),
+        path: item.web,
+      });
     } else if (item.route) {
       navigation.navigate(item.route);
     }
@@ -61,6 +72,7 @@ function Profile({ navigation }) {
         ))}
       </View>
       {dialog}
+      <DeleteAccountSheet account={deleteAccount} />
     </ScreenContainer>
   );
 }

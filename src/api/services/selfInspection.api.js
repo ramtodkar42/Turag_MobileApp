@@ -2,9 +2,9 @@
 // screen keeps the backend's own shapes (InspectionView, ChecklistItemSpec,
 // MediaView) so the web's logic (src/vendor/selfInspectionLogic.js) runs on
 // them unchanged.
-import { Linking } from 'react-native';
 import { newIdempotencyKey, request } from '../client';
 import { PAYMENT_CANCELLED, isTestGateway, openRazorpayCheckout } from '../razorpay';
+import { openHostedCheckout } from '../hostedCheckout';
 import { tNow } from '../../i18n';
 import { ENDPOINTS } from '../endpoints';
 import { UPLOAD_TIMEOUT_MS } from '../config';
@@ -80,7 +80,7 @@ const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 // Pays the self-inspection fee (as the web's payForSelfInspection). The amount
 // is the server's. The test gateway completes it with /pay/simulate, a real one
-// opens Razorpay, a redirect provider (PhonePe) opens its page in the browser;
+// opens Razorpay, a redirect provider (PhonePe) opens its page in a secure tab;
 // then the payment is checked (1 s apart, 10 times) until the server confirms
 // it - the app never decides it's paid. onPhase('starting' | 'confirming') for
 // the button text. opts.prefill: { name, email, contact } for the checkout.
@@ -105,11 +105,10 @@ export const payForSelfInspection = async (inspectionId, { onPhase, prefill } = 
   onPhase?.('confirming');
 
   if (payment.redirect_url) {
-    // Hosted checkout: confirmed by the server's webhook; Submit again once paid.
-    await Linking.openURL(payment.redirect_url).catch(() => {});
-    return { result: 'awaiting', amountMinor };
-  }
-  if (isTestGateway(payment)) {
+    // PhonePe (hosted checkout): its page in a secure browser tab; the payment
+    // is then checked below (confirmed by the server's webhook).
+    await openHostedCheckout(payment.redirect_url);
+  } else if (isTestGateway(payment)) {
     try {
       await request(ENDPOINTS.inspectionPaySimulate(inspectionId), { method: 'POST', body: {} });
     } catch {

@@ -5,7 +5,14 @@ import { ms } from '../../../../utils/responsive';
 
 // A taken / chosen photo with one button to replace it (Retake / Change).
 // square: the selfie (a small square); otherwise a wide document photo.
-function PhotoPreview({ uri, square = false, actionLabel, onAction, disabled, accessibilityLabel }) {
+function PhotoPreview({
+  uri,
+  square = false,
+  actionLabel,
+  onAction,
+  disabled,
+  accessibilityLabel,
+}) {
   return (
     <View style={[styles.row, !square && styles.column]}>
       <View

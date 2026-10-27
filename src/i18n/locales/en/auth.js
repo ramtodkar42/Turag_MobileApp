@@ -8,6 +8,7 @@ export default {
   'auth.getOtpVia.whatsapp': 'Get OTP on WhatsApp',
   'auth.getOtpVia.sms': 'Get OTP by SMS',
   'auth.sendOtpError': 'Could not send OTP. Please try again.',
+  'auth.accountDeleted': 'Your account has been deleted.',
   // Email + password (accounts Turag created, as the web's /login).
   'auth.emailLogin.linkPrefix': 'Have an email & password?',
   'auth.emailLogin.link': 'Sign in here',

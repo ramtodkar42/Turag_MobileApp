@@ -3,12 +3,13 @@ import { Image, StyleSheet, View } from 'react-native';
 import {
   AppText,
   Button,
+  FadeIn,
   Icon,
   IconButton,
   ScreenContainer,
   SegmentedControl,
 } from '../../../components';
-import { colors, spacing } from '../../../theme';
+import { colors, radius, spacing } from '../../../theme';
 import { fs, ms } from '../../../utils/responsive';
 import { isPhone, phoneError } from '../../../utils/validators';
 import { tNow, useT } from '../../../i18n';
@@ -53,6 +54,8 @@ function Login({ navigation, route }) {
   useStatusBarStyle('light-content');
   const t = useT();
   const fromGuest = !!route?.params?.fromGuest;
+  // Just deleted their account (Profile > Delete account): say so once.
+  const accountDeleted = !!route?.params?.accountDeleted;
   const keyboardOpen = useKeyboardVisible();
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
@@ -161,6 +164,24 @@ function Login({ navigation, route }) {
         >
           {t('auth.tagline')}
         </AppText>
+
+        {accountDeleted && !google.google ? (
+          <FadeIn offset={0} style={styles.deletedNote}>
+            <Icon
+              name="check"
+              size={ms(16)}
+              color={colors.white}
+              strokeWidth={3}
+            />
+            <AppText
+              variant="caption"
+              color={colors.white}
+              style={styles.deletedText}
+            >
+              {t('auth.accountDeleted')}
+            </AppText>
+          </FadeIn>
+        ) : null}
 
         {google.google ? (
           <GooglePhoneNote
@@ -281,6 +302,18 @@ const styles = StyleSheet.create({
   },
   google: {
     marginTop: spacing.lg,
+  },
+  deletedNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.xl,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    backgroundColor: colors.whiteTranslucent,
+  },
+  deletedText: {
+    flex: 1,
   },
   emailLink: {
     marginTop: spacing.lg,

@@ -19,7 +19,6 @@ import {
 import ConfirmDialog from '../src/components/feedback/ConfirmDialog';
 import BookAppointment from '../src/screens/booking/BookAppointment/BookAppointment';
 import BookingSummary from '../src/screens/booking/BookingSummary/BookingSummary';
-import BookingPayment from '../src/screens/booking/BookingPayment/BookingPayment';
 import BookingComingSoon from '../src/screens/booking/BookingComingSoon/BookingComingSoon';
 import PaymentStatus from '../src/screens/booking/PaymentStatus/PaymentStatus';
 import BookingConfirmed from '../src/screens/booking/BookingConfirmed/BookingConfirmed';
@@ -566,7 +565,7 @@ describe('Coming soon to a city Turag doesn’t serve yet', () => {
         price: 799,
       },
     };
-    const root = await render(<BookingPayment navigation={navigation} route={route} />);
+    const root = await render(<BookingSummary navigation={navigation} route={route} />);
     const pay = root.findAllByType(Button).find(b => /Pay/.test(b.props.title));
     await act(async () => pay.props.onPress());
     expect(navigation.navigate).toHaveBeenCalledWith(ROUTES.BOOKING_COMING_SOON, {
@@ -589,8 +588,7 @@ describe('Booking summary and confirmation', () => {
     price: 799,
   };
 
-  test('summary: the vehicle, Details and Payment details; "Pay ₹799" opens the payment screen', async () => {
-    const create = jest.spyOn(bookingApi, 'createInspectionBooking');
+  test('summary: the vehicle, Details and Payment details', async () => {
     const navigation = nav();
     const root = await render(
       <BookingSummary
@@ -611,28 +609,12 @@ describe('Booking summary and confirmation', () => {
       ['Inspection fee', '₹799'],
       ['Total payable', '₹799'],
     ]);
-
-    // Nothing is booked here: that happens when paying.
-    await act(async () => button(root, 'Pay ₹799').props.onPress());
-    expect(navigation.navigate).toHaveBeenCalledWith(
-      ROUTES.BOOKING_PAYMENT,
-      expect.objectContaining({ address: params.address, slot: params.slot, price: 799 }),
-    );
-    expect(create).not.toHaveBeenCalled();
   });
 
-  test('payment: books it once (double tap) and opens "Hold on" with the picked method', async () => {
+  test('"Pay ₹799" on the summary (as the web): books it once (double tap) and opens "Hold on" straight away', async () => {
     const create = jest.spyOn(bookingApi, 'createInspectionBooking');
     const navigation = nav();
-    const root = await render(<BookingPayment navigation={navigation} route={{ params }} />);
-
-    expect(hasText(root, '₹799/-')).toBe(true);
-    // (PaymentOption is memo()-wrapped: found by its props.)
-    const options = () => root.findAll(n => n.props.icon && typeof n.props.selected === 'boolean');
-    expect(options().map(o => o.props.title)).toEqual(['UPI', 'Add new card', 'Net banking']); // no Pay on delivery
-    expect(options()[0].props.selected).toBe(true);
-    await act(async () => options()[2].props.onPress());
-    expect(options()[2].props.selected).toBe(true);
+    const root = await render(<BookingSummary navigation={navigation} route={{ params }} />);
 
     await act(async () => {
       button(root, 'Pay ₹799').props.onPress();
@@ -651,14 +633,13 @@ describe('Booking summary and confirmation', () => {
     expect(navigation.navigate).toHaveBeenCalledTimes(1);
     expect(navigation.navigate).toHaveBeenCalledWith(ROUTES.PAYMENT_STATUS, {
       booking: expect.objectContaining({ id: expect.stringMatching(/^bkg_mock_/), status: 'PENDING_PAYMENT' }),
-      method: 'NET_BANKING',
     });
 
     // Back here after a failed payment: the error, and paying again reuses the booking.
     await act(async () =>
       tree.update(
         <SafeAreaProvider initialMetrics={metrics}>
-          <BookingPayment
+          <BookingSummary
             navigation={navigation}
             route={{ params: { ...params, payError: 'Payment didn’t go through. Tap Pay again to retry.' } }}
           />
@@ -705,13 +686,13 @@ describe('Booking summary and confirmation', () => {
     expect((await listed).some(b => b.id === booking.id)).toBe(true);
   });
 
-  test('"Hold on": a failed payment goes back to the payment screen with the error', async () => {
+  test('"Hold on": a failed payment goes back to the summary with the error', async () => {
     jest.spyOn(bookingApi, 'payForBooking').mockRejectedValueOnce(new ApiError({ status: 502 }));
     const navigation = nav();
     await render(<PaymentStatus navigation={navigation} route={{ params: { booking: { id: 'bkg_x' } } }} />);
     await advance(200);
     expect(navigation.popTo).toHaveBeenCalledWith(
-      ROUTES.BOOKING_PAYMENT,
+      ROUTES.BOOKING_SUMMARY,
       { payError: 'Payment didn’t go through. Tap Pay again to retry.' },
       { merge: true },
     );
@@ -735,14 +716,13 @@ describe('Booking summary and confirmation', () => {
     const verificationApi = require('../src/api/services/verification.api');
     verificationApi.getVerificationStatus.mockResolvedValueOnce({ verification: null, options: { manual: true, digilocker: false, manualIsFallback: false } });
     const navigation = nav();
-    const root = await render(<BookingPayment navigation={navigation} route={{ params }} />);
+    const root = await render(<BookingSummary navigation={navigation} route={{ params }} />);
     await act(async () => {
       button(root, 'Pay ₹799').props.onPress();
     });
     await advance(1000);
     expect(navigation.navigate).toHaveBeenCalledWith(ROUTES.VERIFY_IDENTITY, {
       booking: expect.objectContaining({ status: 'PENDING_PAYMENT' }),
-      method: 'UPI',
     });
   });
 
@@ -759,7 +739,7 @@ describe('Booking summary and confirmation', () => {
       .spyOn(bookingApi, 'createInspectionBooking')
       .mockRejectedValue(new ApiError({ status: 422, code: 'BOOKING_SLOT_UNAVAILABLE', message: 'x' }));
     const navigation = nav();
-    const root = await render(<BookingPayment navigation={navigation} route={{ params }} />);
+    const root = await render(<BookingSummary navigation={navigation} route={{ params }} />);
     await act(async () => button(root, 'Pay ₹799').props.onPress());
     expect(hasText(root, 'That time is no longer available.')).toBe(true);
     expect(navigation.navigate).not.toHaveBeenCalled();
@@ -968,7 +948,6 @@ describe('real backend', () => {
         }),
       );
     const done = bookingApi.payForBooking('bkg_1', {
-      method: 'NET_BANKING',
       prefill: { name: 'Ram Todkar', contact: '+919876543210' },
     });
     // (Real timers here: the first status check comes after 2.5 s.)
@@ -977,8 +956,8 @@ describe('real backend', () => {
       expect.objectContaining({
         key: 'rzp_test_abc',
         order_id: 'order_ABC',
-        // Net banking chosen in the app: Razorpay opens on it, not asking again.
-        prefill: { name: 'Ram Todkar', contact: '+919876543210', method: 'netbanking' },
+        // As the web: Razorpay shows every way to pay (nothing pre-chosen).
+        prefill: { name: 'Ram Todkar', contact: '+919876543210' },
       }),
     );
   });
@@ -1089,4 +1068,34 @@ test('New-user details need a name and a valid email', () => {
   const errors = validateProfile({ fullName: ' ', email: 'ram@' });
   expect(errors.fullName).toBeDefined();
   expect(errors.email).toMatch(/email/);
+});
+
+describe('PhonePe (the server sends its own payment page, as the web)', () => {
+  test('the page opens in a secure tab, then the booking is checked until it is paid', async () => {
+    jest.useRealTimers(); // the booking is checked 2.5 s after the tab closes
+    const browser = require('react-native-inappbrowser-reborn').InAppBrowser;
+    const bookingApi = require('../src/api/services/booking.api');
+    const { USE_REAL_API } = require('../src/api/config');
+    const { startSession, endSession } = require('../src/api/session');
+    const before = USE_REAL_API.bookings;
+    const realFetch = global.fetch;
+    USE_REAL_API.bookings = true;
+    await startSession({ accessToken: 'access-1', expiresIn: 900, refreshToken: 'refresh-1', user: {} });
+    const answer = body => ({ ok: true, status: 200, headers: { get: () => null }, text: () => Promise.resolve(JSON.stringify(body)) });
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        answer({ payment: { payment_id: 'pay_pp', provider_order_id: 'pp_1', key_id: '', redirect_url: 'https://phonepe.example/pay/1', amount: { amount_minor: 79900 } } }),
+      )
+      .mockResolvedValue(answer({ bookings: [{ booking_id: 'bkg_pp', status: 'ASSIGNED', fee_paid: true, mode: 'DOORSTEP', category: 'PASSENGER' }] }));
+    const open = jest.spyOn(browser, 'open').mockResolvedValue({ type: 'cancel' });
+    jest.spyOn(browser, 'isAvailable').mockResolvedValue(true);
+
+    await expect(bookingApi.payForBooking('bkg_pp', {})).resolves.toEqual({ paymentId: 'pay_pp', confirmed: true });
+    expect(open).toHaveBeenCalledWith('https://phonepe.example/pay/1', expect.any(Object));
+
+    global.fetch = realFetch;
+    USE_REAL_API.bookings = before;
+    await endSession();
+  }, 15000);
 });

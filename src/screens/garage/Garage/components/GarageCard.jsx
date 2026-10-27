@@ -9,9 +9,9 @@ import {
 } from '../../../../components';
 import { colors, radius, shadows, spacing } from '../../../../theme';
 import { fs, ms } from '../../../../utils/responsive';
-import { formatINR } from '../../../../utils/format';
+import { formatINR, vehicleName } from '../../../../utils/format';
 import { useT } from '../../../../i18n';
-import { phaseAction, phaseBadge, phaseOf } from '../../garagePhase';
+import { phaseAction, phaseBadge } from '../../garagePhase';
 
 // The chip sits on the photo: its "on photo" look.
 const ON_PHOTO = { success: 'successOnPhoto', warning: 'warningOnPhoto', neutral: 'neutralOnPhoto' };
@@ -36,7 +36,8 @@ function GarageCard({ vehicle, width, onPress, onAction }) {
   const t = useT();
   const badge = phaseBadge(vehicle);
   const statusLabel = t(badge.labelKey);
-  const done = phaseOf(vehicle) === 'can_list' || phaseOf(vehicle) === 'listed';
+  const name = vehicleName(vehicle.make, vehicle.model);
+  const done = badge.tone === 'success';
   const kind = phaseAction(vehicle) ?? 'wait';
   const action = CARD_ACTION[kind];
   // A rejected inspection reads as "needs attention" above its Book button.
@@ -53,28 +54,25 @@ function GarageCard({ vehicle, width, onPress, onAction }) {
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${vehicle.make} ${vehicle.model}, ${statusLabel}`}
+      accessibilityLabel={`${name}, ${statusLabel}`}
       style={({ pressed }) => [styles.card, { width }, pressed && styles.pressed]}
     >
       <View style={styles.imageWrap}>
         <VehicleImage source={vehicle.image} style={styles.image} />
+        {/* One chip, one line, one tick (the full label is read out above). */}
         <Badge
-          label={statusLabel}
+          label={t(badge.shortKey)}
           tone={ON_PHOTO[badge.tone]}
           size="sm"
-          icon={done ? <CheckCircle size={ms(11)} /> : null}
-          style={styles.badge}
+          numberOfLines={1}
+          icon={done ? <CheckCircle size={ms(14)} /> : null}
+          style={[styles.badge, done && styles.badgeWithTick]}
         />
-        {done ? (
-          <View style={styles.tick}>
-            <CheckCircle size={ms(18)} />
-          </View>
-        ) : null}
       </View>
 
       <View style={styles.body}>
         <AppText variant="title" numberOfLines={1} style={styles.name}>
-          {vehicle.make} {vehicle.model}
+          {name}
         </AppText>
 
         <AppText variant="caption" style={styles.valueLabel}>
@@ -125,14 +123,14 @@ const styles = StyleSheet.create({
   },
   badge: {
     position: 'absolute',
-    top: spacing.xs,
-    left: spacing.xs,
-    maxWidth: '80%',
+    top: spacing.sm,
+    left: spacing.sm,
+    maxWidth: '88%',
+    paddingVertical: ms(4),
+    ...shadows.sm,
   },
-  tick: {
-    position: 'absolute',
-    top: spacing.xs,
-    right: spacing.xs,
+  badgeWithTick: {
+    paddingLeft: ms(4),
   },
   body: {
     padding: spacing.sm,

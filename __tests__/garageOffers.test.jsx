@@ -136,7 +136,7 @@ describe('Garage stages (as the web’s Garage card)', () => {
     const onAction = jest.fn();
     const vehicle = v({ inspection_id: 'ins_1', inspection_status: 'IN_PROGRESS', inspection_mode: 'M1' });
     const root = await render(<GarageCard vehicle={vehicle} width={160} onPress={jest.fn()} onAction={onAction} />);
-    expect(hasText(root, 'Self-inspection in progress')).toBe(true);
+    expect(hasText(root, 'In progress')).toBe(true);
     await act(async () => button(root, 'Continue self-inspection').props.onPress());
     expect(onAction).toHaveBeenCalledWith('resume', vehicle);
   });

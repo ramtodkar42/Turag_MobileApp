@@ -11,6 +11,7 @@ import { mapBooking, mapBookingMessage, mapSlots } from '../mappers/booking';
 import { sampleBookings, sampleMessages, sampleSlots } from '../mock/account';
 import { savePaymentRef } from '../paymentRefs';
 import { isTestGateway, openRazorpayCheckout } from '../razorpay';
+import { openHostedCheckout } from '../hostedCheckout';
 import { tNow } from '../../i18n';
 
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -117,13 +118,14 @@ const waitForBookingPaid = async (bookingId, { tries = 12, delayMs = 2500 } = {}
   return null;
 };
 
-// Pays the doorstep inspection fee for a PENDING_PAYMENT booking. The test
-// gateway (stub) auto-completes via /pay/simulate; a real gateway opens Razorpay
-// checkout, then polls until the webhook marks the fee paid. Safe to retry.
-// opts: { amountMinor, label, prefill ({ name, email, contact }), method ('UPI' |
-// 'CARD' | 'NET_BANKING') } for the checkout modal.
+// Pays the doorstep inspection fee for a PENDING_PAYMENT booking (as the web's
+// payForBooking): the payer picks UPI / card / net banking on the gateway's own
+// page - PhonePe (the server's redirect_url, in a secure browser tab) or the
+// Razorpay checkout; the test gateway (stub) completes via /pay/simulate. Then
+// it polls until the webhook marks the fee paid. Safe to retry.
+// opts: { amountMinor, label, prefill ({ name, email, contact }) } for Razorpay.
 // Returns { paymentId, confirmed }.
-export const payForBooking = async (bookingId, { amountMinor, label, prefill, method } = {}) => {
+export const payForBooking = async (bookingId, { amountMinor, label, prefill } = {}) => {
   if (!real()) {
     await wait(700);
     const raw = mockState().bookings.find(b => b.booking_id === bookingId);
@@ -143,6 +145,12 @@ export const payForBooking = async (bookingId, { amountMinor, label, prefill, me
     headers: { 'Idempotency-Key': newIdempotencyKey() },
   });
   await savePaymentRef(bookingId, payment.payment_id);
+  if (payment.redirect_url) {
+    // PhonePe (hosted checkout): its page, then wait for the webhook.
+    await openHostedCheckout(payment.redirect_url);
+    const paid = await waitForBookingPaid(bookingId);
+    return { paymentId: payment.payment_id, confirmed: !!paid?.feePaid };
+  }
   if (isTestGateway(payment)) {
     await request(ENDPOINTS.bookingPaySimulate(bookingId), { method: 'POST', body: {} });
     return { paymentId: payment.payment_id, confirmed: true };
@@ -154,7 +162,6 @@ export const payForBooking = async (bookingId, { amountMinor, label, prefill, me
     amountMinor: amountMinor ?? payment.amount_minor ?? null,
     description: label,
     prefill,
-    method,
   });
   const paid = await waitForBookingPaid(bookingId);
   return { paymentId: payment.payment_id, confirmed: !!paid?.feePaid };

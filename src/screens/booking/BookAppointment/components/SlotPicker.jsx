@@ -11,7 +11,9 @@ const pad = n => String(n).padStart(2, '0');
 export const clockLabel = time => {
   const date = new Date(time);
   const hours = date.getHours();
-  return `${hours % 12 || 12}:${pad(date.getMinutes())} ${hours < 12 ? 'AM' : 'PM'}`;
+  return `${hours % 12 || 12}:${pad(date.getMinutes())} ${
+    hours < 12 ? 'AM' : 'PM'
+  }`;
 };
 
 const DayChip = memo(function DayChip({ day, selected, onPress }) {
@@ -22,15 +24,30 @@ const DayChip = memo(function DayChip({ day, selected, onPress }) {
       onPress={() => onPress(day.key)}
       accessibilityRole="radio"
       accessibilityState={{ selected }}
-      style={({ pressed }) => [styles.day, selected && styles.selected, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.day,
+        selected && styles.selected,
+        pressed && styles.pressed,
+      ]}
     >
-      <AppText variant="caption" color={selected ? colors.primary : colors.body}>
+      <AppText
+        variant="caption"
+        color={selected ? colors.primary : colors.body}
+      >
         {t(`common.day.${date.getDay()}`)}
       </AppText>
-      <AppText variant="h3" color={selected ? colors.primary : colors.heading} style={styles.dayNumber}>
+      <AppText
+        variant="h3"
+        color={selected ? colors.primary : colors.heading}
+        style={styles.dayNumber}
+      >
         {date.getDate()}
       </AppText>
-      <AppText variant="caption" color={selected ? colors.primary : colors.placeholder} style={styles.month}>
+      <AppText
+        variant="caption"
+        color={selected ? colors.primary : colors.placeholder}
+        style={styles.month}
+      >
         {t(`common.month.${date.getMonth()}`)}
       </AppText>
     </Pressable>
@@ -52,7 +69,10 @@ const TimeChip = memo(function TimeChip({ slot, selected, onPress }) {
         pressed && styles.pressed,
       ]}
     >
-      <AppText variant="label" color={selected ? colors.primary : colors.heading}>
+      <AppText
+        variant="label"
+        color={selected ? colors.primary : colors.heading}
+      >
         {clockLabel(slot.time)}
       </AppText>
     </Pressable>
@@ -66,15 +86,29 @@ function SlotPicker({ days, dayKey, slotAt, onDayChange, onSlotChange }) {
   const day = days.find(d => d.key === dayKey);
   return (
     <View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.days}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.days}
+      >
         {days.map(d => (
-          <DayChip key={d.key} day={d} selected={d.key === dayKey} onPress={onDayChange} />
+          <DayChip
+            key={d.key}
+            day={d}
+            selected={d.key === dayKey}
+            onPress={onDayChange}
+          />
         ))}
       </ScrollView>
       {day?.slots.length ? (
         <View style={styles.times}>
           {day.slots.map(slot => (
-            <TimeChip key={slot.slotAt} slot={slot} selected={slot.slotAt === slotAt} onPress={onSlotChange} />
+            <TimeChip
+              key={slot.slotAt}
+              slot={slot}
+              selected={slot.slotAt === slotAt}
+              onPress={onSlotChange}
+            />
           ))}
         </View>
       ) : (

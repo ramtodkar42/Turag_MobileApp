@@ -55,6 +55,21 @@ export const formatFileSize = bytes => {
     : `${Math.max(1, Math.round(size / 1024))} KB`;
 };
 
+// A company suffix on an RC maker name ("HONDA CARS INDIA LTD").
+const MAKER_SUFFIX = /\b(cars?|motors?|motor company|automobiles?|india|pvt|private|ltd|limited|co|company)\b\.?/gi;
+// An all-caps word worth softening: letters only, longer than 3 (BMW, MG, KIA stay).
+const SHOUTED = /\b[A-Z]{4,}\b/g;
+const soften = text => text.replace(SHOUTED, w => w[0] + w.slice(1).toLowerCase());
+
+// A vehicle's display name from RC data, for cards:
+// ("HONDA CARS INDIA LTD", "CITY") -> "Honda City",
+// ("MARUTI SUZUKI INDIA LTD", "SWIFT VXI") -> "Maruti Suzuki Swift VXI".
+export const vehicleName = (make, model) => {
+  const maker = String(make ?? '').replace(MAKER_SUFFIX, '').replace(/\s+/g, ' ').trim() || String(make ?? '').trim();
+  const name = [maker, String(model ?? '').trim()].filter(Boolean).join(' ');
+  return soften(name);
+};
+
 // 49 -> "00:49"
 export const formatTimer = totalSeconds => {
   const mm = String(Math.floor(totalSeconds / 60)).padStart(2, '0');

@@ -13,7 +13,6 @@ import EvaluateChat from '../screens/valuation/EvaluateChat/EvaluateChat';
 import BookAppointment from '../screens/booking/BookAppointment/BookAppointment';
 import BookingSummary from '../screens/booking/BookingSummary/BookingSummary';
 import BookingComingSoon from '../screens/booking/BookingComingSoon/BookingComingSoon';
-import BookingPayment from '../screens/booking/BookingPayment/BookingPayment';
 import PaymentStatus from '../screens/booking/PaymentStatus/PaymentStatus';
 import VerifyIdentity from '../screens/booking/VerifyIdentity/VerifyIdentity';
 import BookingConfirmed from '../screens/booking/BookingConfirmed/BookingConfirmed';
@@ -174,7 +173,6 @@ function RootNavigator({ initialRoute = { name: ROUTES.INTRO } }) {
       <Stack.Screen name={ROUTES.GARAGE_VEHICLE} component={GarageVehicle} />
       <Stack.Screen name={ROUTES.BOOK_APPOINTMENT} component={BookAppointment} />
       <Stack.Screen name={ROUTES.BOOKING_SUMMARY} component={BookingSummary} />
-      <Stack.Screen name={ROUTES.BOOKING_PAYMENT} component={BookingPayment} />
       <Stack.Screen name={ROUTES.BOOKING_COMING_SOON} component={BookingComingSoon} />
       <Stack.Screen name={ROUTES.VERIFY_IDENTITY} component={VerifyIdentity} />
       {/* No swipe-back while the payment is verified (Android back: see the screen). */}

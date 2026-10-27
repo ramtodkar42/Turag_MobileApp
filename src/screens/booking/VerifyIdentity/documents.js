@@ -3,7 +3,10 @@
 // Labels / hints are i18n keys: verify.doc.<type>, verify.hint.<type>.
 
 // "1234 5678 9012" -> "123456789012" (spaces / dashes dropped, upper case).
-export const compact = text => String(text ?? '').replace(/[\s-]/g, '').toUpperCase();
+export const compact = text =>
+  String(text ?? '')
+    .replace(/[\s-]/g, '')
+    .toUpperCase();
 
 export const DOCUMENTS = [
   {
@@ -17,7 +20,9 @@ export const DOCUMENTS = [
       raw
         .replace(/\D/g, '')
         .slice(0, 12)
-        .replace(/(.{4})(.{0,4})(.{0,4})/, (_, a, b, c) => [a, b, c].filter(Boolean).join(' ')),
+        .replace(/(.{4})(.{0,4})(.{0,4})/, (_, a, b, c) =>
+          [a, b, c].filter(Boolean).join(' '),
+        ),
   },
   {
     type: 'PAN',
@@ -25,7 +30,11 @@ export const DOCUMENTS = [
     keyboardType: 'default',
     autoCapitalize: 'characters',
     valid: c => /^[A-Z]{5}[0-9]{4}[A-Z]$/.test(c),
-    format: raw => raw.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10),
+    format: raw =>
+      raw
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '')
+        .slice(0, 10),
   },
   {
     type: 'DRIVING_LICENCE',
@@ -33,8 +42,13 @@ export const DOCUMENTS = [
     keyboardType: 'default',
     autoCapitalize: 'characters',
     valid: c => /^[A-Z0-9]{8,20}$/.test(c),
-    format: raw => raw.toUpperCase().replace(/[^A-Z0-9 ]/g, '').slice(0, 24),
+    format: raw =>
+      raw
+        .toUpperCase()
+        .replace(/[^A-Z0-9 ]/g, '')
+        .slice(0, 24),
   },
 ];
 
-export const documentOf = type => DOCUMENTS.find(d => d.type === type) ?? DOCUMENTS[0];
+export const documentOf = type =>
+  DOCUMENTS.find(d => d.type === type) ?? DOCUMENTS[0];

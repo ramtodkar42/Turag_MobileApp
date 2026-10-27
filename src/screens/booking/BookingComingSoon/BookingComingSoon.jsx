@@ -49,11 +49,19 @@ function BookingComingSoon({ navigation, route }) {
       header={<Header onBack={navigation.goBack} />}
       footer={
         done ? (
-          <Button title={t('booking.comingSoon.back')} variant="outline" onPress={navigation.goBack} />
+          <Button
+            title={t('booking.comingSoon.back')}
+            variant="outline"
+            onPress={navigation.goBack}
+          />
         ) : (
           <View>
             <Button
-              title={t(status === 'saving' ? 'booking.comingSoon.saving' : 'booking.comingSoon.notify')}
+              title={t(
+                status === 'saving'
+                  ? 'booking.comingSoon.saving'
+                  : 'booking.comingSoon.notify',
+              )}
               leftIcon={<Icon name="bell" size={ms(18)} color={colors.white} />}
               loading={status === 'saving'}
               onPress={notify}
@@ -83,19 +91,33 @@ function BookingComingSoon({ navigation, route }) {
         )}
 
         {done ? null : (
-          <AppText variant="label" color={colors.primary} align="center" style={styles.eyebrow}>
+          <AppText
+            variant="label"
+            color={colors.primary}
+            align="center"
+            style={styles.eyebrow}
+          >
             {t('booking.comingSoon.eyebrow')}
           </AppText>
         )}
         <AppText variant="h3" align="center" style={styles.heading}>
-          {done ? t('booking.comingSoon.doneTitle') : t('booking.comingSoon.heading', { city })}
+          {done
+            ? t('booking.comingSoon.doneTitle')
+            : t('booking.comingSoon.heading', { city })}
         </AppText>
         <AppText variant="subtitle" align="center" style={styles.message}>
-          {done ? t('booking.comingSoon.doneBody', { city }) : t('booking.comingSoon.body', { city })}
+          {done
+            ? t('booking.comingSoon.doneBody', { city })
+            : t('booking.comingSoon.body', { city })}
         </AppText>
 
         {status === 'error' ? (
-          <AppText variant="caption" color={colors.danger} align="center" style={styles.message}>
+          <AppText
+            variant="caption"
+            color={colors.danger}
+            align="center"
+            style={styles.message}
+          >
             {t('booking.comingSoon.error')}
           </AppText>
         ) : null}

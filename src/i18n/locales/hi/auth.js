@@ -8,6 +8,7 @@ export default {
   'auth.getOtpVia.whatsapp': 'WhatsApp पर OTP पाएँ',
   'auth.getOtpVia.sms': 'SMS से OTP पाएँ',
   'auth.sendOtpError': 'OTP नहीं भेजा जा सका। कृपया फिर से कोशिश करें।',
+  'auth.accountDeleted': 'आपका अकाउंट डिलीट हो गया है।',
   // Email + password (accounts Turag created, as the web's /login).
   'auth.emailLogin.linkPrefix': 'ईमेल और पासवर्ड है?',
   'auth.emailLogin.link': 'यहाँ साइन इन करें',

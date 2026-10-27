@@ -68,7 +68,7 @@ describe('Verify your identity (before paying, as the web)', () => {
 
   test('number rules, selfie, document photo and consent; then payment opens', async () => {
     const navigation = nav();
-    const root = await render(<VerifyIdentity navigation={navigation} route={{ params: { booking, method: 'CARD' } }} />);
+    const root = await render(<VerifyIdentity navigation={navigation} route={{ params: { booking } }} />);
     const submit = () => button(root, 'Submit for verification');
     expect(root.findAllByType(ChoiceChip).map(c => c.props.label)).toEqual(['Aadhaar', 'PAN', 'Driving Licence']);
     expect(submit().props.disabled).toBe(true);
@@ -110,11 +110,11 @@ describe('Verify your identity (before paying, as the web)', () => {
       docImage: { uri: 'file:///aadhaar.jpg', type: 'image/jpeg' },
     });
     // Payment takes this screen's place, with the chosen way to pay.
-    expect(navigation.replace).toHaveBeenCalledWith(ROUTES.PAYMENT_STATUS, { booking, method: 'CARD' });
+    expect(navigation.replace).toHaveBeenCalledWith(ROUTES.PAYMENT_STATUS, { booking });
   });
 
   test('changing the document clears the number; PAN is upper case', async () => {
-    const root = await render(<VerifyIdentity navigation={nav()} route={{ params: { booking, method: 'UPI' } }} />);
+    const root = await render(<VerifyIdentity navigation={nav()} route={{ params: { booking } }} />);
     const number = () => root.findAllByType(TextField)[0];
     await act(async () => number().props.onChangeText('2345'));
     await act(async () => root.findAllByType(ChoiceChip)[1].props.onPress());
@@ -129,7 +129,7 @@ describe('Verify your identity (before paying, as the web)', () => {
       new ApiError({ status: 422, code: 'KYC_IMAGE_INVALID', message: 'Both a selfie and a document photo are required.' }),
     );
     const navigation = nav();
-    const root = await render(<VerifyIdentity navigation={navigation} route={{ params: { booking, method: 'UPI' } }} />);
+    const root = await render(<VerifyIdentity navigation={navigation} route={{ params: { booking } }} />);
     await act(async () => root.findAllByType(TextField)[0].props.onChangeText('234567890123'));
     await act(async () => button(root, 'Open camera').props.onPress());
     await flush();

@@ -47,6 +47,12 @@ export const API_BASE_URL = `${BACKEND_URL}/api/v1`;
 // while testing against a local backend.
 export const WEBSITE_URL = 'https://turag.ai';
 
+// The support chat (the web's support widget): Turag's space on the Support
+// Engine, shown inside the app. Signed-in users add a short-lived pass (?st=)
+// so it can answer about their own bookings and offers.
+export const SUPPORT_CHAT_URL = 'https://support-engine-pi.vercel.app/widget?k=turag';
+export const SUPPORT_CHAT_ORIGIN = 'https://support-engine-pi.vercel.app';
+
 // "Continue with Google" (as the web): Google sign-in runs through Turag's
 // Supabase project, opened in a secure browser tab (Chrome Custom Tabs /
 // Apple's sign-in sheet - Google refuses sign-in inside an app's web view).

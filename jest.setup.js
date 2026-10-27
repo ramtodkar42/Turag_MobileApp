@@ -108,6 +108,32 @@ jest.mock('react-native-webview', () => {
   return { __esModule: true, default: WebView, WebView };
 });
 
+// Secure browser tab (react-native-inappbrowser-reborn: Google sign-in, PhonePe):
+// available, and closed by the user straight away unless a test says otherwise.
+jest.mock('react-native-inappbrowser-reborn', () => {
+  const InAppBrowser = {
+    isAvailable: jest.fn(() => Promise.resolve(true)),
+    open: jest.fn(() => Promise.resolve({ type: 'cancel' })),
+    openAuth: jest.fn(() => Promise.resolve({ type: 'cancel' })),
+    close: jest.fn(),
+    closeAuth: jest.fn(),
+  };
+  return { __esModule: true, default: InAppBrowser, InAppBrowser };
+});
+
+// FastImage (native, ships TypeScript source): a plain Image in tests.
+jest.mock('@d11/react-native-fast-image', () => {
+  const { Image } = require('react-native');
+  const FastImage = props => require('react').createElement(Image, props);
+  FastImage.priority = { low: 'low', normal: 'normal', high: 'high' };
+  FastImage.resizeMode = { contain: 'contain', cover: 'cover', stretch: 'stretch', center: 'center' };
+  FastImage.cacheControl = { immutable: 'immutable', web: 'web', cacheOnly: 'cacheOnly' };
+  FastImage.preload = jest.fn();
+  FastImage.clearMemoryCache = jest.fn(() => Promise.resolve());
+  FastImage.clearDiskCache = jest.fn(() => Promise.resolve());
+  return { __esModule: true, default: FastImage };
+});
+
 // File picker (@react-native-documents/picker): picks one PDF, copied to the cache.
 jest.mock('@react-native-documents/picker', () => ({
   types: { pdf: 'application/pdf' },

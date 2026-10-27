@@ -40,7 +40,11 @@ function AddressFields({ form, geo, location, style }) {
       </View>
 
       {/* Find the spot */}
-      <PlaceFinder geo={geo} location={location} hint={t('booking.address.pinHint')} />
+      <PlaceFinder
+        geo={geo}
+        location={location}
+        hint={t('booking.address.pinHint')}
+      />
 
       {/* The address (filled from the spot; the building / flat and landmark are typed) */}
       <TextField

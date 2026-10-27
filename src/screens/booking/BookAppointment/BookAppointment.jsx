@@ -37,7 +37,12 @@ import useBookingForm from './useBookingForm';
 function BookAppointment({ navigation, route }) {
   const t = useT();
   const { vehicle, valuation } = route.params ?? {};
-  const { data: slots, loading, error, reload } = useRemoteData(getBookingSlots);
+  const {
+    data: slots,
+    loading,
+    error,
+    reload,
+  } = useRemoteData(getBookingSlots);
   const form = useBookingForm({ vehicle, slots });
   const [checking, setChecking] = useState(false);
   // Slots and price are real, but no live payment gateway yet (as the web).
@@ -52,7 +57,10 @@ function BookAppointment({ navigation, route }) {
     }
     const { address } = form;
     setChecking(true);
-    const serviceable = await checkServiceability({ city: address.city, pincode: address.pincode });
+    const serviceable = await checkServiceability({
+      city: address.city,
+      pincode: address.pincode,
+    });
     setChecking(false);
     if (!serviceable) {
       navigation.navigate(ROUTES.BOOKING_COMING_SOON, {
@@ -81,11 +89,19 @@ function BookAppointment({ navigation, route }) {
     slotsBody = (
       <View style={styles.inner}>
         <AppText variant="subtitle">{t('booking.slots.loadError')}</AppText>
-        <Button title={t('common.retry')} size="sm" variant="outline" onPress={reload} style={styles.retry} />
+        <Button
+          title={t('common.retry')}
+          size="sm"
+          variant="outline"
+          onPress={reload}
+          style={styles.retry}
+        />
       </View>
     );
   } else if (!slots.enabled) {
-    slotsBody = <InfoNote style={styles.inner}>{t('booking.slots.unavailable')}</InfoNote>;
+    slotsBody = (
+      <InfoNote style={styles.inner}>{t('booking.slots.unavailable')}</InfoNote>
+    );
   } else {
     slotsBody = (
       <View style={styles.inner}>
@@ -111,7 +127,12 @@ function BookAppointment({ navigation, route }) {
               {t('booking.feeNow', { amount: formatINR(slots.price) })}
             </AppText>
           ) : null}
-          <Button title={t('common.continue')} onPress={onContinue} disabled={!form.ready} loading={checking} />
+          <Button
+            title={t('common.continue')}
+            onPress={onContinue}
+            disabled={!form.ready}
+            loading={checking}
+          />
         </View>
       }
     >
@@ -133,11 +154,15 @@ function BookAppointment({ navigation, route }) {
         {vehicle ? (
           <View style={styles.inner}>
             <AppText variant="h3" style={styles.vehicleName}>
-              {[vehicle.make, vehicle.model, vehicle.year].filter(Boolean).join(' ')}
+              {[vehicle.make, vehicle.model, vehicle.year]
+                .filter(Boolean)
+                .join(' ')}
             </AppText>
             <AppText variant="caption">
               {[
-                vehicle.registrationNumber ? formatRegNumber(vehicle.registrationNumber) : null,
+                vehicle.registrationNumber
+                  ? formatRegNumber(vehicle.registrationNumber)
+                  : null,
                 t(`booking.category.${form.category}`),
                 t(`booking.category.${form.category}_info`),
               ]
@@ -154,7 +179,11 @@ function BookAppointment({ navigation, route }) {
                   selected={form.category === option.value}
                   onPress={() => form.setCategory(option.value)}
                 />
-                <AppText variant="caption" align="center" style={styles.categoryInfo}>
+                <AppText
+                  variant="caption"
+                  align="center"
+                  style={styles.categoryInfo}
+                >
                   {t(option.infoKey)}
                 </AppText>
               </View>

@@ -1,6 +1,10 @@
 // hi - chat strings. Keys are 'chat.something'.
 export default {
   'chat.activeNow': 'अभी सक्रिय',
+  // The support chat (Support Engine), as the web.
+  'chat.support.connecting': 'Turag सपोर्ट से जोड़ रहे हैं…',
+  'chat.support.errorTitle': 'चैट नहीं खुल सकी',
+  'chat.support.errorText': 'अपना इंटरनेट कनेक्शन जाँचें और फिर से कोशिश करें।',
   'chat.typing': 'TURAG.AI लिख रहा है',
   'chat.placeholder': 'लिखें...',
   'chat.send': 'संदेश भेजें',

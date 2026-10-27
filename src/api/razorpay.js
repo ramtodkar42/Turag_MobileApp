@@ -16,20 +16,26 @@ export const isTestGateway = payment =>
   String(payment?.provider_order_id ?? '').startsWith('order_stub') ||
   payment?.key_id === STUB_KEY_ID;
 
-// The way to pay chosen in the app opens straight in Razorpay (prefill.method),
-// so the payer isn't asked again.
-const RAZORPAY_METHOD = { UPI: 'upi', CARD: 'card', NET_BANKING: 'netbanking' };
-
 // Opens the checkout for a server-made order. The native SDK is loaded on first
 // use, so a build without it says "payment unavailable" instead of crashing.
 // Rejects PAYMENT_CANCELLED if the payer closes the window or it fails.
-// prefill: { name, email, contact }; method: 'UPI' | 'CARD' | 'NET_BANKING'.
-export const openRazorpayCheckout = async ({ keyId, orderId, amountMinor, description, prefill, method }) => {
+// Razorpay shows every way to pay (UPI, card, net banking...), as on the web.
+// prefill: { name, email, contact }.
+export const openRazorpayCheckout = async ({
+  keyId,
+  orderId,
+  amountMinor,
+  description,
+  prefill,
+}) => {
   let RazorpayCheckout;
   try {
     RazorpayCheckout = require('react-native-razorpay').default;
   } catch {
-    throw new ApiError({ code: PAYMENT_UNAVAILABLE, message: tNow('booking.summary.payUnavailable') });
+    throw new ApiError({
+      code: PAYMENT_UNAVAILABLE,
+      message: tNow('booking.summary.payUnavailable'),
+    });
   }
   try {
     await RazorpayCheckout.open({
@@ -39,10 +45,7 @@ export const openRazorpayCheckout = async ({ keyId, orderId, amountMinor, descri
       currency: 'INR',
       name: 'Turag',
       description: description || tNow('booking.summary.payDescription'),
-      prefill: {
-        ...(prefill ?? {}),
-        ...(RAZORPAY_METHOD[method] ? { method: RAZORPAY_METHOD[method] } : {}),
-      },
+      prefill: prefill ?? {},
       theme: { color: '#E82127' },
     });
   } catch (e) {

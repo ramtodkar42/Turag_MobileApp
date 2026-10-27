@@ -14,21 +14,24 @@ const reviewKey = status => {
   return 'inProgress';
 };
 
-// Status chip: { labelKey, tone ('success' | 'warning' | 'neutral') }.
+// Status chip: { labelKey, shortKey (the grid card's one-line chip),
+// tone ('success' | 'warning' | 'neutral') }.
 export const phaseBadge = vehicle => {
   switch (phaseOf(vehicle)) {
     case 'listed':
-      return { labelKey: 'garage.phase.listed', tone: 'success' };
+      return { labelKey: 'garage.phase.listed', shortKey: 'garage.chip.listed', tone: 'success' };
     case 'can_list':
-      return { labelKey: 'garage.phase.canList', tone: 'success' };
+      return { labelKey: 'garage.phase.canList', shortKey: 'garage.chip.canList', tone: 'success' };
     case 'payment_pending':
-      return { labelKey: 'garage.phase.paymentPending', tone: 'warning' };
+      return { labelKey: 'garage.phase.paymentPending', shortKey: 'garage.chip.paymentPending', tone: 'warning' };
     case 'resume_self':
-      return { labelKey: 'garage.phase.resumeSelf', tone: 'warning' };
-    case 'in_review':
-      return { labelKey: `garage.phase.${reviewKey(vehicle.inspectionStatus)}`, tone: 'warning' };
+      return { labelKey: 'garage.phase.resumeSelf', shortKey: 'garage.chip.inProgress', tone: 'warning' };
+    case 'in_review': {
+      const key = reviewKey(vehicle.inspectionStatus);
+      return { labelKey: `garage.phase.${key}`, shortKey: `garage.chip.${key}`, tone: 'warning' };
+    }
     default:
-      return { labelKey: 'garage.status.not_inspected', tone: 'neutral' };
+      return { labelKey: 'garage.status.not_inspected', shortKey: 'garage.status.not_inspected', tone: 'neutral' };
   }
 };
 

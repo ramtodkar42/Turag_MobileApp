@@ -179,6 +179,18 @@ export const avatarImageSource = async avatarUrl => {
   return { uri: fileUri };
 };
 
+// Deletes the signed-in user's account for good (as the web's Account page:
+// DELETE /me with { confirm: 'DELETE' }). The server erases the name, phone,
+// email and photo, withdraws their listings and open offers, and signs them
+// out on every device; completed orders and payments are kept only as long as
+// the law requires, without contact details.
+export const deleteMyAccount = async () => {
+  if (!real()) {
+    return;
+  }
+  await request(ENDPOINTS.ME, { method: 'DELETE', body: { confirm: 'DELETE' } });
+};
+
 // Sets the display name; returns the updated user.
 export const updateMyName = async (name, { phone } = {}) => {
   if (!real()) {

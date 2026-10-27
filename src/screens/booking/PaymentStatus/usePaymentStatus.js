@@ -13,10 +13,9 @@ import { tNow } from '../../../i18n';
 import { paymentPrefill } from '../paymentPrefill';
 
 // Pays the booking's fee once, then opens "Booking confirmed" (Back from there
-// goes Home). On failure it goes back to the payment screen with the error.
+// goes Home). On failure it goes back to the booking summary with the error.
 // Android back is ignored meanwhile (iOS swipe-back is off for this screen).
-// method: the way to pay chosen on the payment screen (opens straight in Razorpay).
-export default function usePaymentStatus({ navigation, booking, method }) {
+export default function usePaymentStatus({ navigation, booking }) {
   const started = useRef(false);
 
   useEffect(() => {
@@ -33,10 +32,10 @@ export default function usePaymentStatus({ navigation, booking, method }) {
       let confirmed = false;
       try {
         ({ confirmed } = await payForBooking(booking.id, {
-          amountMinor: booking.price != null ? Math.round(booking.price * 100) : undefined,
+          amountMinor:
+            booking.price != null ? Math.round(booking.price * 100) : undefined,
           label: tNow('booking.summary.payDescription'),
           prefill: paymentPrefill(),
-          method,
         }));
       } catch (e) {
         // The user's own cancel / an unavailable gateway carries a clear message;
@@ -45,20 +44,25 @@ export default function usePaymentStatus({ navigation, booking, method }) {
           e.code === PAYMENT_UNAVAILABLE || e.code === PAYMENT_CANCELLED
             ? e.message
             : tNow('booking.summary.payError');
-        navigation.popTo(ROUTES.BOOKING_PAYMENT, { payError }, { merge: true });
+        navigation.popTo(ROUTES.BOOKING_SUMMARY, { payError }, { merge: true });
         return;
       }
       // Only the server confirms payment (the verified webhook). If it hasn't yet
       // (webhook delayed / not reachable), don't claim "confirmed": open the
       // booking, which shows its real status from the server - and, while it's
       // still unpaid (the backend doesn't list those), this booking with "Pay now".
-      const paid = confirmed ? await getMyBooking(booking.id).catch(() => null) : null;
+      const paid = confirmed
+        ? await getMyBooking(booking.id).catch(() => null)
+        : null;
       if (!paid?.feePaid) {
         navigation.reset({
           index: 1,
           routes: [
             { name: currentHomeRoute() },
-            { name: ROUTES.BOOKING_DETAILS, params: { bookingId: booking.id, booking } },
+            {
+              name: ROUTES.BOOKING_DETAILS,
+              params: { bookingId: booking.id, booking },
+            },
           ],
         });
         return;
@@ -68,8 +72,11 @@ export default function usePaymentStatus({ navigation, booking, method }) {
       refreshNotifications();
       navigation.reset({
         index: 1,
-        routes: [{ name: currentHomeRoute() }, { name: ROUTES.BOOKING_CONFIRMED, params: { booking: paid } }],
+        routes: [
+          { name: currentHomeRoute() },
+          { name: ROUTES.BOOKING_CONFIRMED, params: { booking: paid } },
+        ],
       });
     })();
-  }, [booking, method, navigation]);
+  }, [booking, navigation]);
 }

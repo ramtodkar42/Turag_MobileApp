@@ -27,7 +27,11 @@ function SummaryVehicle({ vehicle, valuation, style }) {
       ) : null}
       {value != null ? (
         <View style={styles.value}>
-          <AppText variant="caption" color={colors.heading} style={styles.small}>
+          <AppText
+            variant="caption"
+            color={colors.heading}
+            style={styles.small}
+          >
             {t('common.preEstimatedValue')}
           </AppText>
           <AppText variant="label" color={colors.success}>

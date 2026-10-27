@@ -27,7 +27,8 @@ export default function useBookingForm({ vehicle, slots }) {
   // Slots loaded: start on the first day that still has a free time.
   useEffect(() => {
     if (slots && !dayKey) {
-      const first = slots.days.find(d => d.slots.some(s => s.available)) ?? slots.days[0];
+      const first =
+        slots.days.find(d => d.slots.some(s => s.available)) ?? slots.days[0];
       setDayKey(first?.key ?? null);
     }
   }, [slots, dayKey]);
@@ -37,11 +38,15 @@ export default function useBookingForm({ vehicle, slots }) {
     setSlot(null); // times differ per day
   };
 
-  const togglePreparation = key => setPreparation(prev => ({ ...prev, [key]: !prev[key] }));
+  const togglePreparation = key =>
+    setPreparation(prev => ({ ...prev, [key]: !prev[key] }));
 
-  const address = addressForm.isComplete ? { ...addressForm.toPayload(), geo } : null;
+  const address = addressForm.isComplete
+    ? { ...addressForm.toPayload(), geo }
+    : null;
   // No live payment gateway (slots.paymentsAvailable false): nothing can be booked yet.
-  const ready = !!slots?.enabled && !!slots?.paymentsAvailable && !!slot && !!address;
+  const ready =
+    !!slots?.enabled && !!slots?.paymentsAvailable && !!slot && !!address;
 
   return {
     addressForm,

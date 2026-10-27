@@ -146,20 +146,43 @@ test('Marketing switch: records just that choice, and turns back if saving fails
   expect(root.findAll(n => n.props.children === 'Network down').length).toBeGreaterThan(0);
 });
 
-test('Delete Account popup shows Cancel first, then OK', async () => {
-  const root = await render(<Profile navigation={{ navigate: jest.fn() }} />);
+test('Delete account (as the web): type DELETE to confirm, then deleted, signed out and back to Login', async () => {
+  const del = jest.spyOn(profileApi, 'deleteMyAccount').mockResolvedValue();
+  const reset = jest.fn();
+  act(() => setUser({ fullName: 'Raj', role: 'individual' }));
+  const root = await render(<Profile navigation={{ navigate: jest.fn(), reset, getParent: () => null }} />);
 
   await act(async () => row(root, 'Delete Account').props.onPress());
-  const dialog = root.findByType(ConfirmDialog);
-  expect(dialog.props.visible).toBe(true);
-  expect(dialog.props.cancelLabel).toBe('Cancel');
-  expect(dialog.props.confirmLabel).toBe('OK');
+  const button = title => root.findAll(n => n.props.title === title && n.props.onPress)[0];
+  const field = () => root.findAll(n => n.props.placeholder === 'DELETE' && n.props.onChangeText)[0];
+  expect(field()).toBeDefined();
+  expect(button('Delete permanently').props.disabled).toBe(true);
 
-  const buttons = dialog.findAll(n => n.props.title && n.props.onPress && n.props.variant !== undefined);
-  expect(buttons.map(b => b.props.title).slice(0, 1)).toEqual(['Cancel']);
+  await act(async () => field().props.onChangeText('delete'));
+  expect(button('Delete permanently').props.disabled).toBe(true); // exactly DELETE
+  await act(async () => field().props.onChangeText('DELETE'));
+  expect(button('Delete permanently').props.disabled).toBe(false);
 
-  await act(async () => dialog.props.onCancel());
-  expect(root.findByType(ConfirmDialog).props.visible).toBe(false);
+  await act(async () => button('Delete permanently').props.onPress());
+  expect(del).toHaveBeenCalledTimes(1);
+  expect(getUser()).toBeNull();
+  expect(reset).toHaveBeenCalledWith({ index: 0, routes: [{ name: ROUTES.LOGIN, params: { accountDeleted: true } }] });
+  del.mockRestore();
+});
+
+test('Delete account: if it fails, the reason shows and nothing is signed out', async () => {
+  const del = jest.spyOn(profileApi, 'deleteMyAccount').mockRejectedValue(new Error('Server busy'));
+  const reset = jest.fn();
+  act(() => setUser({ fullName: 'Raj', role: 'individual' }));
+  const root = await render(<Profile navigation={{ navigate: jest.fn(), reset, getParent: () => null }} />);
+  await act(async () => row(root, 'Delete Account').props.onPress());
+  const field = root.findAll(n => n.props.placeholder === 'DELETE' && n.props.onChangeText)[0];
+  await act(async () => field.props.onChangeText('DELETE'));
+  await act(async () => root.findAll(n => n.props.title === 'Delete permanently' && n.props.onPress)[0].props.onPress());
+  expect(root.findAll(n => n.props.children === 'Server busy').length).toBeGreaterThan(0);
+  expect(reset).not.toHaveBeenCalled();
+  expect(getUser()).not.toBeNull();
+  del.mockRestore();
 });
 
 test('Email (as the web): unverified with "Resend link"; Change saves a new one and sends its link', async () => {

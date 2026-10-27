@@ -26,19 +26,21 @@ import PhotoPreview from './components/PhotoPreview';
 // payment window (ADR-0041): a government ID (Aadhaar, PAN or Driving
 // Licence), its number, a selfie and a photo of it. Turag's team reviews it
 // after the booking, so it never delays the visit. Submitting opens payment.
-// Only shown when the user isn't verified yet (see usePayBooking).
+// Only shown when the user isn't verified yet (see BookingSummary/usePayBooking).
 // Also opened on its own from Profile > Identity verification (no booking):
 // optional there, and submitting goes back to the status page.
-// params: { booking (created, PENDING_PAYMENT), method } - passed on to payment; none from Profile.
+// params: { booking (created, PENDING_PAYMENT) } - passed on to payment; none from Profile.
 function VerifyIdentity({ navigation, route }) {
   const t = useT();
-  const { booking, method } = route.params ?? {};
+  const { booking } = route.params ?? {};
   const standalone = !booking;
   const [docSheetOpen, setDocSheetOpen] = useState(false);
   const form = useVerifyIdentity({
     // Payment takes this screen's place: back from payment goes to the payment screen.
     onDone: () =>
-      standalone ? navigation.goBack() : navigation.replace(ROUTES.PAYMENT_STATUS, { booking, method }),
+      standalone
+        ? navigation.goBack()
+        : navigation.replace(ROUTES.PAYMENT_STATUS, { booking }),
   });
   const docLabel = t(`verify.doc.${form.docType}`);
   const showNumberError = form.number.length > 0 && !form.numberOk;
@@ -50,7 +52,12 @@ function VerifyIdentity({ navigation, route }) {
       footer={
         <View style={styles.footer}>
           {form.error ? (
-            <AppText variant="caption" color={colors.danger} align="center" accessibilityLiveRegion="polite">
+            <AppText
+              variant="caption"
+              color={colors.danger}
+              align="center"
+              accessibilityLiveRegion="polite"
+            >
               {form.error}
             </AppText>
           ) : (
@@ -89,7 +96,10 @@ function VerifyIdentity({ navigation, route }) {
       </TitledCard>
 
       {/* 2 · Number */}
-      <TitledCard title={t('verify.step.number', { doc: docLabel })} style={styles.card}>
+      <TitledCard
+        title={t('verify.step.number', { doc: docLabel })}
+        style={styles.card}
+      >
         <TextField
           placeholder={form.doc.placeholder}
           value={form.number}
@@ -99,7 +109,11 @@ function VerifyIdentity({ navigation, route }) {
           autoCorrect={false}
           autoComplete="off"
           valid={form.numberOk}
-          error={showNumberError ? t('verify.numberInvalid', { doc: docLabel }) : undefined}
+          error={
+            showNumberError
+              ? t('verify.numberInvalid', { doc: docLabel })
+              : undefined
+          }
           accessibilityLabel={t('verify.step.number', { doc: docLabel })}
           style={styles.inner}
         />
@@ -128,7 +142,9 @@ function VerifyIdentity({ navigation, route }) {
                 title={t('verify.openCamera')}
                 size="md"
                 fullWidth={false}
-                leftIcon={<Icon name="camera" size={ms(16)} color={colors.white} />}
+                leftIcon={
+                  <Icon name="camera" size={ms(16)} color={colors.white} />
+                }
                 onPress={() => form.pickSelfie('camera')}
                 style={styles.flexWide}
               />
@@ -146,7 +162,10 @@ function VerifyIdentity({ navigation, route }) {
       </TitledCard>
 
       {/* 4 · Document photo */}
-      <TitledCard title={t('verify.step.docPhoto', { doc: docLabel })} style={styles.card}>
+      <TitledCard
+        title={t('verify.step.docPhoto', { doc: docLabel })}
+        style={styles.card}
+      >
         <View style={styles.inner}>
           {form.docImage ? (
             <PhotoPreview
@@ -161,7 +180,10 @@ function VerifyIdentity({ navigation, route }) {
               onPress={() => setDocSheetOpen(true)}
               accessibilityRole="button"
               accessibilityLabel={t('verify.addDocPhoto')}
-              style={({ pressed }) => [styles.drop, pressed && styles.dropPressed]}
+              style={({ pressed }) => [
+                styles.drop,
+                pressed && styles.dropPressed,
+              ]}
             >
               <Icon name="plus" size={ms(22)} color={colors.primary} />
               <AppText variant="label" color={colors.heading} align="center">

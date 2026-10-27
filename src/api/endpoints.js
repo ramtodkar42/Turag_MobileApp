@@ -60,6 +60,7 @@ export const ENDPOINTS = {
   VERIFICATION: '/verification', // the customer's identity verification (ID document + selfie)
   DIGILOCKER_START: '/verification/digilocker', // start a DigiLocker journey (returns its URL)
   DIGILOCKER_COMPLETE: '/verification/digilocker/complete', // back from DigiLocker: finish it
+  SUPPORT_TOKEN: '/support-token', // short-lived pass so the support chat knows who is asking (signed in)
   BUSINESS_INTEREST: '/me/business-interest', // signed up as a dealer / bank: tell Turag's team
   SERVICE_AREA_CHECK: '/service-area/check', // public: is doorstep inspection offered at this place?
   SERVICE_AREA_LEADS: '/service-area/leads', // "notify me" when Turag launches in a city

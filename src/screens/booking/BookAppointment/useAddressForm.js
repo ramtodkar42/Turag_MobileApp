@@ -21,7 +21,8 @@ export default function useAddressForm() {
     state: '',
   });
   const set = key => value => setValues(prev => ({ ...prev, [key]: value }));
-  const setPincode = text => set('pincode')(text.replace(/\D/g, '').slice(0, 6));
+  const setPincode = text =>
+    set('pincode')(text.replace(/\D/g, '').slice(0, 6));
 
   // A place from the map / search / current location (geocode.api mapPlace).
   // A new place replaces the address: what the map doesn't know (often the

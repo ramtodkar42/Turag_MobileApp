@@ -206,8 +206,8 @@ test('Garage tab: placeholders, empty state, then saved vehicles with their stat
   const cards = root.findAll(n => n.props.vehicle && n.props.onAction && n.type !== GarageCard);
   expect(cards.map(c => c.props.vehicle.status).sort()).toEqual(['in_review', 'not_inspected']);
   const badge = label => root.findAll(n => n.props.label === label && n.props.tone)[0];
-  // The web's stage chip: what's happening with the inspection.
-  expect(badge('Inspection in progress').props.tone).toBe('warningOnPhoto'); // white pill, orange text
+  // The web's stage chip (short, one line on the card): what's happening.
+  expect(badge('In progress').props.tone).toBe('warningOnPhoto'); // white pill, orange text
   expect(badge('Not inspected').props.tone).toBe('neutralOnPhoto');
   expect(root.findAll(n => n.props.children === 'Not available').length).toBeGreaterThan(0);
 

@@ -23,7 +23,8 @@ export default function useVerifyIdentity({ onDone }) {
 
   const doc = documentOf(docType);
   const numberOk = doc.valid(compact(number));
-  const canSubmit = !!selfie && !!docImage && consent && numberOk && !submitting;
+  const canSubmit =
+    !!selfie && !!docImage && consent && numberOk && !submitting;
 
   const chooseDocType = type => {
     if (type === docType) return;
@@ -34,21 +35,28 @@ export default function useVerifyIdentity({ onDone }) {
   const changeNumber = text => setNumber(doc.format(text));
 
   // source: 'camera' | 'gallery'. The selfie uses the front camera.
-  const pick = (set, { front, fromSheet }) => source =>
-    setTimeout(
-      async () => {
-        setPhotoError('');
-        try {
-          const photo = source === 'camera' ? await takePhoto({ front }) : await pickImageFromGallery();
-          if (photo) set(photo);
-        } catch (e) {
-          setPhotoError(
-            e?.message === 'camera_permission' ? tNow('verify.error.camera') : tNow('verify.error.photo'),
-          );
-        }
-      },
-      fromSheet ? AFTER_SHEET_MS : 0,
-    );
+  const pick =
+    (set, { front, fromSheet }) =>
+    source =>
+      setTimeout(
+        async () => {
+          setPhotoError('');
+          try {
+            const photo =
+              source === 'camera'
+                ? await takePhoto({ front })
+                : await pickImageFromGallery();
+            if (photo) set(photo);
+          } catch (e) {
+            setPhotoError(
+              e?.message === 'camera_permission'
+                ? tNow('verify.error.camera')
+                : tNow('verify.error.photo'),
+            );
+          }
+        },
+        fromSheet ? AFTER_SHEET_MS : 0,
+      );
 
   const submit = async () => {
     if (!canSubmit || sending.current) return;
@@ -56,7 +64,12 @@ export default function useVerifyIdentity({ onDone }) {
     setSubmitting(true);
     setError('');
     try {
-      const verification = await submitVerification({ docType, docNumber: number, selfie, docImage });
+      const verification = await submitVerification({
+        docType,
+        docNumber: number,
+        selfie,
+        docImage,
+      });
       onDone?.(verification);
     } catch (e) {
       setError(e?.message || tNow('verify.error.submit'));

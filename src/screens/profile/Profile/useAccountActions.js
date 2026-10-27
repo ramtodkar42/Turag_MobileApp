@@ -5,9 +5,10 @@ import { signOutLocally } from '../../../store/signOut';
 import { ROUTES } from '../../../navigation/routes';
 import { tNow } from '../../../i18n';
 
-// Log out / delete account, each behind an app-styled confirmation dialog.
-// `confirm` comes from useConfirmDialog() in the screen.
-export default function useAccountActions(navigation, confirm) {
+// Log out (behind an app-styled confirmation dialog) and delete account (opens
+// the "Type DELETE to confirm" sheet, see useDeleteAccount).
+// `confirm` comes from useConfirmDialog() in the screen; onDelete opens the sheet.
+export default function useAccountActions(navigation, confirm, onDelete) {
   // Instant: the server-side sign-out runs in the background.
   const signOut = useCallback(async () => {
     try {
@@ -35,17 +36,5 @@ export default function useAccountActions(navigation, confirm) {
     [confirm, signOut],
   );
 
-  // Deleting needs the backend; until then explain instead of doing nothing.
-  const confirmDelete = useCallback(
-    () =>
-      confirm({
-        title: tNow('profile.delete.title'),
-        message: tNow('profile.delete.message'),
-        confirmLabel: tNow('common.ok'),
-        cancelLabel: tNow('common.cancel'),
-      }),
-    [confirm],
-  );
-
-  return { logout: confirmLogout, delete: confirmDelete };
+  return { logout: confirmLogout, delete: onDelete };
 }

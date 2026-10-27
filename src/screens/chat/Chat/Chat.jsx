@@ -1,92 +1,114 @@
-import { useCallback, useState } from 'react';
-import { FlatList, StyleSheet } from 'react-native';
-import { FadeIn, ScreenContainer } from '../../../components';
-import { spacing } from '../../../theme';
-import { pickImageFromGallery } from '../../../utils/pickImage';
-import BotMessage from './components/BotMessage';
+import { Linking, StyleSheet, View } from 'react-native';
+import { AppText, Button, FadeIn, ScreenContainer, Spinner, StatusView } from '../../../components';
+import { colors, spacing } from '../../../theme';
+import { ms } from '../../../utils/responsive';
+import { SUPPORT_CHAT_ORIGIN } from '../../../api/config';
+import { useT } from '../../../i18n';
 import ChatHeader from './components/ChatHeader';
-import ChatInput from './components/ChatInput';
-import ChatWelcome from './components/ChatWelcome';
-import TypingIndicator from './components/TypingIndicator';
-import UserMessage from './components/UserMessage';
-import useChat from './useChat';
+import useSupportChat from './useSupportChat';
 
-// TURAG.AI assistant. The list is inverted so new messages appear at the bottom
-// and it stays scrolled to the latest one.
+// The web viewer is a native module: loaded on first use (see WebPage), so a
+// build without it shows the error screen instead of crashing.
+let WebView = null;
+try {
+  WebView = require('react-native-webview').WebView;
+} catch {
+  WebView = null;
+}
+
+// TURAG.AI assistant = Turag's support chat (the web's support widget, the
+// Support Engine), under the app's own TURAG.AI header. Guests get answers from
+// Turag's help articles; signed-in users also about their own bookings and
+// offers. Opened from the TURAG.AI button (after its splash) and from Profile
+// > Chat with support. Links to other sites, phone numbers and emails open in
+// their own apps. The chat's message box stays above the keyboard
+// (ScreenContainer). No route params.
 function Chat({ navigation }) {
-  const { messages, typing, send } = useChat();
-  const [text, setText] = useState('');
-  const [attachment, setAttachment] = useState(null);
+  const t = useT();
+  const chat = useSupportChat();
+  const header = <ChatHeader onBack={navigation.goBack} />;
 
-  const onSend = () => {
-    send({ text, image: attachment?.uri });
-    setText('');
-    setAttachment(null);
+  // The chat stays in the viewer; anything else (help article links to the
+  // website, tel:, mailto:) opens in the right app.
+  const onRequest = request => {
+    const { url } = request;
+    // Frames inside the chat page (iOS asks for those too) are the chat's own.
+    if (request.isTopFrame === false) return true;
+    if (url.startsWith(SUPPORT_CHAT_ORIGIN) || url === 'about:blank' || url.startsWith('data:')) return true;
+    Linking.openURL(url).catch(() => {});
+    return false;
   };
 
-  const onAttach = async () => {
-    try {
-      const photo = await pickImageFromGallery();
-      if (photo) {
-        setAttachment(photo);
-      }
-    } catch {
-      // Gallery unavailable - nothing to attach.
-    }
-  };
-
-  const renderItem = useCallback(
-    ({ item }) => (
-      <FadeIn>
-        {item.role === 'user' ? (
-          <UserMessage message={item} />
-        ) : (
-          <BotMessage message={item} />
-        )}
-      </FadeIn>
-    ),
-    [],
-  );
+  if (!WebView || chat.failed) {
+    return (
+      <ScreenContainer header={header}>
+        <StatusView title={t('chat.support.errorTitle')} message={t('chat.support.errorText')}>
+          <Button title={t('common.retry')} onPress={chat.retry} style={styles.retry} />
+        </StatusView>
+      </ScreenContainer>
+    );
+  }
 
   return (
-    <ScreenContainer
-      padded={false}
-      header={<ChatHeader onBack={navigation.goBack} />}
-      footer={
-        <ChatInput
-          value={text}
-          onChangeText={setText}
-          attachment={attachment}
-          onAttach={onAttach}
-          onRemoveAttachment={() => setAttachment(null)}
-          onSend={onSend}
-        />
-      }
-    >
-      {messages.length === 0 && !typing ? (
-        <ChatWelcome onSelect={value => send({ text: value })} />
-      ) : (
-        <FlatList
-          inverted
-          data={messages}
-          keyExtractor={item => item.id}
-          renderItem={renderItem}
-          ListHeaderComponent={typing ? <TypingIndicator /> : null}
-          contentContainerStyle={styles.list}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="interactive"
-          showsVerticalScrollIndicator={false}
-        />
-      )}
+    <ScreenContainer padded={false} header={header}>
+      <View style={styles.flex}>
+        {chat.url ? (
+          <WebView
+            key={chat.attempt}
+            source={{ uri: chat.url }}
+            onLoadEnd={chat.onLoaded}
+            onError={chat.onFailed}
+            onHttpError={e => e.nativeEvent.statusCode >= 500 && chat.onFailed()}
+            onShouldStartLoadWithRequest={onRequest}
+            setSupportMultipleWindows={false}
+            javaScriptEnabled
+            domStorageEnabled
+            // The chat sizes itself to the screen; no pinch-zoom on the message box.
+            scalesPageToFit={false}
+            textZoom={100}
+            keyboardDisplayRequiresUserAction={false}
+            style={styles.flex}
+          />
+        ) : null}
+        {chat.loading ? (
+          <View style={styles.overlay} pointerEvents="none">
+            <FadeIn offset={0} style={styles.center}>
+              <Spinner size={ms(52)} />
+              <AppText variant="subtitle" align="center" style={styles.wait}>
+                {t('chat.support.connecting')}
+              </AppText>
+            </FadeIn>
+          </View>
+        ) : null}
+      </View>
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  list: {
-    gap: spacing.lg,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
+  flex: {
+    flex: 1,
+  },
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.white,
+  },
+  center: {
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+  },
+  wait: {
+    marginTop: spacing.lg,
+  },
+  retry: {
+    alignSelf: 'stretch',
+    marginTop: spacing.lg,
   },
 });
 
