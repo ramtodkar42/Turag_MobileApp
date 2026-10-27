@@ -27,15 +27,16 @@ import { useT } from '../../../i18n';
 // Only the steps the user still owes are shown: an inspector (or anyone with a
 // name) who hasn't accepted the terms sees just the Terms & Conditions.
 // Back = "use a different number": signs out and returns to Login.
-// params: { phone, needsProfile?, needsConsent? }
+// params: { phone, needsProfile?, needsConsent?, prefill?: { fullName, email } (from Google) }
 function CompleteProfile({ navigation, route }) {
-  const { needsProfile = true, needsConsent = true } = route.params ?? {};
+  const { needsProfile = true, needsConsent = true, prefill } = route.params ?? {};
   const t = useT();
   const emailRef = useRef(null);
 
   const form = useProfileForm({
     needsProfile,
     needsConsent,
+    prefill,
     onSubmit: async ({ consents, ...values }) => {
       const { user, emailNotice } = await completeSignUp({
         needsProfile,

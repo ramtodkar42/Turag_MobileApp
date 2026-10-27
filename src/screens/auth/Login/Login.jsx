@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
-import { AppText, Button, Icon, IconButton, ScreenContainer, SegmentedControl } from '../../../components';
+import {
+  AppText,
+  Button,
+  Icon,
+  IconButton,
+  ScreenContainer,
+  SegmentedControl,
+} from '../../../components';
 import { colors, spacing } from '../../../theme';
 import { fs, ms } from '../../../utils/responsive';
 import { isPhone, phoneError } from '../../../utils/validators';
@@ -13,6 +20,11 @@ import PhoneField from './components/PhoneField';
 import { markGuestChosen } from '../../../utils/appPrefs';
 import BrowseLink from './components/BrowseLink';
 import TermsNote from './components/TermsNote';
+import GoogleSignIn from './components/GoogleSignIn';
+import EmailLoginLink from './components/EmailLoginLink';
+import GooglePhoneNote from './components/GooglePhoneNote';
+import useGoogleSignIn from './useGoogleSignIn';
+import { googleSignInConfigured } from '../../../api/googleAuth';
 
 const logo = require('../../../assets/icons/turaglogowhite.png');
 const LOGO_RATIO = 1248 / 332; // width / height of the PNG
@@ -30,6 +42,9 @@ const getPhoneProblem = phone => {
 // says where the code goes ("Get OTP on WhatsApp").
 // With the keyboard up the spacing tightens so the logo, the field and the
 // button all stay on screen, even on small phones.
+// Or "Continue with Google" (as the web): signs straight in when the Google
+// email belongs to an account; otherwise the mobile number is still needed
+// (the account is the phone) and the Google email is linked after the OTP.
 // Or "Browse cars without login": the marketplace as a guest (remembered, so
 // the app opens there next time).
 // params: { fromGuest? } - opened by a guest from inside the app: a close
@@ -45,13 +60,16 @@ function Login({ navigation, route }) {
   // How the code can be sent ([] = not known: the server picks) and the choice.
   const [channels, setChannels] = useState([]);
   const [channel, setChannel] = useState(null);
+  const google = useGoogleSignIn(navigation);
 
   useEffect(() => {
     let cancelled = false;
     getOtpChannels().then(list => {
       if (!cancelled && list.length > 0) {
         setChannels(list);
-        setChannel(current => (current && list.includes(current) ? current : list[0]));
+        setChannel(current =>
+          current && list.includes(current) ? current : list[0],
+        );
       }
     });
     return () => {
@@ -72,7 +90,9 @@ function Login({ navigation, route }) {
     }
     setLoading(true);
     try {
-      const { otpToken, resendAfter, devHint } = await sendLoginOtp(channel ? { phone, channel } : { phone });
+      const { otpToken, resendAfter, devHint } = await sendLoginOtp(
+        channel ? { phone, channel } : { phone },
+      );
       navigation.navigate(ROUTES.VERIFY_OTP, {
         channel: 'phone',
         ...(channel ? { via: channel } : null),
@@ -80,6 +100,8 @@ function Login({ navigation, route }) {
         otpToken,
         resendAfter,
         devHint,
+        // From Google: linked after the OTP, and its name / email prefilled.
+        ...(google.google ? { google: google.google } : null),
       });
     } catch (e) {
       setError(e.message || t('auth.sendOtpError'));
@@ -93,7 +115,8 @@ function Login({ navigation, route }) {
     navigation.reset({ index: 0, routes: [{ name: ROUTES.MAIN_TABS }] });
   };
 
-  const openPage = (titleKey, path) => navigation.navigate(ROUTES.WEB_PAGE, { title: t(titleKey), path });
+  const openPage = (titleKey, path) =>
+    navigation.navigate(ROUTES.WEB_PAGE, { title: t(titleKey), path });
 
   return (
     <ScreenContainer
@@ -122,12 +145,30 @@ function Login({ navigation, route }) {
           accessibilityLabel="Turag"
         />
 
-        <AppText variant="h3" align="center" color={colors.white} style={styles.title}>
+        <AppText
+          variant="h3"
+          align="center"
+          color={colors.white}
+          style={styles.title}
+        >
           {t('auth.welcome')}
         </AppText>
-        <AppText variant="subtitle" align="center" color={colors.white} style={styles.subtitle}>
+        <AppText
+          variant="subtitle"
+          align="center"
+          color={colors.white}
+          style={styles.subtitle}
+        >
           {t('auth.tagline')}
         </AppText>
+
+        {google.google ? (
+          <GooglePhoneNote
+            email={google.google.email}
+            onCancel={google.cancelGoogle}
+            style={styles.googleNote}
+          />
+        ) : null}
 
         <PhoneField
           value={phone}
@@ -138,7 +179,10 @@ function Login({ navigation, route }) {
         />
         {channels.length > 1 ? (
           <SegmentedControl
-            options={channels.map(value => ({ value, label: t(`auth.via.${value}`) }))}
+            options={channels.map(value => ({
+              value,
+              label: t(`auth.via.${value}`),
+            }))}
             value={channel}
             onChange={setChannel}
             style={styles.channels}
@@ -151,12 +195,37 @@ function Login({ navigation, route }) {
           onPress={onGetOtp}
           style={[styles.button, keyboardOpen && styles.buttonCompact]}
         />
-        {fromGuest ? null : <BrowseLink onPress={browseAsGuest} style={styles.browse} />}
+        {/* Out of the way while typing the number (keeps it all on screen). */}
+        {googleSignInConfigured && !google.google && !keyboardOpen ? (
+          <GoogleSignIn
+            busy={google.busy}
+            error={google.error}
+            onPress={google.start}
+            style={styles.google}
+          />
+        ) : null}
+        {fromGuest ? null : (
+          <BrowseLink onPress={browseAsGuest} style={styles.browse} />
+        )}
+        {/* Accounts Turag created (dealers): email + password, as the web. */}
+        {!keyboardOpen ? (
+          <EmailLoginLink
+            onPress={() =>
+              navigation.navigate(
+                ROUTES.EMAIL_LOGIN,
+                fromGuest ? { fromGuest } : undefined,
+              )
+            }
+            style={styles.emailLink}
+          />
+        ) : null}
 
         {/* The website's Terms / Privacy Policy, inside the app. */}
         <TermsNote
           onTerms={() => openPage('profile.item.terms', '/terms')}
-          onPrivacy={() => openPage('profile.item.privacyPolicy', '/privacy_policy')}
+          onPrivacy={() =>
+            openPage('profile.item.privacyPolicy', '/privacy_policy')
+          }
           style={[styles.terms, keyboardOpen && styles.termsCompact]}
         />
       </View>
@@ -208,6 +277,15 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
   },
   button: {
+    marginTop: spacing.xl,
+  },
+  google: {
+    marginTop: spacing.lg,
+  },
+  emailLink: {
+    marginTop: spacing.lg,
+  },
+  googleNote: {
     marginTop: spacing.xl,
   },
   browse: {

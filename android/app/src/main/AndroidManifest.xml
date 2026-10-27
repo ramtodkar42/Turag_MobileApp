@@ -50,6 +50,13 @@
         <action android:name="android.intent.action.MAIN" />
         <category android:name="android.intent.category.LAUNCHER" />
       </intent-filter>
+      <!-- turag://auth/callback: back from "Continue with Google" (Supabase sends the user here). -->
+      <intent-filter>
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data android:scheme="turag" android:host="auth" />
+      </intent-filter>
     </activity>
 
     <service

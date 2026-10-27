@@ -10,8 +10,13 @@ const INITIAL_VALUES = { fullName: '', email: '', purpose: null };
 // onSubmit(values) finishes sign-up.
 // needsProfile / needsConsent: which sections the screen shows (and checks).
 // An error with `field` from onSubmit (e.g. "email already used") shows on that field.
-export default function useProfileForm({ needsProfile = true, needsConsent = true, onSubmit }) {
-  const [values, setValues] = useState(INITIAL_VALUES);
+// prefill: { fullName, email } to start with (from Google sign-in).
+export default function useProfileForm({ needsProfile = true, needsConsent = true, prefill, onSubmit }) {
+  const [values, setValues] = useState(() => ({
+    ...INITIAL_VALUES,
+    fullName: prefill?.fullName ?? '',
+    email: prefill?.email ?? '',
+  }));
   const [consents, setConsents] = useState(INITIAL_CONSENTS);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);

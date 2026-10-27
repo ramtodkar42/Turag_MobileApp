@@ -31,10 +31,11 @@ function EmailNote({ notice }) {
 // an email also says where the verification link went, with "Continue".
 // params: { titleKey: 'auth.loginSuccessful' | 'auth.accountCreated' (or a ready `title`), next: home route (by role),
 //   goBack?: a guest logged in from the app - close, back to the screen they were on,
-//   emailNotice?: { email, sent } - from Create Account }
+//   emailNotice?: { email, sent } - from Create Account,
+//   thenOpen?: a screen to open on top of home (a dealer: their Business section) }
 function AuthSuccess({ navigation, route }) {
   const t = useT();
-  const { titleKey, title: readyTitle, goBack, emailNotice } = route.params ?? {};
+  const { titleKey, title: readyTitle, goBack, emailNotice, thenOpen } = route.params ?? {};
   const title = titleKey ? t(titleKey) : readyTitle ?? t('auth.loginSuccessful');
   const next = route.params?.next ?? ROUTES.MAIN_TABS;
 
@@ -44,8 +45,9 @@ function AuthSuccess({ navigation, route }) {
     if (left.current) return;
     left.current = true;
     if (goBack && navigation.canGoBack()) navigation.goBack();
+    else if (thenOpen) navigation.reset({ index: 1, routes: [{ name: next }, { name: thenOpen }] });
     else navigation.replace(next);
-  }, [navigation, next, goBack]);
+  }, [navigation, next, goBack, thenOpen]);
 
   useEffect(() => {
     const timer = setTimeout(proceed, emailNotice ? EMAIL_NOTE_DELAY : NEXT_SCREEN_DELAY);

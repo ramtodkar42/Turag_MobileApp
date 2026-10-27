@@ -123,3 +123,42 @@ describe('business interest at sign-up', () => {
     expect(call(0).url).toMatch(/\/me\/business-interest$/);
   });
 });
+
+describe('Continue with Google', () => {
+  const { supabaseTokenFrom } = require('../src/api/googleAuth');
+  const { signInWithGoogle, linkGoogle } = require('../src/api/services/auth.api');
+
+  test('the Supabase token is read from the return link; an error there is shown', () => {
+    expect(supabaseTokenFrom('turag://auth/callback#access_token=abc&refresh_token=r&expires_in=3600')).toBe('abc');
+    expect(() => supabaseTokenFrom('turag://auth/callback?error=access_denied&error_description=User+cancelled')).toThrow(
+      'User cancelled',
+    );
+  });
+
+  test('a known Google email signs straight in; an unknown one needs the phone first', async () => {
+    global.fetch
+      .mockResolvedValueOnce(
+        reply(200, {
+          status: 'SESSION',
+          access_token: 'acc-g',
+          refresh_token: 'ref-g',
+          expires_in: 900,
+          user: { id: 'u1', name: 'Raj', roles: ['consumer'], phone_masked: '+91XXXXXX3210', email: 'raj@gmail.com', email_verified: true },
+          consent_required: false,
+        }),
+      )
+      .mockResolvedValueOnce(reply(200, { status: 'NEEDS_PHONE', name: 'Asha', email: 'asha@gmail.com' }))
+      .mockResolvedValueOnce(reply(200, { linked: true }));
+
+    const signedIn = await signInWithGoogle('sb-1');
+    expect(call(0)).toMatchObject({ method: 'POST', body: { supabase_access_token: 'sb-1' } });
+    expect(call(0).url).toMatch(/\/auth\/google$/);
+    expect(signedIn).toMatchObject({ status: 'SESSION', accessToken: 'acc-g', refreshToken: 'ref-g', user: { fullName: 'Raj' } });
+
+    expect(await signInWithGoogle('sb-2')).toEqual({ status: 'NEEDS_PHONE', name: 'Asha', email: 'asha@gmail.com' });
+
+    expect(await linkGoogle('sb-2')).toBe(true);
+    expect(call(2).url).toMatch(/\/auth\/google\/link$/);
+    expect(call(2).body).toEqual({ supabase_access_token: 'sb-2' });
+  });
+});

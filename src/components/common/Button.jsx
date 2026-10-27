@@ -9,6 +9,7 @@ const VARIANTS = {
   outline: { bg: colors.white, border: colors.primary, text: colors.primary },
   dark: { bg: colors.black, border: colors.black, text: colors.white },
   light: { bg: colors.white, border: colors.white, text: colors.primary }, // on red screens
+  lightOutline: { bg: 'transparent', border: colors.white, text: colors.white }, // second choice on red screens
   // Soft tinted pills, e.g. Accept / Decline on inspector cards.
   successSoft: { bg: colors.successLight, border: colors.successLight, text: colors.success },
   dangerSoft: { bg: colors.dangerLight, border: colors.dangerLight, text: colors.danger },

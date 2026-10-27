@@ -35,6 +35,7 @@ jest.mock('../src/api/services/auth.api', () => ({
     Promise.resolve({ otpToken: 'otp-token-1', expiresIn: 300, resendAfter: 30, devHint: '123456' }),
   ),
   verifyLoginOtp: jest.fn(),
+  loginWithPassword: jest.fn(),
   // The server doesn't say how the code is sent: no WhatsApp / SMS choice.
   getOtpChannels: jest.fn(() => Promise.resolve([])),
   refreshSession: jest.fn(),
@@ -500,4 +501,71 @@ test('OTP fields tell the phone they take a one-time code (SMS autofill)', async
   const input = byProp(root, 'maxLength', 6);
   expect(input.props.autoComplete).toBe('sms-otp'); // Android
   expect(input.props.textContentType).toBe('oneTimeCode'); // iOS
+});
+
+describe('Email + password sign-in (accounts Turag created, as the web)', () => {
+  const EmailLogin = require('../src/screens/auth/EmailLogin/EmailLogin').default;
+  const dealerSession = () => ({
+    accessToken: 'access-d',
+    refreshToken: 'refresh-d',
+    expiresIn: 900,
+    user: { id: 'usr_d', fullName: 'Shree Motors', roles: ['consumer', 'dealer'], role: 'individual' },
+    consentRequired: false,
+  });
+
+  test('both fields are needed; a wrong password shows the one generic message', async () => {
+    const navigation = makeNavigation();
+    const root = await render(<EmailLogin navigation={navigation} route={{ params: {} }} />);
+    await press(root, 'Sign in');
+    expect(byProp(root, 'error', 'Enter your email')).toBeDefined();
+    expect(byProp(root, 'error', 'Enter your password')).toBeDefined();
+    expect(authApi.loginWithPassword).not.toHaveBeenCalled();
+
+    authApi.loginWithPassword.mockRejectedValueOnce(
+      new ApiError({ status: 401, code: 'AUTH_INVALID_CREDENTIALS', message: 'bad' }),
+    );
+    await type(root, 'label', 'Email', 'dealer@shree.in');
+    await type(root, 'label', 'Password', 'wrong-pass');
+    await press(root, 'Sign in');
+    expect(authApi.loginWithPassword).toHaveBeenCalledWith({ email: 'dealer@shree.in', password: 'wrong-pass' });
+    expect(root.findAll(n => n.props.children === 'Email or password is incorrect.').length).toBeGreaterThan(0);
+    expect(navigation.reset).not.toHaveBeenCalled();
+  });
+
+  test('a dealer is signed in and lands in their Business section', async () => {
+    authApi.loginWithPassword.mockResolvedValueOnce(dealerSession());
+    const navigation = makeNavigation();
+    const root = await render(<EmailLogin navigation={navigation} route={{ params: {} }} />);
+    await type(root, 'label', 'Email', 'dealer@shree.in');
+    await type(root, 'label', 'Password', 'right-pass');
+    await press(root, 'Sign in');
+    expect(navigation.reset).toHaveBeenCalledWith({
+      index: 0,
+      routes: [
+        {
+          name: ROUTES.AUTH_SUCCESS,
+          params: { titleKey: 'auth.loginSuccessful', next: ROUTES.MAIN_TABS, thenOpen: ROUTES.BUSINESS_HOME },
+        },
+      ],
+    });
+    expect(await loadSession()).not.toBeNull();
+    expect(getUser()).toEqual(expect.objectContaining({ fullName: 'Shree Motors' }));
+  });
+
+  test('the success screen then opens Business on top of home', async () => {
+    jest.useFakeTimers();
+    const navigation = makeNavigation();
+    await render(
+      <AuthSuccess
+        navigation={navigation}
+        route={{ params: { title: 'Login Successful', next: ROUTES.MAIN_TABS, thenOpen: ROUTES.BUSINESS_HOME } }}
+      />,
+    );
+    act(() => jest.advanceTimersByTime(2000));
+    expect(navigation.reset).toHaveBeenCalledWith({
+      index: 1,
+      routes: [{ name: ROUTES.MAIN_TABS }, { name: ROUTES.BUSINESS_HOME }],
+    });
+    jest.useRealTimers();
+  });
 });

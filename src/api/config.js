@@ -47,6 +47,15 @@ export const API_BASE_URL = `${BACKEND_URL}/api/v1`;
 // while testing against a local backend.
 export const WEBSITE_URL = 'https://turag.ai';
 
+// "Continue with Google" (as the web): Google sign-in runs through Turag's
+// Supabase project, opened in a secure browser tab (Chrome Custom Tabs /
+// Apple's sign-in sheet - Google refuses sign-in inside an app's web view).
+// Supabase then sends the user back to the app on GOOGLE_REDIRECT_URL, which
+// must be in the Supabase project's allowed redirect URLs. SUPABASE_URL is
+// public (the website ships it too); '' hides the Google button.
+export const SUPABASE_URL = 'https://rymrbhyyashvuzwhddcm.supabase.co';
+export const GOOGLE_REDIRECT_URL = 'turag://auth/callback';
+
 // The local backend runs in Next.js dev mode, which compiles each API route
 // the first time it's called (10-20 s on a dev PC), so it gets more time.
 const isLocalBackend = ACTIVE_BACKEND !== 'staging';

@@ -75,6 +75,7 @@ export { default as EditIcon } from './icons/EditIcon';
 export { default as EyeIcon } from './icons/EyeIcon';
 export { default as NoImageIcon } from './icons/NoImageIcon';
 export { default as Icon } from './icons/Icon';
+export { default as GoogleMark } from './icons/GoogleMark';
 
 // map
 export { default as InspectorMarker } from './map/InspectorMarker';

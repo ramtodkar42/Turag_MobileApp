@@ -3,6 +3,9 @@ export const ENDPOINTS = {
   OTP_START: '/auth/otp/start',
   OTP_VERIFY: '/auth/otp/verify',
   OTP_CHANNELS: '/auth/otp/channels', // public: how the code can be sent (whatsapp / sms)
+  PASSWORD_LOGIN: '/auth/password/login', // email + password (accounts Turag created, e.g. dealers)
+  GOOGLE_SIGN_IN: '/auth/google', // Google (via Supabase) -> a session, or "verify your phone first"
+  GOOGLE_LINK: '/auth/google/link', // attach the Google email after the phone step (one tap next time)
   REFRESH: '/auth/refresh',
   LOGOUT: '/auth/logout',
   ME: '/me',

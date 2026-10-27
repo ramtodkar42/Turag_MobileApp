@@ -21,6 +21,7 @@ export const routeAfterSignIn = (user, pending) =>
 const SIGN_IN_SCREENS = new Set([
   ROUTES.INTRO,
   ROUTES.LOGIN,
+  ROUTES.EMAIL_LOGIN,
   ROUTES.VERIFY_OTP,
   ROUTES.COMPLETE_PROFILE,
   ROUTES.AUTH_SUCCESS,

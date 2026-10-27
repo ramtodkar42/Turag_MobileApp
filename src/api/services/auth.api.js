@@ -5,6 +5,7 @@ import { USE_REAL_API } from '../config';
 import { ENDPOINTS } from '../endpoints';
 import { mapUser } from '../mappers/user';
 import { mockRefresh, mockStartOtp, mockVerifyOtp } from '../mock/auth';
+import { tNow } from '../../i18n';
 
 const REFRESH_COOKIE = 'tg_refresh';
 const real = () => USE_REAL_API.auth;
@@ -76,6 +77,74 @@ export const verifyLoginOtp = async ({ phone, otpToken, otp }) => {
     user: mapUser(res.data.user, { phone }),
     consentRequired: !!res.data.consent_required,
   };
+};
+
+// Email + password sign-in (as the web's /login, ADR-0033) - for accounts
+// Turag's team created (dealers), never a sign-up. Same session as the OTP.
+// Returns { accessToken, refreshToken, expiresIn, user, consentRequired }.
+// Errors: AUTH_INVALID_CREDENTIALS (one message for a wrong email or password),
+// RATE_LIMITED (too many tries: locked for a while), SERVICE_UNAVAILABLE.
+export const loginWithPassword = async ({ email, password }) => {
+  const res = await request(ENDPOINTS.PASSWORD_LOGIN, {
+    method: 'POST',
+    body: { email: email.trim(), password },
+    auth: false,
+    raw: true,
+  });
+  const refreshToken = refreshTokenFrom(res);
+  if (!refreshToken) {
+    throw new Error(tNow('auth.emailLogin.error'));
+  }
+  return {
+    accessToken: res.data.access_token,
+    refreshToken,
+    expiresIn: res.data.expires_in,
+    user: mapUser(res.data.user),
+    consentRequired: !!res.data.consent_required,
+  };
+};
+
+// "Continue with Google" (as the web): the Supabase token from the Google
+// sign-in. Returns either
+//   { status: 'SESSION', accessToken, refreshToken, expiresIn, user, consentRequired }
+//     - the Google email belongs to a Turag account with that email verified;
+//   { status: 'NEEDS_PHONE', name, email }
+//     - no account yet: the user verifies their phone (the account is the
+//       phone), then linkGoogle() attaches the Google email for next time.
+export const signInWithGoogle = async supabaseToken => {
+  const res = await request(ENDPOINTS.GOOGLE_SIGN_IN, {
+    method: 'POST',
+    body: { supabase_access_token: supabaseToken },
+    auth: false,
+    raw: true,
+  });
+  const data = res.data ?? {};
+  if (data.status === 'NEEDS_PHONE') {
+    return { status: 'NEEDS_PHONE', name: data.name ?? '', email: data.email ?? '' };
+  }
+  const refreshToken = refreshTokenFrom(res);
+  if (!data.access_token || !refreshToken) {
+    throw new Error(tNow('auth.google.error'));
+  }
+  return {
+    status: 'SESSION',
+    accessToken: data.access_token,
+    refreshToken,
+    expiresIn: data.expires_in,
+    user: mapUser(data.user),
+    consentRequired: !!data.consent_required,
+  };
+};
+
+// After the phone step: attach the Google email to the (now signed-in) account,
+// so next time Google signs in straight away. Best effort - false when the
+// email already belongs to another account.
+export const linkGoogle = async supabaseToken => {
+  const data = await request(ENDPOINTS.GOOGLE_LINK, {
+    method: 'POST',
+    body: { supabase_access_token: supabaseToken },
+  });
+  return !!data?.linked;
 };
 
 // New access token (and rotated refresh token). Used by the session only.
