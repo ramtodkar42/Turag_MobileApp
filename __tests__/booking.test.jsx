@@ -35,7 +35,10 @@ import { ROUTES } from '../src/navigation/routes';
 // Identity verification (the web's step before paying): verified unless a test says otherwise.
 jest.mock('../src/api/services/verification.api', () => ({
   ...jest.requireActual('../src/api/services/verification.api'),
-  getMyVerification: jest.fn(async () => ({ id: 'ver_1', status: 'APPROVED', docType: 'PAN' })),
+  getVerificationStatus: jest.fn(async () => ({
+    verification: { id: 'ver_1', status: 'APPROVED', docType: 'PAN' },
+    options: { manual: true, digilocker: false, manualIsFallback: false },
+  })),
   submitVerification: jest.fn(async () => ({ id: 'ver_2', status: 'PENDING_REVIEW', docType: 'AADHAAR' })),
 }));
 
@@ -730,7 +733,7 @@ describe('Booking summary and confirmation', () => {
 
   test('not verified yet: "Verify your identity" comes before paying (as the web)', async () => {
     const verificationApi = require('../src/api/services/verification.api');
-    verificationApi.getMyVerification.mockResolvedValueOnce(null);
+    verificationApi.getVerificationStatus.mockResolvedValueOnce({ verification: null, options: { manual: true, digilocker: false, manualIsFallback: false } });
     const navigation = nav();
     const root = await render(<BookingPayment navigation={navigation} route={{ params }} />);
     await act(async () => {

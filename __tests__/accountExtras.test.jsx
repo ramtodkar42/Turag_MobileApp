@@ -8,7 +8,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Badge, Button } from '../src/components';
 import IdentityVerification from '../src/screens/profile/IdentityVerification/IdentityVerification';
 import ListingPreview from '../src/screens/selling/ListingPreview/ListingPreview';
-import { avatarImageSource, uploadMyAvatar } from '../src/api/services/profile.api';
+import { avatarImageSource, rememberAvatarFile, uploadMyAvatar } from '../src/api/services/profile.api';
 import { endSession, startSession } from '../src/api/session';
 import { mapUser } from '../src/api/mappers/user';
 import { mapMyListing } from '../src/api/mappers/offer';
@@ -17,7 +17,7 @@ import { USE_REAL_API } from '../src/api/config';
 
 jest.mock('../src/api/services/verification.api', () => ({
   ...jest.requireActual('../src/api/services/verification.api'),
-  getMyVerification: jest.fn(async () => null),
+  getVerificationStatus: jest.fn(async () => ({ verification: null, options: { manual: true, digilocker: false, manualIsFallback: false } })),
 }));
 jest.mock('../src/api/services/report.api', () => ({
   ...jest.requireActual('../src/api/services/report.api'),
@@ -78,7 +78,7 @@ describe('profile photo on the account', () => {
     global.fetch
       .mockResolvedValueOnce(reply(200, {})) // reading the picked file
       .mockResolvedValueOnce(
-        reply(200, { user: { id: 'u1', name: 'Ram', roles: [], avatar_url: 'avatars/u1/2.jpg' }, consents_summary: [] }),
+        reply(200, { user: { id: 'u1', name: 'Ram', roles: [], avatar_url: '/api/v1/me/avatar?v=u1-1729' }, consents_summary: [] }),
       );
     const user = await uploadMyAvatar({ uri: 'file:///photo.jpg', type: 'image/jpeg' }, { phone: '9876543210' });
     const [url, init] = global.fetch.mock.calls[1];
@@ -86,13 +86,17 @@ describe('profile photo on the account', () => {
     expect(init.method).toBe('POST');
     expect(init.headers['Content-Type']).toBe('image/jpeg');
     expect(init.headers.Authorization).toBe('Bearer access-1');
-    expect(user).toMatchObject({ avatarUrl: 'avatars/u1/2.jpg', contact: '9876543210' });
+    expect(user).toMatchObject({ avatarUrl: '/api/v1/me/avatar?v=u1-1729', contact: '9876543210' });
   });
 
-  test('the image source carries the login token; a new photo gets a new address', async () => {
-    const source = await avatarImageSource('avatars/u1/2.jpg');
-    expect(source.uri).toMatch(/\/me\/avatar\?v=avatars%2Fu1%2F2\.jpg$/);
+  test('the photo loads with the login token, by its version; a photo just saved shows from its file', async () => {
+    // (No file download in tests: the image view gets the token instead.)
+    const source = await avatarImageSource('/api/v1/me/avatar?v=u1-1729');
+    expect(source.uri).toMatch(/\/me\/avatar\?v=u1-1729$/);
     expect(source.headers.Authorization).toBe('Bearer access-1');
+    // Saved from this phone: straight from the picked file, nothing to download.
+    rememberAvatarFile('/api/v1/me/avatar?v=u1-1730', 'file:///picked.jpg');
+    expect(await avatarImageSource('/api/v1/me/avatar?v=u1-1730')).toEqual({ uri: 'file:///picked.jpg' });
     expect(await avatarImageSource(null)).toBeNull();
     expect(mapUser({ avatar_url: null }).avatarUrl).toBeNull();
   });
@@ -108,12 +112,16 @@ describe('Identity verification from Profile', () => {
   });
 
   test('rejected: the reason and "Verify again"; under review: just the status', async () => {
-    verificationApi.getMyVerification.mockResolvedValueOnce({
-      status: 'REJECTED',
-      docType: 'PAN',
-      docMasked: 'XXXXXX234F',
-      rejectionReason: 'Photo is blurry',
-      submittedAt: null,
+    verificationApi.getVerificationStatus.mockResolvedValueOnce({
+      verification: {
+        status: 'REJECTED',
+        method: 'MANUAL',
+        docType: 'PAN',
+        docMasked: 'XXXXXX234F',
+        rejectionReason: 'Photo is blurry',
+        submittedAt: null,
+      },
+      options: { manual: true, digilocker: false, manualIsFallback: false },
     });
     let root = await render(<IdentityVerification navigation={nav()} />);
     expect(root.findByType(Badge).props.label).toBe('Not approved');
@@ -121,10 +129,43 @@ describe('Identity verification from Profile', () => {
     expect(button(root, 'Verify again')).toBeDefined();
     act(() => tree.unmount());
 
-    verificationApi.getMyVerification.mockResolvedValueOnce({ status: 'PENDING_REVIEW', docType: 'AADHAAR', docMasked: '' });
+    verificationApi.getVerificationStatus.mockResolvedValueOnce({
+      verification: { status: 'PENDING_REVIEW', method: 'MANUAL', docType: 'AADHAAR', docMasked: '' },
+      options: { manual: true, digilocker: false, manualIsFallback: false },
+    });
     root = await render(<IdentityVerification navigation={nav()} />);
     expect(root.findByType(Badge).props.label).toBe('Under review');
     expect(button(root, 'Verify again')).toBeUndefined();
+  });
+});
+
+describe('Identity verification with DigiLocker', () => {
+  const dlMode = { manual: true, digilocker: true, manualIsFallback: true };
+
+  test('DigiLocker mode: only DigiLocker, opened once the consent is ticked', async () => {
+    verificationApi.getVerificationStatus.mockResolvedValueOnce({ verification: null, options: dlMode });
+    const navigation = nav();
+    const root = await render(<IdentityVerification navigation={navigation} />);
+    const dl = () => button(root, 'Verify with DigiLocker');
+    expect(dl().props.disabled).toBe(true);
+    expect(button(root, 'Verify your identity')).toBeUndefined(); // manual is only the fallback
+    const consent = root.findAll(n => n.props.accessibilityRole === 'checkbox' && n.props.onPress)[0];
+    await act(async () => consent.props.onPress());
+    expect(dl().props.disabled).toBe(false);
+    await act(async () => dl().props.onPress());
+    expect(navigation.navigate).toHaveBeenCalledWith(ROUTES.DIGILOCKER);
+  });
+
+  test('a DigiLocker try that timed out: its status, try again, or upload documents instead', async () => {
+    verificationApi.getVerificationStatus.mockResolvedValueOnce({
+      verification: { status: 'EXPIRED', method: 'DIGILOCKER', docType: 'AADHAAR', docMasked: '' },
+      options: dlMode,
+    });
+    const root = await render(<IdentityVerification navigation={nav()} />);
+    expect(root.findAllByType(Badge).map(b => b.props.label)).toContain('Expired');
+    expect(hasText(root, 'via DigiLocker')).toBe(true);
+    expect(button(root, 'Try DigiLocker again')).toBeDefined();
+    expect(hasText(root, 'Upload documents instead')).toBe(true);
   });
 });
 

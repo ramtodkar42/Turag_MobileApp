@@ -2,6 +2,7 @@
 export const ENDPOINTS = {
   OTP_START: '/auth/otp/start',
   OTP_VERIFY: '/auth/otp/verify',
+  OTP_CHANNELS: '/auth/otp/channels', // public: how the code can be sent (whatsapp / sms)
   REFRESH: '/auth/refresh',
   LOGOUT: '/auth/logout',
   ME: '/me',
@@ -22,6 +23,10 @@ export const ENDPOINTS = {
   inspectionItem: (id, itemCode) =>
     `/inspections/${encodeURIComponent(id)}/items/${encodeURIComponent(itemCode)}`,
   inspectionSubmit: id => `/inspections/${encodeURIComponent(id)}/submit`,
+  inspectionPay: id => `/inspections/${encodeURIComponent(id)}/pay`, // the self-inspection fee
+  inspectionPaySimulate: id => `/inspections/${encodeURIComponent(id)}/pay/simulate`, // dev/stub only
+  CAR_ALERTS: '/car-alerts', // WhatsApp alerts for newly listed cars
+  carAlert: id => `/car-alerts/${encodeURIComponent(id)}`,
   mediaRequestUpload: inspectionId =>
     `/inspections/${encodeURIComponent(inspectionId)}/media/request-upload`,
   mediaCheckDuplicate: inspectionId =>
@@ -50,6 +55,9 @@ export const ENDPOINTS = {
   bookingPaySimulate: id => `/inspection-bookings/${encodeURIComponent(id)}/pay/simulate`,
   bookingMessages: id => `/inspection-bookings/${encodeURIComponent(id)}/messages`,
   VERIFICATION: '/verification', // the customer's identity verification (ID document + selfie)
+  DIGILOCKER_START: '/verification/digilocker', // start a DigiLocker journey (returns its URL)
+  DIGILOCKER_COMPLETE: '/verification/digilocker/complete', // back from DigiLocker: finish it
+  BUSINESS_INTEREST: '/me/business-interest', // signed up as a dealer / bank: tell Turag's team
   SERVICE_AREA_CHECK: '/service-area/check', // public: is doorstep inspection offered at this place?
   SERVICE_AREA_LEADS: '/service-area/leads', // "notify me" when Turag launches in a city
   report: inspectionId => `/reports/${encodeURIComponent(inspectionId)}`,

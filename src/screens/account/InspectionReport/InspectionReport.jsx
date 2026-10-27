@@ -13,13 +13,17 @@ import {
   ScreenContainer,
   StatusView,
   TitledCard,
+  ChallanCard,
 } from '../../../components';
 import { colors, fonts, spacing } from '../../../theme';
 import { fs, ms } from '../../../utils/responsive';
 import { formatDate, formatINR, formatNumber } from '../../../utils/format';
 import { formatRegNumber } from '../../../utils/validators';
 import useRemoteData from '../../../hooks/useRemoteData';
-import { getInspectionReport, REPORT_ERRORS } from '../../../api/services/report.api';
+import {
+  getInspectionReport,
+  REPORT_ERRORS,
+} from '../../../api/services/report.api';
 import { codeLabel } from '../../../i18n/vehicleLabels';
 import { useT } from '../../../i18n';
 import EstimateSummary from '../../valuation/components/EstimateSummary';
@@ -40,16 +44,28 @@ const titleCase = code =>
 function InspectionReport({ navigation, route }) {
   const t = useT();
   const { inspectionId } = route.params;
-  const { data: report, loading, refreshing, error, errorCode, refresh, reload } = useRemoteData(
-    () => getInspectionReport(inspectionId),
-    [inspectionId],
-  );
+  const {
+    data: report,
+    loading,
+    refreshing,
+    error,
+    errorCode,
+    refresh,
+    reload,
+  } = useRemoteData(() => getInspectionReport(inspectionId), [inspectionId]);
   const reportName = report
-    ? [report.vehicle.make, report.vehicle.model, report.vehicle.year].filter(Boolean).join(' ')
+    ? [report.vehicle.make, report.vehicle.model, report.vehicle.year]
+        .filter(Boolean)
+        .join(' ')
     : '';
-  const actions = useReportActions({ inspectionId, title: reportName || t('account.report.title') });
+  const actions = useReportActions({
+    inspectionId,
+    title: reportName || t('account.report.title'),
+  });
 
-  const header = <Header onBack={navigation.goBack} title={t('account.report.title')} />;
+  const header = (
+    <Header onBack={navigation.goBack} title={t('account.report.title')} />
+  );
 
   if (loading) {
     return (
@@ -74,7 +90,9 @@ function InspectionReport({ navigation, route }) {
       <ScreenContainer header={header}>
         <StatusView title={title} message={message}>
           <Button
-            title={notReady || !forbidden ? t('common.retry') : t('common.back')}
+            title={
+              notReady || !forbidden ? t('common.retry') : t('common.back')
+            }
             size="md"
             onPress={notReady || !forbidden ? reload : navigation.goBack}
             style={styles.action}
@@ -92,7 +110,9 @@ function InspectionReport({ navigation, route }) {
       scroll
       header={header}
       footer={<ReportActions actions={actions} />}
-      refreshControl={<AppRefreshControl refreshing={refreshing} onRefresh={refresh} />}
+      refreshControl={
+        <AppRefreshControl refreshing={refreshing} onRefresh={refresh} />
+      }
     >
       <FadeIn>
         {/* Grade + verification */}
@@ -103,19 +123,32 @@ function InspectionReport({ navigation, route }) {
                 {name}
               </AppText>
               {vehicle.registrationNumber ? (
-                <AppText variant="caption">{formatRegNumber(vehicle.registrationNumber)}</AppText>
+                <AppText variant="caption">
+                  {formatRegNumber(vehicle.registrationNumber)}
+                </AppText>
               ) : null}
               <Badge
-                label={t(report.turagVerified ? 'account.report.turagVerified' : 'account.report.notTuragVerified')}
+                label={t(
+                  report.turagVerified
+                    ? 'account.report.turagVerified'
+                    : 'account.report.notTuragVerified',
+                )}
                 tone={report.turagVerified ? 'verified' : 'neutral'}
                 style={styles.badge}
               />
             </View>
             <View style={[styles.grade, !report.grade && styles.gradeEmpty]}>
-              <AppText style={styles.gradeText} color={report.grade ? colors.white : colors.body}>
+              <AppText
+                style={styles.gradeText}
+                color={report.grade ? colors.white : colors.body}
+              >
                 {report.grade ?? '—'}
               </AppText>
-              <AppText variant="caption" color={report.grade ? colors.white : colors.body} style={styles.gradeLabel}>
+              <AppText
+                variant="caption"
+                color={report.grade ? colors.white : colors.body}
+                style={styles.gradeLabel}
+              >
                 {t('account.report.grade')}
               </AppText>
             </View>
@@ -123,9 +156,18 @@ function InspectionReport({ navigation, route }) {
 
           <Divider spacing={spacing.md} />
           <View style={styles.stats}>
-            <Stat label={t('account.report.score')} value={report.score != null ? `${report.score}/100` : '—'} />
-            <Stat label={t('account.report.checked')} value={report.coverage != null ? `${report.coverage}%` : '—'} />
-            <Stat label={t('account.report.issues')} value={String(report.issues)} />
+            <Stat
+              label={t('account.report.score')}
+              value={report.score != null ? `${report.score}/100` : '—'}
+            />
+            <Stat
+              label={t('account.report.checked')}
+              value={report.coverage != null ? `${report.coverage}%` : '—'}
+            />
+            <Stat
+              label={t('account.report.issues')}
+              value={String(report.issues)}
+            />
           </View>
           {report.gradeNotReady ? (
             <AppText variant="caption" style={styles.note}>
@@ -138,9 +180,14 @@ function InspectionReport({ navigation, route }) {
               color={report.expired ? colors.danger : undefined}
               style={styles.note}
             >
-              {t(report.expired ? 'account.report.expired' : 'account.report.validUntil', {
-                date: formatDate(report.validUntil.slice(0, 10)),
-              })}
+              {t(
+                report.expired
+                  ? 'account.report.expired'
+                  : 'account.report.validUntil',
+                {
+                  date: formatDate(report.validUntil.slice(0, 10)),
+                },
+              )}
             </AppText>
           ) : null}
         </Card>
@@ -164,23 +211,41 @@ function InspectionReport({ navigation, route }) {
             </AppText>
           ) : (
             report.findings.map((finding, index) => {
-              const severity = SEVERITY[finding.severity] ?? SEVERITY.NOT_ASSESSABLE;
+              const severity =
+                SEVERITY[finding.severity] ?? SEVERITY.NOT_ASSESSABLE;
               return (
-                <View key={finding.code ?? index} style={[styles.row, index > 0 && styles.rowDivider]}>
+                <View
+                  key={finding.code ?? index}
+                  style={[styles.row, index > 0 && styles.rowDivider]}
+                >
                   <View style={styles.rowTop}>
-                    <AppText variant="label" color={colors.heading} style={styles.rowTitle}>
+                    <AppText
+                      variant="label"
+                      color={colors.heading}
+                      style={styles.rowTitle}
+                    >
                       {finding.label}
                     </AppText>
-                    <Badge label={t(severity.labelKey)} tone={severity.tone} size="sm" />
+                    <Badge
+                      label={t(severity.labelKey)}
+                      tone={severity.tone}
+                      size="sm"
+                    />
                   </View>
                   {finding.note ? (
-                    <AppText variant="caption" color={colors.body} style={styles.rowNote}>
+                    <AppText
+                      variant="caption"
+                      color={colors.body}
+                      style={styles.rowNote}
+                    >
                       {finding.note}
                     </AppText>
                   ) : null}
                   {finding.cost ? (
                     <AppText variant="caption" style={styles.rowNote}>
-                      {t('account.report.repairCost', { amount: formatINR(finding.cost) })}
+                      {t('account.report.repairCost', {
+                        amount: formatINR(finding.cost),
+                      })}
                     </AppText>
                   ) : null}
                 </View>
@@ -193,25 +258,53 @@ function InspectionReport({ navigation, route }) {
         {report.documents.length > 0 ? (
           <TitledCard title={t('account.report.documents')} style={styles.card}>
             {report.documents.map((doc, index) => {
-              const status = DOCUMENT_STATUS[doc.status] ?? DOCUMENT_STATUS.NOT_ASSESSED;
+              const status =
+                DOCUMENT_STATUS[doc.status] ?? DOCUMENT_STATUS.NOT_ASSESSED;
               return (
-                <View key={`${doc.type}-${index}`} style={[styles.docRow, index > 0 && styles.rowDivider]}>
-                  <AppText variant="label" color={colors.heading} style={styles.rowTitle}>
-                    {codeLabel(t, 'account.report.doc', doc.type, titleCase(doc.type))}
+                <View
+                  key={`${doc.type}-${index}`}
+                  style={[styles.docRow, index > 0 && styles.rowDivider]}
+                >
+                  <AppText
+                    variant="label"
+                    color={colors.heading}
+                    style={styles.rowTitle}
+                  >
+                    {codeLabel(
+                      t,
+                      'account.report.doc',
+                      doc.type,
+                      titleCase(doc.type),
+                    )}
                   </AppText>
-                  <Badge label={t(status.labelKey)} tone={status.tone} size="sm" />
+                  <Badge
+                    label={t(status.labelKey)}
+                    tone={status.tone}
+                    size="sm"
+                  />
                 </View>
               );
             })}
           </TitledCard>
         ) : null}
 
+        {/* Traffic challans: only when a check has run (as the web). */}
+        {report.challans ? (
+          <ChallanCard challans={report.challans} style={styles.card} />
+        ) : null}
+
         {report.inspectorName || report.odometerKm != null ? (
           <InfoNote style={styles.card}>
             {[
-              report.inspectorName ? t('account.report.inspectedBy', { name: report.inspectorName }) : null,
+              report.inspectorName
+                ? t('account.report.inspectedBy', {
+                    name: report.inspectorName,
+                  })
+                : null,
               report.odometerKm != null
-                ? t('account.report.odometer', { km: formatNumber(report.odometerKm) })
+                ? t('account.report.odometer', {
+                    km: formatNumber(report.odometerKm),
+                  })
                 : null,
             ]
               .filter(Boolean)

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createInspectionBooking } from '../../../api/services/booking.api';
-import { getMyVerification, needsVerification } from '../../../api/services/verification.api';
+import { getVerificationStatus, needsVerification } from '../../../api/services/verification.api';
 import { ROUTES } from '../../../navigation/routes';
 import { useT } from '../../../i18n';
 import { comingSoonPlace } from '../comingSoonPlace';
@@ -21,7 +21,7 @@ export default function usePayBooking({ navigation, route }) {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    verification.current = getMyVerification().catch(() => null);
+    verification.current = getVerificationStatus().catch(() => null);
   }, []);
 
   const pay = async method => {
@@ -42,9 +42,12 @@ export default function usePayBooking({ navigation, route }) {
         valuationId: valuation?.valuationId ?? null,
       });
       // Read again each time (a submitted ID is PENDING_REVIEW from then on).
-      const current = await (verification.current ?? getMyVerification().catch(() => null));
+      // DigiLocker mode skips the ID step here (as the web): verify from Profile.
+      const current = await (verification.current ?? getVerificationStatus().catch(() => null));
       verification.current = null;
-      const next = needsVerification(current) ? ROUTES.VERIFY_IDENTITY : ROUTES.PAYMENT_STATUS;
+      const next = needsVerification(current?.verification, current?.options)
+        ? ROUTES.VERIFY_IDENTITY
+        : ROUTES.PAYMENT_STATUS;
       navigation.navigate(next, { booking: created.current, method });
     } catch (e) {
       // The server's own service-area check (the backstop for the check on the

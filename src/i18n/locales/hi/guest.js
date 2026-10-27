@@ -30,4 +30,6 @@ export default {
   'guest.settlements.message': 'Turag पर बेचे गए वाहनों के लिए आपको मिला पैसा देखने के लिए लॉग इन करें।',
   'guest.payouts.title': 'अपनी बिक्री का भुगतान पाएं',
   'guest.payouts.message': 'वह बैंक खाता जोड़ने के लिए लॉग इन करें जिसमें Turag आपकी बिक्री का पैसा भेजता है।',
+  'guest.carAlerts.title': 'नई कारों के बारे में सबसे पहले जानें',
+  'guest.carAlerts.message': 'आपकी पसंद की कारें लिस्ट होने पर WhatsApp अलर्ट पाने के लिए लॉग इन करें।',
 };

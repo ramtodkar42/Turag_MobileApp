@@ -8,6 +8,7 @@ import {
   ScreenContainer,
   StatusView,
   TierBadge,
+  ChallanCard,
 } from '../../../components';
 import { colors, spacing } from '../../../theme';
 import { fs, ms } from '../../../utils/responsive';
@@ -31,7 +32,9 @@ import useVehicleDetails from '../useVehicleDetails';
 // once and fills in the rest.
 function VehicleListing({ navigation, route }) {
   const t = useT();
-  const { vehicle, loading, error, notFound, retry } = useVehicleDetails(route.params.vehicle);
+  const { vehicle, loading, error, notFound, retry } = useVehicleDetails(
+    route.params.vehicle,
+  );
 
   if (notFound) {
     return (
@@ -54,32 +57,56 @@ function VehicleListing({ navigation, route }) {
   const fuel = codeLabel(t, 'marketplace.fuel', vehicle.fuelCode, vehicle.fuel);
   const meta = [vehicle.year, fuel].filter(Boolean).join(' • ');
   // "Baner, Pune, Maharashtra" (as the web's vehicle page).
-  const where = [vehicle.place ?? vehicle.city, vehicle.state].filter(Boolean).join(', ');
+  const where = [vehicle.place ?? vehicle.city, vehicle.state]
+    .filter(Boolean)
+    .join(', ');
 
   // The first four are the tiles always shown.
   const rows = [
     {
       label: t('marketplace.details.vehicleType'),
-      value: keyLabel(t, vehicle.vehicleTypeKey, vehicle.vehicleType, 'marketplace.vehicleType'),
+      value: keyLabel(
+        t,
+        vehicle.vehicleTypeKey,
+        vehicle.vehicleType,
+        'marketplace.vehicleType',
+      ),
     },
     { label: t('marketplace.details.fuel'), value: fuel },
     { label: t('marketplace.details.year'), value: vehicle.year },
     {
       label: t('marketplace.details.transmission'),
-      value: codeLabel(t, 'marketplace.transmission', vehicle.transmissionCode, vehicle.transmission),
+      value: codeLabel(
+        t,
+        'marketplace.transmission',
+        vehicle.transmissionCode,
+        vehicle.transmission,
+      ),
     },
     {
       label: t('marketplace.details.bodyType'),
-      value: codeLabel(t, 'marketplace.bodyType', vehicle.bodyTypeCode, vehicle.bodyType),
+      value: codeLabel(
+        t,
+        'marketplace.bodyType',
+        vehicle.bodyTypeCode,
+        vehicle.bodyType,
+      ),
     },
     {
       label: t('marketplace.details.colour'),
-      value: codeLabel(t, 'marketplace.colour', vehicle.colorCode, vehicle.color),
+      value: codeLabel(
+        t,
+        'marketplace.colour',
+        vehicle.colorCode,
+        vehicle.color,
+      ),
     },
     { label: t('marketplace.details.seats'), value: vehicle.seats },
     {
       label: t('marketplace.details.engine'),
-      value: vehicle.engineCc ? t('marketplace.details.engineValue', { cc: vehicle.engineCc }) : null,
+      value: vehicle.engineCc
+        ? t('marketplace.details.engineValue', { cc: vehicle.engineCc })
+        : null,
     },
     {
       label: t('marketplace.details.mileage'),
@@ -89,9 +116,16 @@ function VehicleListing({ navigation, route }) {
     },
   ].filter(row => row.value != null && row.value !== '');
 
-  const inspection = keyLabel(t, vehicle.inspectionKey, vehicle.inspection, 'marketplace.inspection');
+  const inspection = keyLabel(
+    t,
+    vehicle.inspectionKey,
+    vehicle.inspection,
+    'marketplace.inspection',
+  );
   const offerBlocked = vehicle.reserved || vehicle.eligible === false;
-  const offerTitle = vehicle.reserved ? t('marketplace.reserved') : t('marketplace.offer.make');
+  const offerTitle = vehicle.reserved
+    ? t('marketplace.reserved')
+    : t('marketplace.offer.make');
 
   return (
     <ScreenContainer
@@ -108,12 +142,19 @@ function VehicleListing({ navigation, route }) {
           <Button
             title={offerTitle}
             disabled={offerBlocked || loading}
-            onPress={() => requireLogin('offer') && navigation.navigate(ROUTES.MAKE_OFFER, { vehicle })}
+            onPress={() =>
+              requireLogin('offer') &&
+              navigation.navigate(ROUTES.MAKE_OFFER, { vehicle })
+            }
           />
         </>
       }
     >
-      <VehicleGallery vehicle={vehicle} onBack={navigation.goBack} loading={loading} />
+      <VehicleGallery
+        vehicle={vehicle}
+        onBack={navigation.goBack}
+        loading={loading}
+      />
 
       <View style={styles.body}>
         <AppText variant="h2" style={styles.name}>
@@ -147,15 +188,33 @@ function VehicleListing({ navigation, route }) {
         <SpecGrid rows={rows} style={styles.section} />
 
         {inspection ? (
-          <InspectionBanner label={inspection} verified={vehicle.verified} style={styles.section} />
+          <InspectionBanner
+            label={inspection}
+            verified={vehicle.verified}
+            style={styles.section}
+          />
         ) : null}
 
         <PriceCard vehicle={vehicle} style={styles.section} />
 
         {vehicle.report ? (
           <FadeIn>
-            <InspectionSummaryCard report={vehicle.report} style={styles.section} />
+            <InspectionSummaryCard
+              report={vehicle.report}
+              style={styles.section}
+            />
             <ReportDetailCard report={vehicle.report} style={styles.section} />
+          </FadeIn>
+        ) : null}
+
+        {/* Traffic challans (summary): only when a check has run (as the web). */}
+        {vehicle.challans ? (
+          <FadeIn>
+            <ChallanCard
+              challans={vehicle.challans}
+              compact
+              style={styles.section}
+            />
           </FadeIn>
         ) : null}
 
@@ -167,7 +226,13 @@ function VehicleListing({ navigation, route }) {
 
         {error ? (
           <StatusView message={error} style={styles.section}>
-            <Button title={t('common.retry')} size="sm" variant="outline" onPress={retry} style={styles.action} />
+            <Button
+              title={t('common.retry')}
+              size="sm"
+              variant="outline"
+              onPress={retry}
+              style={styles.action}
+            />
           </StatusView>
         ) : null}
       </View>

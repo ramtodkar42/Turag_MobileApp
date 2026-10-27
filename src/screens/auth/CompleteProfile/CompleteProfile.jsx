@@ -15,15 +15,15 @@ import { ROUTES } from '../../../navigation/routes';
 import { clearUser } from '../../../store/userStore';
 import completeSignUp from './completeSignUp';
 import ConsentList from './components/ConsentList';
-import EmailVerifyAction from './components/EmailVerifyAction';
 import PurposePicker from './components/PurposePicker';
 import { CONSENTS, PURPOSES } from './constants';
 import useProfileForm from './useProfileForm';
 import { useT } from '../../../i18n';
 
-// Create Account (after the mobile OTP, already signed in): name, email with
-// "Verify" (marks it verified straight away), "What brings you" and the
-// consents; "Accept & Continue" saves them and opens Home.
+// Create Account (after the mobile OTP, already signed in): name, email, "What
+// brings you" and the consents; "Accept & Continue" saves them and opens Home.
+// As the web, the email isn't verified here: Turag emails a link to confirm it
+// whenever the user likes (the success screen says so).
 // Only the steps the user still owes are shown: an inspector (or anyone with a
 // name) who hasn't accepted the terms sees just the Terms & Conditions.
 // Back = "use a different number": signs out and returns to Login.
@@ -37,16 +37,22 @@ function CompleteProfile({ navigation, route }) {
     needsProfile,
     needsConsent,
     onSubmit: async ({ consents, ...values }) => {
-      const user = await completeSignUp({
+      const { user, emailNotice } = await completeSignUp({
         needsProfile,
         needsConsent,
         values,
         consents,
       });
-      const titleKey = needsProfile ? 'auth.accountCreated' : 'auth.loginSuccessful';
+      const titleKey = needsProfile
+        ? 'auth.accountCreated'
+        : 'auth.loginSuccessful';
       resetAfterSignIn(navigation, [
         ROUTES.AUTH_SUCCESS,
-        { titleKey, next: getHomeRoute(user.role) },
+        {
+          titleKey,
+          next: getHomeRoute(user.role),
+          ...(emailNotice ? { emailNotice } : null),
+        },
       ]);
     },
   });
@@ -59,7 +65,8 @@ function CompleteProfile({ navigation, route }) {
   };
 
   // Terms / Privacy Policy: the website's page, inside the app.
-  const openLink = (title, path) => navigation.navigate(ROUTES.WEB_PAGE, { title, path });
+  const openLink = (title, path) =>
+    navigation.navigate(ROUTES.WEB_PAGE, { title, path });
 
   return (
     <ScreenContainer
@@ -67,7 +74,11 @@ function CompleteProfile({ navigation, route }) {
       header={<Header onBack={changeNumber} />}
       footer={
         <Button
-          title={needsConsent ? t('auth.create.acceptContinue') : t('common.continue')}
+          title={
+            needsConsent
+              ? t('auth.create.acceptContinue')
+              : t('common.continue')
+          }
           loading={form.loading}
           disabled={!form.canAccept}
           onPress={form.submit}
@@ -111,15 +122,6 @@ function CompleteProfile({ navigation, route }) {
               textContentType="emailAddress"
               autoComplete="email"
               returnKeyType="done"
-              onSubmitEditing={
-                form.emailVerified ? undefined : form.verifyEmail
-              }
-              right={
-                <EmailVerifyAction
-                  verified={form.emailVerified}
-                  onVerify={form.verifyEmail}
-                />
-              }
             />
           </View>
 

@@ -21,10 +21,11 @@ export const mapUser = (apiUser, { phone } = {}) => {
   };
 };
 
-const CONSENT_LABELS = {
+export const CONSENT_LABELS = {
   ACCOUNT_TERMS: 'Account Terms',
   PRIVACY_POLICY: 'Privacy Policy',
-  MARKETING: 'Marketing',
+  MARKETING: 'Offers and updates',
+  WHATSAPP: 'WhatsApp updates',
 };
 
 // consents_summary -> [{ key, label, verified }] for Personal Information.

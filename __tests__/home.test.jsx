@@ -191,7 +191,7 @@ test('Quick filters: none at first; several at once; a new choice replaces; All 
   spy.mockRestore();
 });
 
-test('Location: state first; Maharashtra lists Pune and PCMC, other states say coming soon', async () => {
+test('Location: state first; Maharashtra lists Pune and PCMC, other cities say coming soon', async () => {
   const root = await renderHome();
   await act(async () => filterPill(root, 'Location').props.onPress());
   expect(sheetRow(root, 'Select your state')).toBeUndefined(); // the title, not a row
@@ -210,16 +210,21 @@ test('Location: state first; Maharashtra lists Pune and PCMC, other states say c
   expect(root.findAll(n => n.props.children === 'No state found. Check the spelling.').length).toBeGreaterThan(0);
   await act(async () => searchBox().props.onChangeText('guj'));
 
+  // Gujarat (as the web): its cities, faded; a tap says "Coming soon" and filters nothing.
   await act(async () => sheetRow(root, 'Gujarat').props.onPress());
-  expect(root.findAll(n => n.props.children === 'Coming soon in Gujarat').length).toBeGreaterThan(0);
   expect(sheetRow(root, 'Pune')).toBeUndefined();
+  const comingSoon = () => root.findAll(n => n.props.children === 'Coming soon').length;
+  expect(comingSoon()).toBe(0);
+  await act(async () => sheetRow(root, 'Ahmedabad').props.onPress());
+  expect(comingSoon()).toBeGreaterThan(0);
 
-  // Back to the states, then Maharashtra's cities.
-  await act(async () => root.findAll(n => n.props.title === 'Choose another state' && n.props.onPress)[0].props.onPress());
+  // Back to the states, then Maharashtra's cities (Mumbai there too, coming soon).
+  await act(async () => root.findAll(n => n.props.accessibilityLabel === 'Go back' && n.props.onPress)[0].props.onPress());
   await act(async () => sheetRow(root, 'Maharashtra').props.onPress());
   expect(sheetRow(root, 'Pune')).toBeTruthy();
   expect(sheetRow(root, 'PCMC')).toBeTruthy();
   expect(sheetRow(root, 'All of Maharashtra')).toBeTruthy();
+  expect(sheetRow(root, 'Mumbai').props.accessibilityState.disabled).toBe(true);
 });
 
 test('Make -> Model: models are only the chosen make\'s; Car / Bike narrows makes and follows the tabs', async () => {

@@ -2,7 +2,10 @@
 // screen keeps the backend's own shapes (InspectionView, ChecklistItemSpec,
 // MediaView) so the web's logic (src/vendor/selfInspectionLogic.js) runs on
 // them unchanged.
-import { request } from '../client';
+import { Linking } from 'react-native';
+import { newIdempotencyKey, request } from '../client';
+import { PAYMENT_CANCELLED, isTestGateway, openRazorpayCheckout } from '../razorpay';
+import { tNow } from '../../i18n';
 import { ENDPOINTS } from '../endpoints';
 import { UPLOAD_TIMEOUT_MS } from '../config';
 import { mapValuation } from '../mappers/valuation';
@@ -67,7 +70,77 @@ export const getThumbUrl = async mediaId => {
 };
 
 // Submits. Returns { status } ('PENDING_QC' / 'SUBMITTED' ..., or 'INTEGRITY_FAILED').
+// When the self-inspection fee is on and unpaid, the server refuses with 402
+// SELF_INSPECTION_FEE_REQUIRED: pay (payForSelfInspection), then submit again.
 export const submitSelfInspection = inspectionId => submitInspection(inspectionId);
+
+export const SELF_INSPECTION_FEE_REQUIRED = 'SELF_INSPECTION_FEE_REQUIRED';
+
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+// Pays the self-inspection fee (as the web's payForSelfInspection). The amount
+// is the server's. The test gateway completes it with /pay/simulate, a real one
+// opens Razorpay, a redirect provider (PhonePe) opens its page in the browser;
+// then the payment is checked (1 s apart, 10 times) until the server confirms
+// it - the app never decides it's paid. onPhase('starting' | 'confirming') for
+// the button text. opts.prefill: { name, email, contact } for the checkout.
+// Returns { result: 'paid' | 'awaiting' (not confirmed yet) | 'failed' |
+// 'unavailable' (payments off), amountMinor, error? }.
+export const payForSelfInspection = async (inspectionId, { onPhase, prefill } = {}) => {
+  onPhase?.('starting');
+  let payment;
+  try {
+    ({ payment } = await request(ENDPOINTS.inspectionPay(inspectionId), {
+      method: 'POST',
+      body: {},
+      headers: { 'Idempotency-Key': newIdempotencyKey() },
+    }));
+  } catch (e) {
+    if (e?.code === 'PAYMENTS_UNAVAILABLE' || e?.status === 503) {
+      return { result: 'unavailable', amountMinor: null };
+    }
+    return { result: 'failed', amountMinor: null, error: e?.message };
+  }
+  const amountMinor = payment.amount?.amount_minor ?? null;
+  onPhase?.('confirming');
+
+  if (payment.redirect_url) {
+    // Hosted checkout: confirmed by the server's webhook; Submit again once paid.
+    await Linking.openURL(payment.redirect_url).catch(() => {});
+    return { result: 'awaiting', amountMinor };
+  }
+  if (isTestGateway(payment)) {
+    try {
+      await request(ENDPOINTS.inspectionPaySimulate(inspectionId), { method: 'POST', body: {} });
+    } catch {
+      return { result: 'awaiting', amountMinor };
+    }
+  } else {
+    try {
+      await openRazorpayCheckout({
+        keyId: payment.key_id,
+        orderId: payment.provider_order_id,
+        amountMinor,
+        description: tNow('selfInspection.pay.description'),
+        prefill,
+      });
+    } catch (e) {
+      if (e?.code === PAYMENT_CANCELLED) {
+        return { result: 'failed', amountMinor, error: tNow('selfInspection.pay.cancelled') };
+      }
+      return { result: 'awaiting', amountMinor };
+    }
+  }
+  for (let i = 0; i < 10; i += 1) {
+    await wait(1000);
+    const status = await request(ENDPOINTS.payment(payment.payment_id))
+      .then(d => d.payment?.status ?? null)
+      .catch(() => null);
+    if (status === 'CAPTURED') return { result: 'paid', amountMinor };
+    if (status === 'FAILED' || status === 'EXPIRED') return { result: 'failed', amountMinor };
+  }
+  return { result: 'awaiting', amountMinor };
+};
 
 // INTEGRITY_FAILED -> IN_PROGRESS, to retake the flagged photos.
 export const reopenSelfInspection = inspectionId =>

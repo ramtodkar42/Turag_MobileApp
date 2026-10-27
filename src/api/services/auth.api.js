@@ -17,15 +17,31 @@ const toE164 = phone => `+91${phone}`;
 const refreshTokenFrom = ({ data, headers }) =>
   data?.refresh_token ?? readCookie(headers, REFRESH_COOKIE);
 
-// Step 1: send an OTP to the mobile number.
+// How the login code can be sent, in display order (as the web): ['whatsapp'],
+// ['whatsapp', 'sms'] or ['sms']. [] when unknown (offline / mock) - the server
+// then picks its default.
+export const getOtpChannels = async () => {
+  if (!real()) {
+    return [];
+  }
+  try {
+    const data = await request(ENDPOINTS.OTP_CHANNELS, { auth: false, timeoutMs: 8000 });
+    return (data?.channels ?? []).filter(c => c === 'whatsapp' || c === 'sms');
+  } catch {
+    return [];
+  }
+};
+
+// Step 1: send an OTP to the mobile number. channel: 'whatsapp' | 'sms', or
+// omitted for the server's default (WhatsApp when it's available).
 // Returns { otpToken, expiresIn, resendAfter, devHint? } (devHint: the code, dev servers only).
-export const sendLoginOtp = async ({ phone }) => {
+export const sendLoginOtp = async ({ phone, channel }) => {
   if (!real()) {
     return mockStartOtp({ phone });
   }
   const data = await request(ENDPOINTS.OTP_START, {
     method: 'POST',
-    body: { phone: toE164(phone) },
+    body: channel ? { phone: toE164(phone), channel } : { phone: toE164(phone) },
     auth: false,
   });
   return {

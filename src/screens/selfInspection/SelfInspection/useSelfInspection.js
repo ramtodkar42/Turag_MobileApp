@@ -11,6 +11,8 @@ import {
   reopenSelfInspection,
   saveAiFinding,
   submitSelfInspection,
+  payForSelfInspection,
+  SELF_INSPECTION_FEE_REQUIRED,
   uploadSelfEvidence,
 } from '../../../api/services/selfInspection.api';
 import { analyzeDamageWithOpenAI } from '../../../api/services/visionScan';
@@ -19,6 +21,7 @@ import { fileToBase64 } from '../../../utils/fileToBase64';
 import { photoDhash } from '../../../utils/photoDhash';
 import { getPhotoLocation } from '../../../utils/photoLocation';
 import { tNow } from '../../../i18n';
+import { getUser } from '../../../store/userStore';
 import { shotName } from './labels';
 import {
   buildAiFinding,
@@ -129,6 +132,8 @@ export default function useSelfInspection(inspectionId) {
   const [submitting, setSubmitting] = useState(false);
   const [reopening, setReopening] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  // The self-inspection fee being taken during submit: 'starting' | 'confirming' | null.
+  const [payPhase, setPayPhase] = useState(null);
   const [finalStatus, setFinalStatus] = useState(null);
   const [final, setFinal] = useState({ loading: false, card: null, valuation: null, note: '', error: '' });
   const finalFetchRef = useRef(null);
@@ -615,29 +620,65 @@ export default function useSelfInspection(inspectionId) {
 
   // --- Submit -------------------------------------------------------------------------
 
+  // Sends it in; the server re-checks everything. When the self-inspection fee
+  // is on and unpaid (402 SELF_INSPECTION_FEE_REQUIRED, as the web), the fee is
+  // taken first and the inspection is submitted again once the server confirms
+  // the payment. Fee off or already paid: the first submit just works.
+  const runSubmit = useCallback(async () => {
+    const { status } = await submitSelfInspection(inspectionId);
+    setFinalStatus(status);
+    if (status === 'INTEGRITY_FAILED') {
+      try {
+        const labels = buildItemLabelMap(allItems);
+        const reasons = explainIntegrityFailure(await listSelfInspectionMedia(inspectionId), labels);
+        setIntegrityItems(reasons.map(r => r.item));
+      } catch {
+        // keep the general retake message
+      }
+    }
+    setScreen('submitted');
+  }, [allItems, inspectionId]);
+
   const submit = useCallback(async () => {
     setSubmitting(true);
     setSubmitError('');
+    const labels = buildItemLabelMap(allItems);
+    const errorText = e =>
+      e?.message ? humanizeSubmitError(e.message, labels) : tNow('selfInspection.error.submitFailed');
     try {
-      const { status } = await submitSelfInspection(inspectionId);
-      setFinalStatus(status);
-      if (status === 'INTEGRITY_FAILED') {
-        try {
-          const labels = buildItemLabelMap(allItems);
-          const reasons = explainIntegrityFailure(await listSelfInspectionMedia(inspectionId), labels);
-          setIntegrityItems(reasons.map(r => r.item));
-        } catch {
-          // keep the general retake message
-        }
-      }
-      setScreen('submitted');
+      await runSubmit();
     } catch (e) {
-      const labels = buildItemLabelMap(allItems);
-      setSubmitError(e?.message ? humanizeSubmitError(e.message, labels) : tNow('selfInspection.error.submitFailed'));
+      if (e?.code !== SELF_INSPECTION_FEE_REQUIRED) {
+        setSubmitError(errorText(e));
+        return;
+      }
+      const user = getUser();
+      const paid = await payForSelfInspection(inspectionId, {
+        onPhase: setPayPhase,
+        prefill: { name: user?.fullName || undefined, email: user?.email || undefined, contact: user?.contact || undefined },
+      });
+      setPayPhase(null);
+      if (paid.result === 'paid') {
+        try {
+          await runSubmit();
+        } catch (e2) {
+          setSubmitError(errorText(e2));
+        }
+        return;
+      }
+      // Not paid (yet): stay on review; Submit again once it's confirmed.
+      setSubmitError(
+        paid.result === 'awaiting'
+          ? tNow('selfInspection.pay.awaiting')
+          : paid.result === 'unavailable'
+            ? tNow('selfInspection.pay.unavailable')
+            : paid.error || tNow('selfInspection.pay.failed'),
+      );
     } finally {
+      setPayPhase(null);
       setSubmitting(false);
     }
-  }, [allItems, inspectionId]);
+  }, [allItems, inspectionId, runSubmit]);
 
   // Integrity failed: reopen (INTEGRITY_FAILED -> IN_PROGRESS) and load the
   // capture again so the flagged photos can be retaken.
@@ -774,6 +815,7 @@ export default function useSelfInspection(inspectionId) {
     confirmRc,
     confirmVin,
     submitting,
+    payPhase,
     submit,
     submitError,
     reopening,

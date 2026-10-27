@@ -13,6 +13,15 @@ import { clearUser, getUser, setUser } from '../src/store/userStore';
 import { ROUTES } from '../src/navigation/routes';
 import * as profileApi from '../src/api/services/profile.api';
 
+// Personal Information sets the status bar when it comes into view; here, once after mounting.
+jest.mock('@react-navigation/native', () => {
+  const { useEffect } = require('react');
+  return {
+    ...jest.requireActual('@react-navigation/native'),
+    useFocusEffect: callback => useEffect(callback, [callback]),
+  };
+});
+
 const metrics = {
   frame: { x: 0, y: 0, width: 375, height: 812 },
   insets: { top: 0, left: 0, right: 0, bottom: 0 },
@@ -112,15 +121,15 @@ test('Personal Information shows name, role, details and verified consents', asy
     'Language',
     'Account Terms',
     'Privacy Policy',
-    'Marketing',
+    'Offers and updates',
   ]);
   // Terms + Privacy as badges; Marketing (optional, as the web) is an on / off switch.
-  expect(root.findAllByType(Badge).map(b => b.props.label)).toEqual(['Verified', 'Verified']);
+  expect(root.findAllByType(Badge).map(b => b.props.label)).toEqual(['Verified', 'Verified']); // Terms + Privacy (the role is a pill in the header)
   expect(root.findByType(Switch).props.value).toBe(true);
 });
 
 test('Marketing switch: records just that choice, and turns back if saving fails', async () => {
-  const save = jest.spyOn(profileApi, 'setMarketingConsent');
+  const save = jest.spyOn(profileApi, 'setOptionalConsent');
   act(() => setUser({ fullName: 'Manish Thakre', role: 'individual' }));
   const root = await render(<PersonalInfo navigation={{ goBack: jest.fn() }} />);
   await act(async () => {
@@ -128,7 +137,7 @@ test('Marketing switch: records just that choice, and turns back if saving fails
   });
 
   await act(async () => root.findByType(Switch).props.onValueChange(false));
-  expect(save).toHaveBeenCalledWith(false);
+  expect(save).toHaveBeenCalledWith('MARKETING', false);
   expect(root.findByType(Switch).props.value).toBe(false);
 
   save.mockRejectedValueOnce(new Error('Network down'));
@@ -151,4 +160,29 @@ test('Delete Account popup shows Cancel first, then OK', async () => {
 
   await act(async () => dialog.props.onCancel());
   expect(root.findByType(ConfirmDialog).props.visible).toBe(false);
+});
+
+test('Email (as the web): unverified with "Resend link"; Change saves a new one and sends its link', async () => {
+  const save = jest.spyOn(profileApi, 'saveMyEmail').mockResolvedValue({ sent: true });
+  act(() => setUser({ fullName: 'Raj', role: 'individual', email: 'raj@gmail.com' }));
+  const root = await render(<PersonalInfo navigation={{ goBack: jest.fn() }} />);
+  await act(async () => {
+    jest.advanceTimersByTime(500);
+  });
+  const said = text => root.findAll(n => typeof n.props.children === 'string' && n.props.children.includes(text)).length > 0;
+  const tap = async text =>
+    act(async () => root.findAll(n => n.props.onPress && n.findAll(c => c.props.children === text).length > 0)[0].props.onPress());
+
+  expect(root.findAllByType(Badge).map(b => b.props.label)).toContain('Unverified');
+  await tap('Resend link');
+  expect(save).toHaveBeenCalledWith('raj@gmail.com');
+  expect(said('Verification link sent to raj@gmail.com.')).toBe(true);
+
+  await tap('Change email');
+  const field = root.findAll(n => n.props.placeholder === 'you@example.com' && n.props.onChangeText)[0];
+  await act(async () => field.props.onChangeText('raj.new@gmail.com'));
+  await tap('Save & send link');
+  expect(save).toHaveBeenLastCalledWith('raj.new@gmail.com');
+  expect(said('raj.new@gmail.com')).toBe(true);
+  save.mockRestore();
 });

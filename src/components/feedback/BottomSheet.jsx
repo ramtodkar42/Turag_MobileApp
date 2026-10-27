@@ -1,17 +1,21 @@
 import { useEffect, useRef } from 'react';
-import { Animated, Easing, KeyboardAvoidingView, Modal, Pressable, StyleSheet } from 'react-native';
+import { Animated, Easing, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radius, spacing } from '../../theme';
 import { MAX_CONTENT_WIDTH } from '../../constants/layout';
 import useKeyboardVisible from '../../hooks/useKeyboardVisible';
+import useKeyboardInset from '../../hooks/useKeyboardInset';
 
 const HIDDEN_OFFSET = 400;
 const SLIDE_MS = 250;
+const IOS = Platform.OS === 'ios';
 
 // Simple bottom sheet on core Modal (no extra library).
 function BottomSheet({ visible, onClose, dismissible = true, children, style }) {
   const insets = useSafeAreaInsets();
-  const keyboardOpen = useKeyboardVisible();
+  const iosKeyboardOpen = useKeyboardVisible();
+  const androidKeyboard = useKeyboardInset();
+  const keyboardOpen = IOS ? iosKeyboardOpen : androidKeyboard.open;
   const translateY = useRef(new Animated.Value(HIDDEN_OFFSET)).current;
 
   useEffect(() => {
@@ -41,8 +45,12 @@ function BottomSheet({ visible, onClose, dismissible = true, children, style }) 
     >
       {/* The sheet rises with the keyboard (a counter offer, a location search):
           the modal has its own window, which Android 15+ no longer shrinks for
-          the keyboard - see ScreenContainer. */}
-      <KeyboardAvoidingView style={styles.backdrop} behavior="padding">
+          the keyboard - Android pads by what the keyboard covers
+          (useKeyboardInset, see ScreenContainer), iOS uses KeyboardAvoidingView. */}
+      <Backdrop
+        style={[styles.backdrop, !IOS && { paddingBottom: androidKeyboard.bottom }]}
+        onLayout={IOS ? undefined : androidKeyboard.onLayout}
+      >
         <Pressable style={StyleSheet.absoluteFill} onPress={close} />
         <Animated.View
           style={[
@@ -53,8 +61,19 @@ function BottomSheet({ visible, onClose, dismissible = true, children, style }) 
         >
           {children}
         </Animated.View>
-      </KeyboardAvoidingView>
+      </Backdrop>
     </Modal>
+  );
+}
+
+// iOS: KeyboardAvoidingView; Android: a plain View padded by useKeyboardInset.
+function Backdrop({ children, ...props }) {
+  return IOS ? (
+    <KeyboardAvoidingView behavior="padding" {...props}>
+      {children}
+    </KeyboardAvoidingView>
+  ) : (
+    <View {...props}>{children}</View>
   );
 }
 

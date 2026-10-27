@@ -1,6 +1,7 @@
 // Backend marketplace listing -> the vehicle shape the screens use.
 // Prices come as paise ({ amount_minor }); screens use rupees.
 // `id` is the backend listing id (used for details, offers and saving).
+import { mapChallans } from './challans';
 
 const toRupees = money => (money?.amount_minor != null ? Math.round(money.amount_minor / 100) : null);
 
@@ -184,5 +185,7 @@ export const mapListingDetail = item => {
     ineligibleReason: item.eligibility?.reason ?? null,
     // The backend never sends the seller's note publicly.
     description: null,
+    // Traffic challans from the latest check, or null (never checked).
+    challans: mapChallans(item.challans),
   };
 };

@@ -1,14 +1,18 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { Keyboard, KeyboardAvoidingView, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing } from '../../theme';
 import { MAX_CONTENT_WIDTH } from '../../constants/layout';
 import useKeyboardVisible from '../../hooks/useKeyboardVisible';
+import useKeyboardInset from '../../hooks/useKeyboardInset';
 
+const IOS = Platform.OS === 'ios';
 // Room kept between the focused field and the top of the keyboard.
-const FIELD_GAP = spacing.xxl;
-// Let the keyboard padding settle before scrolling the field into view.
-const SCROLL_DELAY_MS = 120;
+const FIELD_GAP = spacing.xl;
+// Let the content finish moving above the keyboard before scrolling the field into view.
+const SCROLL_DELAY_MS = IOS ? 80 : 260;
+// While the keyboard is up: how often to check whether another field got focus.
+const FOCUS_CHECK_MS = 300;
 
 // Base wrapper for every screen:
 // safe area + optional header + body (scroll or fixed) + fixed footer (main button).
@@ -17,12 +21,10 @@ const SCROLL_DELAY_MS = 120;
 // refreshControl (scroll screens): pull-to-refresh (AppRefreshControl).
 //
 // The keyboard: the body and footer always end at the top of the keyboard,
-// and the field being typed in scrolls into view. On Android 15+ the app is
-// drawn edge-to-edge (forced for this target SDK), so the system no longer
-// shrinks the screen for the keyboard ("adjustResize") - the keyboard would
-// cover the content. KeyboardAvoidingView adds only the part the keyboard
-// actually covers, so phones that still shrink the screen (Android 14 and
-// older) get nothing extra and nothing moves twice.
+// and the field being typed in scrolls into view (also when moving to the next
+// field). Android: useKeyboardInset pads by exactly what the keyboard covers -
+// right on Android 15+ edge-to-edge (where the screen no longer shrinks) and on
+// older phones that still shrink it. iOS: KeyboardAvoidingView.
 function ScreenContainer({
   children,
   header,
@@ -36,10 +38,13 @@ function ScreenContainer({
   contentStyle,
 }) {
   const insets = useSafeAreaInsets();
-  const keyboardOpen = useKeyboardVisible();
+  const iosKeyboardOpen = useKeyboardVisible();
+  const androidKeyboard = useKeyboardInset();
+  const keyboardOpen = IOS ? iosKeyboardOpen : androidKeyboard.open;
   const bodyStyle = [padded && styles.padded, contentStyle];
   const topInset = safeTop ? insets.top : 0;
   const scrollView = useRef(null);
+  const scrollY = useRef(0);
 
   // Our own handle on the ScrollView, still passed on to the screen's scrollRef.
   const setScrollView = useCallback(
@@ -54,59 +59,104 @@ function ScreenContainer({
     [scrollRef],
   );
 
-  // Keyboard opened: bring the focused field above it.
+  const onScroll = useCallback(e => {
+    scrollY.current = e.nativeEvent.contentOffset.y;
+  }, []);
+
+  // Brings the focused field fully into the visible part of the scroll view
+  // (measured on screen, so it's right whatever the phone reports for the keyboard).
+  const showFocusedField = useCallback(() => {
+    const field = TextInput.State.currentlyFocusedInput();
+    const list = scrollView.current;
+    const host = list?.getNativeScrollRef?.() ?? list;
+    if (!field?.measureInWindow || !host?.measureInWindow) {
+      return;
+    }
+    host.measureInWindow((_x, listTop, _w, listHeight) => {
+      field.measureInWindow((_fx, fieldTop, _fw, fieldHeight) => {
+        const visibleBottom = listTop + listHeight - FIELD_GAP;
+        const fieldBottom = fieldTop + fieldHeight;
+        if (fieldBottom > visibleBottom) {
+          list.scrollTo({ y: scrollY.current + (fieldBottom - visibleBottom), animated: true });
+        } else if (fieldTop < listTop) {
+          list.scrollTo({ y: Math.max(0, scrollY.current - (listTop - fieldTop) - spacing.md), animated: true });
+        }
+      });
+    });
+  }, []);
+
+  // Keyboard opened (or grew): once the content has moved up, show the field.
+  const keyboardSpace = IOS ? 0 : androidKeyboard.bottom;
   useEffect(() => {
-    if (!scroll) {
+    if (!scroll || !keyboardOpen) {
       return undefined;
     }
-    let timer;
-    const sub = Keyboard.addListener('keyboardDidShow', () => {
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        const field = TextInput.State.currentlyFocusedInput();
-        if (field && scrollView.current?.scrollResponderScrollNativeHandleToKeyboard) {
-          scrollView.current.scrollResponderScrollNativeHandleToKeyboard(field, FIELD_GAP, true);
-        }
-      }, SCROLL_DELAY_MS);
-    });
-    return () => {
-      clearTimeout(timer);
-      sub.remove();
-    };
-  }, [scroll]);
+    const timer = setTimeout(showFocusedField, SCROLL_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [scroll, keyboardOpen, keyboardSpace, showFocusedField]);
+
+  // Moving to another field with the keyboard up: show that one too.
+  useEffect(() => {
+    if (!scroll || !keyboardOpen) {
+      return undefined;
+    }
+    let last = TextInput.State.currentlyFocusedInput();
+    const timer = setInterval(() => {
+      const now = TextInput.State.currentlyFocusedInput();
+      if (now && now !== last) {
+        showFocusedField();
+      }
+      last = now;
+    }, FOCUS_CHECK_MS);
+    return () => clearInterval(timer);
+  }, [scroll, keyboardOpen, showFocusedField]);
+
+  const frame = (
+    <View style={styles.frame}>
+      {header}
+      {scroll ? (
+        <ScrollView
+          ref={setScrollView}
+          refreshControl={refreshControl}
+          style={styles.flex}
+          contentContainerStyle={[styles.scrollContent, bodyStyle]}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="none"
+          showsVerticalScrollIndicator={false}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
+        >
+          {children}
+        </ScrollView>
+      ) : (
+        <View style={[styles.flex, bodyStyle]}>{children}</View>
+      )}
+      {footer ? (
+        <View
+          style={[
+            styles.footer,
+            // With the keyboard up the footer sits on it: no system-bar gap below.
+            { paddingBottom: keyboardOpen ? spacing.md : Math.max(insets.bottom, spacing.lg) },
+          ]}
+        >
+          {footer}
+        </View>
+      ) : null}
+    </View>
+  );
 
   return (
-    <View style={[styles.flex, { backgroundColor, paddingTop: topInset }]}>
-      <KeyboardAvoidingView style={styles.flex} behavior="padding">
-        <View style={styles.frame}>
-          {header}
-          {scroll ? (
-            <ScrollView
-              ref={setScrollView}
-              refreshControl={refreshControl}
-              style={styles.flex}
-              contentContainerStyle={[styles.scrollContent, bodyStyle]}
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-            >
-              {children}
-            </ScrollView>
-          ) : (
-            <View style={[styles.flex, bodyStyle]}>{children}</View>
-          )}
-          {footer ? (
-            <View
-              style={[
-                styles.footer,
-                // With the keyboard up the footer sits on it: no system-bar gap below.
-                { paddingBottom: keyboardOpen ? spacing.md : Math.max(insets.bottom, spacing.lg) },
-              ]}
-            >
-              {footer}
-            </View>
-          ) : null}
-        </View>
-      </KeyboardAvoidingView>
+    <View
+      style={[styles.flex, { backgroundColor, paddingTop: topInset }]}
+      onLayout={IOS ? undefined : androidKeyboard.onLayout}
+    >
+      {IOS ? (
+        <KeyboardAvoidingView style={styles.flex} behavior="padding">
+          {frame}
+        </KeyboardAvoidingView>
+      ) : (
+        <View style={[styles.flex, { paddingBottom: androidKeyboard.bottom }]}>{frame}</View>
+      )}
     </View>
   );
 }

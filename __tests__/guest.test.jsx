@@ -81,6 +81,7 @@ test('Profile shows a guest the usual cards; an account page asks them to log in
     'My inspections',
     'My offers',
     'My listings',
+    'Car alerts',
     'Settlements',
     'Payout accounts',
     'Language',

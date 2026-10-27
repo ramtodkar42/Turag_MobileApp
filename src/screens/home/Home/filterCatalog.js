@@ -58,6 +58,45 @@ export const CITIES = [
   { value: 'PCMC', labelKey: 'location.city.pcmc' },
 ];
 
+// Well-known cities per state that Turag doesn't serve yet (the web's location
+// picker list): shown faded with "Coming soon", never sent to the backend.
+// The served cities (CITIES) come first in the live state.
+export const SOON_CITIES = {
+  MH: ['Mumbai', 'Navi Mumbai', 'Thane', 'Nagpur', 'Nashik', 'Aurangabad', 'Solapur', 'Kolhapur'],
+  DL: ['New Delhi', 'Delhi'],
+  KA: ['Bengaluru', 'Mysuru', 'Hubballi', 'Mangaluru', 'Belagavi'],
+  TN: ['Chennai', 'Coimbatore', 'Madurai', 'Tiruchirappalli', 'Salem', 'Tirunelveli'],
+  TS: ['Hyderabad', 'Warangal', 'Nizamabad', 'Karimnagar'],
+  GJ: ['Ahmedabad', 'Surat', 'Vadodara', 'Rajkot', 'Bhavnagar', 'Jamnagar', 'Gandhinagar'],
+  UP: ['Lucknow', 'Kanpur', 'Noida', 'Ghaziabad', 'Agra', 'Varanasi', 'Meerut', 'Prayagraj', 'Bareilly'],
+  RJ: ['Jaipur', 'Jodhpur', 'Udaipur', 'Kota', 'Ajmer', 'Bikaner'],
+  WB: ['Kolkata', 'Howrah', 'Durgapur', 'Asansol', 'Siliguri'],
+  MP: ['Indore', 'Bhopal', 'Jabalpur', 'Gwalior', 'Ujjain'],
+  HR: ['Gurugram', 'Faridabad', 'Panipat', 'Ambala', 'Hisar', 'Karnal'],
+  PB: ['Ludhiana', 'Amritsar', 'Jalandhar', 'Patiala', 'Mohali'],
+  KL: ['Thiruvananthapuram', 'Kochi', 'Kozhikode', 'Thrissur', 'Kollam'],
+  AP: ['Visakhapatnam', 'Vijayawada', 'Guntur', 'Nellore', 'Tirupati'],
+  BR: ['Patna', 'Gaya', 'Bhagalpur', 'Muzaffarpur'],
+  OD: ['Bhubaneswar', 'Cuttack', 'Rourkela'],
+  JH: ['Ranchi', 'Jamshedpur', 'Dhanbad', 'Bokaro Steel City'],
+  CG: ['Raipur', 'Bhilai', 'Bilaspur'],
+  AS: ['Guwahati', 'Silchar', 'Dibrugarh'],
+  UK: ['Dehradun', 'Haridwar', 'Roorkee', 'Haldwani'],
+  HP: ['Shimla', 'Dharamshala', 'Solan'],
+  GA: ['Panaji', 'Margao', 'Vasco da Gama'],
+  CH: ['Chandigarh'],
+  JK: ['Srinagar', 'Jammu'],
+  PY: ['Puducherry'],
+  TR: ['Agartala'],
+  ML: ['Shillong'],
+  MN: ['Imphal'],
+  NL: ['Kohima', 'Dimapur'],
+  MZ: ['Aizawl'],
+  AR: ['Itanagar'],
+  SK: ['Gangtok'],
+  LA: ['Leh'],
+};
+
 // India's states and union territories (codes; names are translated as
 // location.state.<code>). The live state is listed first.
 export const STATES = [

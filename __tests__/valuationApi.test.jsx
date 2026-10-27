@@ -127,12 +127,15 @@ describe('vehicle lookup', () => {
     });
   });
 
-  test('confirm returns the saved vehicle id and is idempotent', async () => {
+  test('confirm (signed in, as the live server wants) returns the saved vehicle id and is idempotent', async () => {
+    await startSession({ accessToken: 'access-1', expiresIn: 900, refreshToken: 'refresh-1', user: {} });
     fetch.mockResolvedValueOnce(reply(201, vehicleData({ vehicle_id: 'veh_1' })));
     const vehicle = await confirmVehicle('MH12AB1234');
     expect(urlOf(fetch.mock.calls[0])).toMatch(/\/vehicles\/confirm$/);
     expect(headerOf(fetch.mock.calls[0], 'Idempotency-Key')).toBeTruthy();
+    expect(headerOf(fetch.mock.calls[0], 'Authorization')).toBe('Bearer access-1');
     expect(vehicle.vehicleId).toBe('veh_1');
+    await endSession();
   });
 });
 

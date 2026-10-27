@@ -5,14 +5,21 @@ export default {
   'auth.phonePlaceholder': 'Enter your number',
   'auth.phoneLabel': 'Mobile number',
   'auth.getOtp': 'Get OTP',
+  'auth.getOtpVia.whatsapp': 'Get OTP on WhatsApp',
+  'auth.getOtpVia.sms': 'Get OTP by SMS',
   'auth.sendOtpError': 'Could not send OTP. Please try again.',
+  // How the login code is sent (WhatsApp / SMS), as the web.
+  'auth.via.whatsapp': 'WhatsApp',
+  'auth.via.sms': 'SMS',
   'auth.terms.prefix': 'By continuing, I confirm I’m 18 or older and agree to Turag’s',
   'auth.terms.link': 'Terms of service',
   'auth.terms.and': 'and',
   'auth.terms.privacy': 'Privacy Policy.',
 
   'auth.verify.title': 'Verify',
-  'auth.verify.sentTo': 'An {count} digit OTP has been sent to',
+  'auth.verify.sentTo': 'A {count}-digit OTP has been sent to',
+  'auth.verify.sentToWhatsapp': 'A {count}-digit OTP has been sent on WhatsApp to',
+  'auth.verify.sentToSms': 'A {count}-digit OTP has been sent by SMS to',
   'auth.verify.button': 'Verify',
   'auth.verify.testCode': 'Test code (dev server only): {code}',
   'auth.verify.invalid': 'Invalid OTP. Please try again.',
@@ -22,6 +29,8 @@ export default {
   'auth.loginSuccessful': 'Login Successful',
   'auth.accountCreated': 'Account Created',
   'auth.success.message': 'All set. Let the learning begin.',
+  'auth.email.sent': 'We’ve emailed a verification link to {email}. Tap it whenever you like to confirm your address. You don’t need to do it now.',
+  'auth.email.deferred': 'We couldn’t send the verification email to {email} just now. You can resend it any time from Personal Information.',
 
   'auth.create.title': 'Create Account',
   'auth.create.subtitle': 'Tell us a little about you to get started.',
@@ -49,4 +58,5 @@ export default {
   'auth.consent.privacy.link': 'Privacy Policy',
   'auth.consent.privacy.suffix': '',
   'auth.consent.updates.prefix': 'Send me updates on offers, price drops and new listings (optional)',
+  'auth.consent.whatsapp.prefix': 'Send me booking, offer and listing updates on WhatsApp (optional)',
 };

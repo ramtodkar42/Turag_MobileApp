@@ -4,6 +4,7 @@ import { AppText, Badge, Button } from '../../../../components';
 import { colors, radius, shadows, spacing } from '../../../../theme';
 import { fs } from '../../../../utils/responsive';
 import { useT } from '../../../../i18n';
+import CheckNotice from './CheckNotice';
 
 // The web's status tones: positive -> success, warning, neutral.
 const STATUS_TONE = {
@@ -20,8 +21,10 @@ const STATUS_TONE = {
 //   DRAFT:              Upload proof
 //   VERIFIED/INACTIVE:  Use for payouts
 //   proof attached:     View proof
-// busy: 'upload' | 'activate' | 'proof' while an action runs; error: its message.
-function AccountCard({ account, busy, error, onUpload, onActivate, onViewProof }) {
+// busy: 'upload' | 'activate' | 'proof' while an action runs; error: its message;
+// notice: right after the proof upload, 'instant' (passed the automatic bank
+// check) or 'review' (with Turag's team).
+function AccountCard({ account, busy, error, notice, onUpload, onActivate, onViewProof }) {
   const t = useT();
   const canActivate = account.status === 'VERIFIED' || account.status === 'INACTIVE';
   const working = !!busy;
@@ -58,6 +61,7 @@ function AccountCard({ account, busy, error, onUpload, onActivate, onViewProof }
         <Badge label={t(`payouts.status.${account.status}`)} tone={STATUS_TONE[account.status] ?? 'neutral'} size="sm" />
       </View>
 
+      {notice ? <CheckNotice kind={notice} style={styles.note} /> : null}
       {note ? <View style={styles.note}>{note}</View> : null}
 
       {hasActions ? (

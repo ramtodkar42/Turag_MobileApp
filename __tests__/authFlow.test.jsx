@@ -32,9 +32,11 @@ let mockCalls = [];
 
 jest.mock('../src/api/services/auth.api', () => ({
   sendLoginOtp: jest.fn(() =>
-    Promise.resolve({ otpToken: 'otp-token-1', expiresIn: 300, resendAfter: 30, devHint: '1234' }),
+    Promise.resolve({ otpToken: 'otp-token-1', expiresIn: 300, resendAfter: 30, devHint: '123456' }),
   ),
   verifyLoginOtp: jest.fn(),
+  // The server doesn't say how the code is sent: no WhatsApp / SMS choice.
+  getOtpChannels: jest.fn(() => Promise.resolve([])),
   refreshSession: jest.fn(),
   revokeSession: jest.fn(() => Promise.resolve()),
 }));
@@ -48,6 +50,7 @@ jest.mock('../src/api/services/profile.api', () => ({
     mockCalls.push('name');
     return Promise.resolve({ id: 'usr_1', fullName: name, email: '', roles: ['consumer'], role: 'individual' });
   }),
+  registerBusinessInterest: jest.fn(() => Promise.resolve({ whatsappQueued: false })),
   saveMyEmail: jest.fn(() => {
     mockCalls.push('email');
     return Promise.resolve({ sent: true });
@@ -100,9 +103,9 @@ const press = async (root, title) => {
   await act(async () => byProp(root, 'title', title).props.onPress());
 };
 
-// Typing the 4th digit verifies straight away.
+// Typing the 6th digit verifies straight away.
 const enterOtp = async (root, otp) => {
-  await act(async () => byProp(root, 'maxLength', 4).props.onChangeText(otp));
+  await act(async () => byProp(root, 'maxLength', 6).props.onChangeText(otp));
 };
 
 const phoneRoute = phone => ({
@@ -146,7 +149,7 @@ test('Login sends the OTP and opens Verify', async () => {
     phone: '9876543210',
     otpToken: 'otp-token-1',
     resendAfter: 30,
-    devHint: '1234',
+    devHint: '123456',
   });
 });
 
@@ -156,12 +159,12 @@ test('Mobile OTP: an existing user signs in, is remembered, and sees Login Succe
   const root = await render(<VerifyOtp navigation={navigation} route={phoneRoute('9876543211')} />);
 
   expect(byProp(root, 'title', 'Verify').props.disabled).toBe(true);
-  await enterOtp(root, '3579');
+  await enterOtp(root, '357913');
 
   expect(authApi.verifyLoginOtp).toHaveBeenCalledWith({
     phone: '9876543211',
     otpToken: 'otp-token-1',
-    otp: '3579',
+    otp: '357913',
   });
   expect(navigation.reset).toHaveBeenCalledWith({
     index: 0,
@@ -174,13 +177,13 @@ test('Mobile OTP: an existing user signs in, is remembered, and sees Login Succe
   );
 });
 
-test('Mobile OTP: typing the 4th digit verifies once, even if Verify is also tapped', async () => {
+test('Mobile OTP: typing the 6th digit verifies once, even if Verify is also tapped', async () => {
   let finish;
   authApi.verifyLoginOtp.mockImplementationOnce(() => new Promise(r => (finish = r)));
   const navigation = makeNavigation();
   const root = await render(<VerifyOtp navigation={navigation} route={phoneRoute('9876543211')} />);
 
-  await enterOtp(root, '3579');
+  await enterOtp(root, '357913');
   await press(root, 'Verify');
   await act(async () => finish(session({ fullName: 'Raj' })));
 
@@ -193,12 +196,12 @@ test('Mobile OTP: a wrong code shows the message and lets the user try again', a
   const navigation = makeNavigation();
   const root = await render(<VerifyOtp navigation={navigation} route={phoneRoute('9876543211')} />);
 
-  await enterOtp(root, '0000');
+  await enterOtp(root, '000000');
   expect(root.findAll(n => n.props.children === 'Invalid code. Please try again.').length).toBeGreaterThan(0);
   expect(navigation.reset).not.toHaveBeenCalled();
 
   authApi.verifyLoginOtp.mockResolvedValueOnce(session({ fullName: 'Raj' }));
-  await enterOtp(root, '1234');
+  await enterOtp(root, '123456');
   expect(navigation.reset).toHaveBeenCalled();
 });
 
@@ -213,7 +216,7 @@ test('Mobile OTP: resend uses the new OTP token', async () => {
   await act(async () => resend.props.onPress());
   expect(authApi.sendLoginOtp).toHaveBeenCalledWith({ phone: '9876543211' });
 
-  await enterOtp(root, '2468');
+  await enterOtp(root, '246802');
   expect(authApi.verifyLoginOtp).toHaveBeenCalledWith(expect.objectContaining({ otpToken: 'otp-token-2' }));
 });
 
@@ -224,7 +227,7 @@ test('Mobile OTP: an inspection officer goes to the inspector app, never to sign
   const navigation = makeNavigation();
   const root = await render(<VerifyOtp navigation={navigation} route={phoneRoute('9000000002')} />);
 
-  await enterOtp(root, '1111');
+  await enterOtp(root, '111111');
 
   expect(navigation.reset).toHaveBeenCalledWith({
     index: 0,
@@ -240,7 +243,7 @@ test('Mobile OTP: a new number goes to Create Account (signed in, sign-up pendin
   const navigation = makeNavigation();
   const root = await render(<VerifyOtp navigation={navigation} route={phoneRoute('9876543210')} />);
 
-  await enterOtp(root, '1234');
+  await enterOtp(root, '123456');
 
   const pending = { needsConsent: true, needsProfile: true };
   expect(navigation.reset).toHaveBeenCalledWith({
@@ -258,7 +261,7 @@ test('Mobile OTP: an inspector who owes the terms only sees the terms', async ()
   const navigation = makeNavigation();
   const root = await render(<VerifyOtp navigation={navigation} route={phoneRoute('9000000002')} />);
 
-  await enterOtp(root, '1234');
+  await enterOtp(root, '123456');
 
   expect(navigation.reset).toHaveBeenCalledWith({
     index: 0,
@@ -271,25 +274,12 @@ test('Mobile OTP: an inspector who owes the terms only sees the terms', async ()
   });
 });
 
-test('Create Account: Verify marks a valid email verified at once (no OTP screen)', async () => {
+test('Create Account: no Verify step - the email is confirmed later from the emailed link (as the web)', async () => {
   const navigation = makeNavigation();
   const route = { params: { phone: '9876543210' } };
   const root = await render(<CompleteProfile navigation={navigation} route={route} />);
-  const isVerified = () => root.findAll(n => n.props.accessibilityLabel === 'Email verified').length > 0;
-
-  await type(root, 'label', 'Email', 'raj@');
-  await press(root, 'Verify');
-  expect(byProp(root, 'error', 'Enter a valid email address')).toBeDefined();
-  expect(isVerified()).toBe(false);
-
-  await type(root, 'label', 'Email', 'raj@gmail.com');
-  await press(root, 'Verify');
-  expect(isVerified()).toBe(true);
-  expect(navigation.navigate).not.toHaveBeenCalled();
-
-  // Changing the address needs Verify again.
-  await type(root, 'label', 'Email', 'raj.s@gmail.com');
-  expect(isVerified()).toBe(false);
+  expect(root.findAll(n => n.props.title === 'Verify')).toHaveLength(0);
+  expect(root.findAll(n => n.props.accessibilityLabel === 'Email verified')).toHaveLength(0);
 });
 
 const tickConsents = async (root, count) => {
@@ -299,7 +289,7 @@ const tickConsents = async (root, count) => {
   }
 };
 
-test('Create Account needs a verified email, a choice and the required consents', async () => {
+test('Create Account needs a valid email, a choice and the required consents', async () => {
   const navigation = makeNavigation();
   const route = { params: { phone: '9876543210' } };
   const root = await render(<CompleteProfile navigation={navigation} route={route} />);
@@ -310,10 +300,10 @@ test('Create Account needs a verified email, a choice and the required consents'
   expect(byProp(root, 'title', 'Accept & Continue').props.disabled).toBe(false);
 
   await type(root, 'label', 'Name', 'Raj Sonawane');
-  await type(root, 'label', 'Email', 'raj@gmail.com');
+  await type(root, 'label', 'Email', 'raj@');
   await press(root, 'Accept & Continue');
 
-  expect(byProp(root, 'error', 'Please verify your email')).toBeDefined();
+  expect(byProp(root, 'error', 'Enter a valid email address')).toBeDefined();
   expect(root.findAll(n => n.props.children === 'Please choose one option').length).toBeGreaterThan(0);
   expect(profileApi.acceptConsents).not.toHaveBeenCalled();
 });
@@ -326,8 +316,6 @@ test('Create Account: saves consents, then name, then email, and opens Home', as
 
   await type(root, 'label', 'Name', 'Raj Sonawane');
   await type(root, 'label', 'Email', 'raj@gmail.com');
-  await press(root, 'Verify');
-  expect(root.findAll(n => n.props.accessibilityLabel === 'Email verified').length).toBeGreaterThan(0);
 
   await act(async () => byProp(root, 'label', "I'm a dealer").props.onPress());
   await tickConsents(root, 2);
@@ -339,7 +327,13 @@ test('Create Account: saves consents, then name, then email, and opens Home', as
   expect(profileApi.saveMyEmail).toHaveBeenCalledWith('raj@gmail.com');
   expect(navigation.reset).toHaveBeenCalledWith({
     index: 0,
-    routes: [{ name: ROUTES.AUTH_SUCCESS, params: { titleKey: 'auth.accountCreated', next: ROUTES.MAIN_TABS } }],
+    routes: [
+      {
+        name: ROUTES.AUTH_SUCCESS,
+        // The success screen says the verification link was emailed.
+        params: { titleKey: 'auth.accountCreated', next: ROUTES.MAIN_TABS, emailNotice: { email: 'raj@gmail.com', sent: true } },
+      },
+    ],
   });
   expect(getUser()).toEqual(
     expect.objectContaining({
@@ -361,7 +355,6 @@ test('Create Account: an email used by another account shows on the Email field'
 
   await type(root, 'label', 'Name', 'Raj Sonawane');
   await type(root, 'label', 'Email', 'raj@gmail.com');
-  await press(root, 'Verify');
   await act(async () => byProp(root, 'label', "I'm a dealer").props.onPress());
   await tickConsents(root, 2);
   await press(root, 'Accept & Continue');
@@ -393,7 +386,7 @@ test('Terms only (e.g. an inspector): no name or email fields, then their home',
 test('Back on Create Account signs out and returns to Login (use another number)', async () => {
   authApi.verifyLoginOtp.mockResolvedValueOnce(session({ fullName: '' }, true));
   const otpRoot = await render(<VerifyOtp navigation={makeNavigation()} route={phoneRoute('9876543210')} />);
-  await enterOtp(otpRoot, '1234');
+  await enterOtp(otpRoot, '123456');
   expect(await loadSession()).not.toBeNull();
 
   const navigation = makeNavigation();
@@ -407,6 +400,25 @@ test('Back on Create Account signs out and returns to Login (use another number)
   expect(authApi.revokeSession).toHaveBeenCalledWith('refresh-1');
   expect(await loadSession()).toBeNull();
   expect(getUser()).toBeNull();
+});
+
+test('After sign-up: the success screen says where the link went; Continue (or a moment) opens Home', async () => {
+  jest.useFakeTimers();
+  const navigation = makeNavigation();
+  const root = await render(
+    <AuthSuccess
+      navigation={navigation}
+      route={{ params: { title: 'Account Created', emailNotice: { email: 'raj@gmail.com', sent: true } } }}
+    />,
+  );
+  const said = text => root.findAll(n => typeof n.props.children === 'string' && n.props.children.includes(text)).length > 0;
+  expect(said('verification link to raj@gmail.com')).toBe(true);
+  act(() => jest.advanceTimersByTime(2000));
+  expect(navigation.replace).not.toHaveBeenCalled(); // time to read it
+  await act(async () => byProp(root, 'title', 'Continue').props.onPress());
+  act(() => jest.advanceTimersByTime(6000));
+  expect(navigation.replace).toHaveBeenCalledTimes(1); // once, not again by the timer
+  jest.useRealTimers();
 });
 
 test('Success screen shows its title, then opens Home after 2 seconds', async () => {
@@ -457,9 +469,10 @@ test('OTP boxes: 6 when the server sends a test code (devHint), 4 otherwise', as
   expect(authApi.verifyLoginOtp).toHaveBeenCalledWith(expect.objectContaining({ otp: '482913' }));
   jest.useRealTimers();
 
+  // The real SMS is 6 digits too (no test code): the same 6 boxes.
   const plain = await render(<VerifyOtp navigation={makeNavigation()} route={phoneRoute('9876543211')} />);
-  expect(plain.findAll(n => n.props.maxLength === 4).length).toBeGreaterThan(0);
-  expect(plain.findAll(n => n.props.maxLength === 6)).toHaveLength(0);
+  expect(plain.findAll(n => n.props.maxLength === 6).length).toBeGreaterThan(0);
+  expect(plain.findAll(n => n.props.maxLength === 4)).toHaveLength(0);
 });
 
 test('OTP autofill: the test server code fills the boxes by itself and verifies', async () => {
@@ -484,7 +497,7 @@ test('OTP autofill: the test server code fills the boxes by itself and verifies'
 
 test('OTP fields tell the phone they take a one-time code (SMS autofill)', async () => {
   const root = await render(<VerifyOtp navigation={makeNavigation()} route={phoneRoute('9876543211')} />);
-  const input = byProp(root, 'maxLength', 4);
+  const input = byProp(root, 'maxLength', 6);
   expect(input.props.autoComplete).toBe('sms-otp'); // Android
   expect(input.props.textContentType).toBe('oneTimeCode'); // iOS
 });

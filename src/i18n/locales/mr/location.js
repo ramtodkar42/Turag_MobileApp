@@ -6,6 +6,7 @@ export default {
   'location.soonTitle': '{state} मध्ये लवकरच येत आहोत',
   'location.soonText': 'सध्या आम्ही {state} मधील पुणे आणि PCMC मध्ये उपलब्ध आहोत. लवकरच तुमच्या राज्यातही येऊ.',
   'location.otherState': 'दुसरे राज्य निवडा',
+  'location.comingSoon': 'लवकरच येत आहे',
   'location.searchState': 'तुमचे राज्य शोधा',
   'location.clearSearch': 'शोध साफ करा',
   'location.noState': 'कोणतेही राज्य सापडले नाही. स्पेलिंग तपासा.',

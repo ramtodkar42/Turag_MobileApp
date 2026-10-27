@@ -21,6 +21,8 @@ export const phaseBadge = vehicle => {
       return { labelKey: 'garage.phase.listed', tone: 'success' };
     case 'can_list':
       return { labelKey: 'garage.phase.canList', tone: 'success' };
+    case 'payment_pending':
+      return { labelKey: 'garage.phase.paymentPending', tone: 'warning' };
     case 'resume_self':
       return { labelKey: 'garage.phase.resumeSelf', tone: 'warning' };
     case 'in_review':
@@ -35,6 +37,8 @@ export const phaseHintKey = vehicle => {
   switch (phaseOf(vehicle)) {
     case 'fresh':
       return 'garage.hint.fresh';
+    case 'payment_pending':
+      return 'garage.hint.paymentPending';
     case 'resume_self':
       return 'garage.hint.resume';
     case 'in_review': {
@@ -52,6 +56,8 @@ export const phaseHintKey = vehicle => {
 //   'view'    - open its listing
 //   'list'    - create a listing (inspected, valued)
 //   'book'    - book an inspector (no value yet, or the inspection was rejected)
+//   'pay'     - the self-inspection is done but its fee isn't paid: open it
+//               (it opens on review) and Submit takes the payment
 //   'resume'  - continue the self-inspection
 //   'summary' - the submitted self-inspection's summary
 //   'inspect' - not inspected yet: self-inspect or book an inspector
@@ -62,6 +68,8 @@ export const phaseAction = vehicle => {
       return 'view';
     case 'can_list':
       return vehicle.valuationId ? 'list' : 'book';
+    case 'payment_pending':
+      return 'pay';
     case 'resume_self':
       return 'resume';
     case 'in_review':

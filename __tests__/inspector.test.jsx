@@ -76,7 +76,7 @@ afterEach(() => {
 test('Login mock: 9890871972 is an inspection officer and never a new user', async () => {
   const { verifyLoginOtp } = jest.requireActual('../src/api/services/auth.api');
   const { getPendingSteps } = jest.requireActual('../src/navigation/authRoutes');
-  const result = verifyLoginOtp({ phone: '9890871972', otpToken: 'mock:9890871972', otp: '1234' });
+  const result = verifyLoginOtp({ phone: '9890871972', otpToken: 'mock:9890871972', otp: '123456' });
   jest.advanceTimersByTime(600);
   const session = await result;
   expect(session.user).toEqual(expect.objectContaining({ role: 'inspector' }));

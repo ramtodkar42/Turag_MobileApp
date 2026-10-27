@@ -5,7 +5,11 @@ export default {
   'auth.phonePlaceholder': 'अपना नंबर दर्ज करें',
   'auth.phoneLabel': 'मोबाइल नंबर',
   'auth.getOtp': 'OTP पाएँ',
+  'auth.getOtpVia.whatsapp': 'WhatsApp पर OTP पाएँ',
+  'auth.getOtpVia.sms': 'SMS से OTP पाएँ',
   'auth.sendOtpError': 'OTP नहीं भेजा जा सका। कृपया फिर से कोशिश करें।',
+  'auth.via.whatsapp': 'WhatsApp',
+  'auth.via.sms': 'SMS',
   'auth.terms.prefix':
     'आगे बढ़कर, मैं पुष्टि करता/करती हूँ कि मेरी उम्र 18 वर्ष या उससे अधिक है और मैं Turag की',
   'auth.terms.link': 'सेवा की शर्तों',
@@ -14,6 +18,8 @@ export default {
 
   'auth.verify.title': 'सत्यापित करें',
   'auth.verify.sentTo': '{count} अंकों का OTP भेजा गया है',
+  'auth.verify.sentToWhatsapp': '{count} अंकों का OTP WhatsApp पर भेजा गया है',
+  'auth.verify.sentToSms': '{count} अंकों का OTP SMS से भेजा गया है',
   'auth.verify.button': 'सत्यापित करें',
   'auth.verify.testCode': 'टेस्ट कोड (केवल डेव सर्वर): {code}',
   'auth.verify.invalid': 'गलत OTP। कृपया फिर से कोशिश करें।',
@@ -23,6 +29,8 @@ export default {
   'auth.loginSuccessful': 'लॉगिन सफल',
   'auth.accountCreated': 'खाता बन गया',
   'auth.success.message': 'सब तैयार है। चलिए शुरू करते हैं।',
+  'auth.email.sent': 'हमने {email} पर एक सत्यापन लिंक भेजा है। अपना पता पक्का करने के लिए कभी भी उस पर टैप करें। अभी करना ज़रूरी नहीं है।',
+  'auth.email.deferred': 'हम अभी {email} पर सत्यापन ईमेल नहीं भेज सके। आप इसे कभी भी व्यक्तिगत जानकारी से फिर भेज सकते हैं।',
 
   'auth.create.title': 'खाता बनाएँ',
   'auth.create.subtitle': 'शुरू करने के लिए हमें अपने बारे में थोड़ा बताएँ।',
@@ -50,4 +58,5 @@ export default {
   'auth.consent.privacy.suffix': ' पढ़ ली है और स्वीकार करता/करती हूँ',
   'auth.consent.updates.prefix':
     'मुझे ऑफ़र, कीमत में गिरावट और नई लिस्टिंग की जानकारी भेजें (वैकल्पिक)',
+  'auth.consent.whatsapp.prefix': 'मुझे बुकिंग, ऑफ़र और लिस्टिंग के अपडेट WhatsApp पर भेजें (वैकल्पिक)',
 };

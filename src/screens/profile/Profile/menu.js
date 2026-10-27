@@ -16,6 +16,7 @@ export const PROFILE_MENU = [
       { labelKey: 'profile.item.myBookings', route: ROUTES.MY_BOOKINGS },
       { labelKey: 'profile.item.myOffers', route: ROUTES.MY_OFFERS },
       { labelKey: 'profile.item.myListings', route: ROUTES.MY_LISTINGS },
+      { labelKey: 'profile.item.carAlerts', route: ROUTES.CAR_ALERTS },
       { labelKey: 'profile.item.settlements', route: ROUTES.SETTLEMENTS },
       { labelKey: 'profile.item.payoutAccounts', route: ROUTES.PAYOUT_ACCOUNTS },
       { labelKey: 'profile.item.business', route: ROUTES.BUSINESS_HOME, orgsOnly: true },

@@ -89,6 +89,8 @@ const garageStatus = inspectionStatus => {
 // LATEST inspection; `inspection_eligible` = a report-ready one exists):
 //   listed      - has a listing
 //   can_list    - inspected and ready to list
+//   payment_pending - the self-inspection is captured but its fee isn't paid
+//                 (the server's self_inspection_payment_pending): finish paying
 //   resume_self - the user's own self-inspection is still open (continue it)
 //   in_review   - an inspection is with Turag (submitted / QC / an inspector job)
 //   fresh       - no inspection yet
@@ -102,7 +104,9 @@ export const garagePhase = item => {
   const hasInspection = item.inspection_id != null && status != null;
   if (item.valuation_id != null && item.listing_status != null) return 'listed';
   if (item.inspection_eligible === true) return 'can_list';
-  if (hasInspection && item.inspection_mode === 'M1' && RESUMABLE_SELF.has(status)) return 'resume_self';
+  if (hasInspection && item.inspection_mode === 'M1' && RESUMABLE_SELF.has(status)) {
+    return item.self_inspection_payment_pending === true ? 'payment_pending' : 'resume_self';
+  }
   if (hasInspection && !(item.inspection_mode === 'M1' && status === 'DRAFT')) return 'in_review';
   return 'fresh';
 };

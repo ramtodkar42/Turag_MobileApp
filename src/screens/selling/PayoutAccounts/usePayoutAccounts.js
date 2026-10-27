@@ -13,12 +13,16 @@ import { AFTER_SHEET_MS, pickProofFile } from './proofFile';
 // AccountCard): upload the proof of a DRAFT, make a verified one active, open
 // the proof. Each card has its own busy state and error line.
 // Returns { ...useRemoteData, busy: { [id]: 'upload'|'activate'|'proof' },
-//   errors: { [id]: message }, uploadProof(account, source), activate(account), viewProof(account) }.
+//   errors: { [id]: message }, notices: { [id]: 'instant' | 'review' }, markChecked(account),
+//   uploadProof(account, source), activate(account), viewProof(account) }.
+// After a proof upload the server runs its automatic bank check: a pass comes
+// back verified at once ('instant'), anything else goes to Turag's team ('review').
 export default function usePayoutAccounts() {
   const remote = useRemoteData(listPayoutAccounts);
   const { reload } = remote;
   const [busy, setBusy] = useState({});
   const [errors, setErrors] = useState({});
+  const [notices, setNotices] = useState({});
   const mounted = useRef(true);
   useEffect(
     () => () => {
@@ -28,6 +32,13 @@ export default function usePayoutAccounts() {
   );
 
   const setError = useCallback((id, message) => setErrors(e => ({ ...e, [id]: message })), []);
+
+  // The account as the upload returned it: verified straight away, or with the team.
+  const markChecked = useCallback(account => {
+    if (!account?.id || !mounted.current) return;
+    const instant = account.status === 'VERIFIED' || account.status === 'ACTIVE';
+    setNotices(n => ({ ...n, [account.id]: instant ? 'instant' : 'review' }));
+  }, []);
 
   // Runs one card's action; after a change the list reloads (statuses move on).
   const run = useCallback(
@@ -65,9 +76,14 @@ export default function usePayoutAccounts() {
           return;
         }
         if (!file) return;
-        run(account, 'upload', () => uploadPayoutProof(account.id, file), 'payouts.account.uploadError');
+        run(
+          account,
+          'upload',
+          async () => markChecked(await uploadPayoutProof(account.id, file)),
+          'payouts.account.uploadError',
+        );
       }, AFTER_SHEET_MS),
-    [run, setError],
+    [run, setError, markChecked],
   );
 
   const activate = useCallback(
@@ -83,5 +99,5 @@ export default function usePayoutAccounts() {
     [run],
   );
 
-  return { ...remote, busy, errors, uploadProof, activate, viewProof };
+  return { ...remote, busy, errors, notices, markChecked, uploadProof, activate, viewProof };
 }

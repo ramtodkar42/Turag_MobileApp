@@ -5,44 +5,28 @@ import {
   BackButton,
   BottomSheet,
   Button,
-  CheckCircle,
   Icon,
   IconTile,
   SearchBar,
 } from '../../../../components';
-import { colors, radius, spacing } from '../../../../theme';
+import { colors, spacing } from '../../../../theme';
 import { ms } from '../../../../utils/responsive';
 import { translate, useT } from '../../../../i18n';
-import { CITIES, LIVE_STATE, STATES } from '../filterCatalog';
+import { CITIES, LIVE_STATE, SOON_CITIES, STATES } from '../filterCatalog';
+import LocationRow from './LocationRow';
 
-// One row of the sheet (same look as OptionSheet's): a label, and a check when
-// chosen or an arrow when it opens a next step.
-function Row({ label, selected, next, onPress }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole={next ? 'button' : 'radio'}
-      accessibilityState={{ selected: !!selected }}
-      style={({ pressed }) => [styles.row, selected && styles.rowSelected, pressed && styles.pressed]}
-    >
-      <AppText variant="body" color={colors.heading} numberOfLines={1} style={styles.rowText}>
-        {label}
-      </AppText>
-      {selected ? <CheckCircle size={ms(20)} /> : null}
-      {next && !selected ? <Icon name="chevronRight" size={ms(16)} color={colors.placeholder} /> : null}
-    </Pressable>
-  );
-}
-
-// Location filter in two steps: the state (with a search box), then its city.
-// Only Maharashtra is live (Pune, PCMC); any other state says we're coming
-// there soon. value: the chosen city code ('PUNE' | 'PCMC') or none;
-// onSelect(city | '').
+// Location filter in two steps: the state (with a search box), then its city
+// (as the web's picker). Only Pune and PCMC can be chosen; the other well-known
+// cities of each state show faded, and tapping one says "Coming soon". A state
+// with none listed says we're coming there soon. value: the chosen city code
+// ('PUNE' | 'PCMC') or none; onSelect(city | '').
 function LocationSheet({ visible, value, onSelect, onClose }) {
   const t = useT();
   // null = the state list; otherwise the state being looked at.
   const [state, setState] = useState(null);
   const [query, setQuery] = useState('');
+  // The faded city just tapped (shows its "Coming soon").
+  const [soonTapped, setSoonTapped] = useState(null);
 
   // Opening with a city chosen goes straight to that state's cities.
   useEffect(() => {
@@ -58,8 +42,8 @@ function LocationSheet({ visible, value, onSelect, onClose }) {
   const search = query.trim().toLowerCase();
   const states = search
     ? STATES.filter(code =>
-        [stateName(code), translate('en', `location.state.${code}`)].some(name =>
-          name.toLowerCase().includes(search),
+        [stateName(code), translate('en', `location.state.${code}`)].some(
+          name => name.toLowerCase().includes(search),
         ),
       )
     : STATES;
@@ -71,7 +55,13 @@ function LocationSheet({ visible, value, onSelect, onClose }) {
   const backToStates = () => {
     setState(null);
     setQuery('');
+    setSoonTapped(null);
   };
+  const openState = code => {
+    setState(code);
+    setSoonTapped(null);
+  };
+  const soonCities = state ? SOON_CITIES[state] ?? [] : [];
 
   let title;
   let body;
@@ -86,7 +76,11 @@ function LocationSheet({ visible, value, onSelect, onClose }) {
           left={<Icon name="search" size={ms(18)} color={colors.body} />}
           right={
             query ? (
-              <Pressable onPress={() => setQuery('')} accessibilityRole="button" accessibilityLabel={t('location.clearSearch')}>
+              <Pressable
+                onPress={() => setQuery('')}
+                accessibilityRole="button"
+                accessibilityLabel={t('location.clearSearch')}
+              >
                 <Icon name="close" size={ms(16)} color={colors.body} />
               </Pressable>
             ) : null
@@ -101,9 +95,20 @@ function LocationSheet({ visible, value, onSelect, onClose }) {
           bounces={false}
           keyboardShouldPersistTaps="handled"
         >
-          {!search ? <Row label={t('location.all')} selected={!value} onPress={() => pick('')} /> : null}
+          {!search ? (
+            <LocationRow
+              label={t('location.all')}
+              selected={!value}
+              onPress={() => pick('')}
+            />
+          ) : null}
           {states.map(code => (
-            <Row key={code} label={stateName(code)} next onPress={() => setState(code)} />
+            <LocationRow
+              key={code}
+              label={stateName(code)}
+              next
+              onPress={() => openState(code)}
+            />
           ))}
           {search && states.length === 0 ? (
             <AppText variant="subtitle" align="center" style={styles.noMatch}>
@@ -113,15 +118,46 @@ function LocationSheet({ visible, value, onSelect, onClose }) {
         </ScrollView>
       </>
     );
-  } else if (state === LIVE_STATE) {
+  } else if (state === LIVE_STATE || soonCities.length > 0) {
+    const live = state === LIVE_STATE;
     title = stateName(state);
     body = (
-      <View style={styles.list}>
-        <Row label={t('location.allIn', { state: stateName(state) })} selected={!value} onPress={() => pick('')} />
-        {CITIES.map(city => (
-          <Row key={city.value} label={t(city.labelKey)} selected={value === city.value} onPress={() => pick(city.value)} />
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.list}
+        bounces={false}
+      >
+        {live ? (
+          <>
+            <LocationRow
+              label={t('location.allIn', { state: stateName(state) })}
+              selected={!value}
+              onPress={() => pick('')}
+            />
+            {CITIES.map(city => (
+              <LocationRow
+                key={city.value}
+                label={t(city.labelKey)}
+                selected={value === city.value}
+                onPress={() => pick(city.value)}
+              />
+            ))}
+          </>
+        ) : (
+          <AppText variant="caption" style={styles.soonNote}>
+            {t('location.soonText', { state: stateName(LIVE_STATE) })}
+          </AppText>
+        )}
+        {soonCities.map(name => (
+          <LocationRow
+            key={name}
+            label={name}
+            soon
+            soonShown={soonTapped === name}
+            onPress={() => setSoonTapped(name)}
+          />
         ))}
-      </View>
+      </ScrollView>
     );
   } else {
     title = stateName(state);
@@ -134,7 +170,12 @@ function LocationSheet({ visible, value, onSelect, onClose }) {
         <AppText variant="subtitle" align="center">
           {t('location.soonText', { state: stateName(LIVE_STATE) })}
         </AppText>
-        <Button title={t('location.otherState')} variant="outline" onPress={backToStates} style={styles.soonButton} />
+        <Button
+          title={t('location.otherState')}
+          variant="outline"
+          onPress={backToStates}
+          style={styles.soonButton}
+        />
       </View>
     );
   }
@@ -174,25 +215,8 @@ const styles = StyleSheet.create({
   list: {
     gap: spacing.sm,
   },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    minHeight: ms(48),
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xs,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.pill,
-  },
-  rowSelected: {
-    borderColor: colors.success,
-  },
-  rowText: {
-    flex: 1,
-  },
-  pressed: {
-    backgroundColor: colors.input,
+  soonNote: {
+    marginBottom: spacing.xs,
   },
   soon: {
     alignItems: 'center',

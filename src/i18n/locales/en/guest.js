@@ -30,4 +30,6 @@ export default {
   'guest.settlements.message': 'Log in to see the money paid to you for the vehicles you sell on Turag.',
   'guest.payouts.title': 'Get paid for your sales',
   'guest.payouts.message': 'Log in to add the bank account Turag pays your sales into.',
+  'guest.carAlerts.title': 'Hear about new cars first',
+  'guest.carAlerts.message': 'Log in to get WhatsApp alerts when cars you like are listed.',
 };

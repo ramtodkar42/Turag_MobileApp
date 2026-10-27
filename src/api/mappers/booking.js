@@ -2,6 +2,7 @@
 // My booking and Report screens use.
 import { toRupees, toTime } from './money';
 import { mapValuation } from './valuation';
+import { mapChallans } from './challans';
 
 const titleCase = value =>
   value
@@ -129,5 +130,7 @@ export const mapReport = r => {
     odometerKm: r.odometer_km ?? null,
     disclaimer: r.disclaimer ?? null,
     generatedAt: r.generated_at ?? null,
+    // Traffic challans from the latest check, or null (never checked).
+    challans: mapChallans(r.challans),
   };
 };

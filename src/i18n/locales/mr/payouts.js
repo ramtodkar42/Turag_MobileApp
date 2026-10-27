@@ -30,6 +30,9 @@ export default {
   'payouts.account.uploadError': 'आम्ही पुरावा अपलोड करू शकलो नाही.',
   'payouts.account.activateError': 'आम्ही खाते बदलू शकलो नाही.',
   'payouts.account.proofError': 'आम्ही पुरावा डाउनलोड करू शकलो नाही.',
+  // Right after the proof upload: the automatic bank check's result.
+  'payouts.check.instant': 'लगेच पडताळले. तुमचे बँक तपशील जुळले, त्यामुळे हे खाते पेमेंटसाठी तयार आहे.',
+  'payouts.check.review': 'पुरावा मिळाला. Turag ची टीम लवकरच हे खाते पडताळेल.',
 
   // Add a bank account
   'payouts.form.title': 'बँक खाते जोडा',

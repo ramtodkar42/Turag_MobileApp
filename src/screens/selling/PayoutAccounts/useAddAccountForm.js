@@ -10,7 +10,8 @@ const cleanNumber = value => value.replace(/[\s-]/g, '');
 // fields, saves the account, then uploads its proof. If the save worked but
 // the upload did not, the list is refreshed and the seller is told to use
 // "Upload proof" on the new account's card.
-// onAdded(): reload the accounts (returns a promise).
+// onAdded(account?): reload the accounts (returns a promise); account: as the
+// proof upload returned it (to show whether it was verified at once).
 export default function useAddAccountForm(onAdded) {
   const [holder, setHolder] = useState('');
   const [bank, setBank] = useState('');
@@ -70,7 +71,7 @@ export default function useAddAccountForm(onAdded) {
         ifsc: code,
         accountNumber: digits,
       });
-      await uploadPayoutProof(created.id, file);
+      const uploaded = await uploadPayoutProof(created.id, file);
       if (mounted.current) {
         setHolder('');
         setBank('');
@@ -79,7 +80,7 @@ export default function useAddAccountForm(onAdded) {
         setConfirm('');
         setFile(null);
       }
-      await onAdded();
+      await onAdded(uploaded);
     } catch (e) {
       // The account may already exist as a draft; refresh so the proof can be retried from its card.
       if (created) await onAdded();

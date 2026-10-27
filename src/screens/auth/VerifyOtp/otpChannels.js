@@ -4,7 +4,8 @@ import { getPendingSteps, routeAfterSignIn } from '../../../navigation/authRoute
 import { setUser } from '../../../store/userStore';
 
 // What VerifyOtp does for each OTP it can check (today: the mobile login OTP).
-// params come from the route: phone: { phone, otpToken, resendAfter, devHint? }.
+// params come from the route: phone: { phone, via?, otpToken, resendAfter, devHint? }
+// (via: 'whatsapp' | 'sms' - how the code was sent; resend uses the same).
 // resend() returns params to merge (a new otpToken, ...), or nothing.
 // verify() returns where to go next: { reset: [route, params] } (signed in, history
 // cleared) or { navigate: [route, params] }.
@@ -14,8 +15,8 @@ const otpChannels = {
   // by role); new users finish Create Account first.
   phone: {
     sentTo: ({ phone }) => `+91 ${phone}`,
-    resend: async ({ phone }) => {
-      const { otpToken, resendAfter, devHint } = await sendLoginOtp({ phone });
+    resend: async ({ phone, via }) => {
+      const { otpToken, resendAfter, devHint } = await sendLoginOtp({ phone, channel: via });
       return { otpToken, resendAfter, devHint };
     },
     verify: async ({ phone, otpToken }, otp) => {

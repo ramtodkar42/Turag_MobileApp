@@ -31,6 +31,12 @@ export const CONSENTS = [
     prefixKey: 'auth.consent.updates.prefix',
     required: false,
   },
+  // WhatsApp opt-in (as the web): optional and unticked - consent is a choice.
+  {
+    key: 'whatsapp',
+    prefixKey: 'auth.consent.whatsapp.prefix',
+    required: false,
+  },
 ];
 
-export const INITIAL_CONSENTS = { terms: false, privacy: false, updates: false };
+export const INITIAL_CONSENTS = { terms: false, privacy: false, updates: false, whatsapp: false };

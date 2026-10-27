@@ -22,6 +22,7 @@ const CARD_ACTION = {
   view: { questionKey: null, titleKey: 'garage.card.viewListing' },
   list: { questionKey: 'garage.card.question', titleKey: 'garage.card.list' },
   book: { questionKey: 'garage.card.needsValue', titleKey: 'garage.card.book' },
+  pay: { questionKey: 'garage.card.payQuestion', titleKey: 'garage.card.completePayment' },
   resume: { questionKey: 'garage.card.resumeQuestion', titleKey: 'garage.card.continue' },
   summary: { questionKey: 'garage.card.withTurag', titleKey: 'garage.card.viewSummary' },
   inspect: { questionKey: 'garage.card.needsInspection', titleKey: 'garage.card.inspectToList' },

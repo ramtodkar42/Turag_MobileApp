@@ -9,9 +9,10 @@ import otpChannels from './otpChannels';
 import { resetAfterSignIn } from '../../../navigation/authRoutes';
 import { useT } from '../../../i18n';
 
-// The test server (it sends `devHint`) uses 6-digit codes; otherwise 4.
-const OTP_LENGTH = 4;
-const DEV_OTP_LENGTH = 6;
+// The login code is 6 digits - the real SMS (MSG91) and the test server's
+// `devHint` alike, as the web asks for. (The backend accepts 4-8 digits; this
+// must match what the SMS actually sends.)
+const OTP_LENGTH = 6;
 const DEFAULT_RESEND_SECONDS = 59;
 // Enable only for internal testing builds; this exposes the test OTP on screen.
 const SHOW_TEST_OTP = true;
@@ -26,7 +27,7 @@ function VerifyOtp({ navigation, route }) {
   const otpChannel = otpChannels[channel];
   // Resend gives a new OTP token (and wait time), so the latest params live in state.
   const [params, setParams] = useState(initialParams);
-  const otpLength = params.devHint ? DEV_OTP_LENGTH : OTP_LENGTH;
+  const otpLength = OTP_LENGTH;
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);

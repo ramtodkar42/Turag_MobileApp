@@ -43,7 +43,9 @@ import BulkImport from '../screens/business/BulkImport/BulkImport';
 import ImportJob from '../screens/business/ImportJob/ImportJob';
 import CreateListing from '../screens/listing/CreateListing/CreateListing';
 import PersonalInfo from '../screens/profile/PersonalInfo/PersonalInfo';
+import CarAlerts from '../screens/profile/CarAlerts/CarAlerts';
 import IdentityVerification from '../screens/profile/IdentityVerification/IdentityVerification';
+import DigiLocker from '../screens/profile/DigiLocker/DigiLocker';
 import Language from '../screens/profile/Language/Language';
 import VehicleCamera from '../screens/valuation/VehicleCamera/VehicleCamera';
 import ValuationResult from '../screens/valuation/ValuationResult/ValuationResult';
@@ -74,6 +76,13 @@ const AccountPersonalInfo = accountScreen(PersonalInfo, {
   icon: 'user',
   headingKey: 'guest.personalInfo.title',
   messageKey: 'guest.personalInfo.message',
+});
+const AccountCarAlerts = accountScreen(CarAlerts, {
+  withBack: true,
+  titleKey: 'profile.item.carAlerts',
+  icon: 'bell',
+  headingKey: 'guest.carAlerts.title',
+  messageKey: 'guest.carAlerts.message',
 });
 const AccountMyBookings = accountScreen(MyBookings, {
   withBack: true,
@@ -201,7 +210,9 @@ function RootNavigator({ initialRoute = { name: ROUTES.INTRO } }) {
       <Stack.Screen name={ROUTES.INTAKE_IMPORT_JOB} component={ImportJob} />
       <Stack.Screen name={ROUTES.CREATE_LISTING} component={CreateListing} />
       <Stack.Screen name={ROUTES.PERSONAL_INFO} component={AccountPersonalInfo} />
+      <Stack.Screen name={ROUTES.CAR_ALERTS} component={AccountCarAlerts} />
       <Stack.Screen name={ROUTES.IDENTITY_VERIFICATION} component={AccountIdentityVerification} />
+      <Stack.Screen name={ROUTES.DIGILOCKER} component={DigiLocker} />
       <Stack.Screen name={ROUTES.LANGUAGE} component={Language} />
       <Stack.Screen name={ROUTES.WEB_PAGE} component={WebPage} />
     </Stack.Navigator>

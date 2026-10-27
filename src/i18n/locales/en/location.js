@@ -6,6 +6,7 @@ export default {
   'location.soonTitle': 'Coming soon in {state}',
   'location.soonText': 'We are live in Pune and PCMC, {state}, right now. We will be in your state soon.',
   'location.otherState': 'Choose another state',
+  'location.comingSoon': 'Coming soon',
   'location.searchState': 'Search your state',
   'location.clearSearch': 'Clear search',
   'location.noState': 'No state found. Check the spelling.',

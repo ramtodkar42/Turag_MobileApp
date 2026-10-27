@@ -30,6 +30,9 @@ export default {
   'payouts.account.uploadError': 'We could not upload the proof.',
   'payouts.account.activateError': 'We could not switch accounts.',
   'payouts.account.proofError': 'We could not download the proof.',
+  // Right after the proof upload: the automatic bank check's result.
+  'payouts.check.instant': 'Verified instantly. Your bank details matched, so this account is ready for payouts.',
+  'payouts.check.review': 'Proof received. Turag’s team will verify this account shortly.',
 
   // Add a bank account
   'payouts.form.title': 'Add a bank account',

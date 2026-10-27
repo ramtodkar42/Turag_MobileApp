@@ -62,7 +62,8 @@ export const confirmVehicle = async registrationNumber => {
     const data = await request(ENDPOINTS.VEHICLE_CONFIRM, {
       method: 'POST',
       body: { registration_number: plate },
-      auth: false,
+      // Signed in: the live server now refuses anonymous confirms
+      // ("Please sign in to continue"), as it does the lookup (propose).
       idempotent: true,
     });
     return mapVehicle(data, { registrationNumber: plate });

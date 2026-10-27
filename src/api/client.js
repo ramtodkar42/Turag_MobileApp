@@ -192,6 +192,16 @@ export async function request(path, options = {}) {
   try {
     result = await call(token);
   } catch (e) {
+    // A call sent without the login that the server now wants signed in (it
+    // tightens public routes over time, e.g. "Yes, it's mine"): when there is a
+    // session, send it once more with the login instead of failing.
+    if (!auth && e instanceof ApiError && e.status === 401 && e.code === ERROR_CODES.AUTH_REQUIRED) {
+      const signedIn = await Promise.resolve(authHandler?.getAccessToken()).catch(() => null);
+      if (!signedIn) {
+        throw e;
+      }
+      return request(path, { ...options, auth: true, idempotencyKey: key ?? undefined });
+    }
     // Access token expired between our check and the server's: refresh once and retry.
     if (!auth || !(e instanceof ApiError) || e.status !== 401 || !RETRY_WITH_NEW_TOKEN.has(e.code)) {
       throw e;

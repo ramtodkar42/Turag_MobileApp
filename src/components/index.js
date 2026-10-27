@@ -94,6 +94,7 @@ export { default as MicButton } from './media/MicButton';
 export { default as FavoriteButton } from './vehicle/FavoriteButton';
 export { default as ImageCarousel } from './vehicle/ImageCarousel';
 export { default as TierBadge } from './vehicle/TierBadge';
+export { default as ChallanCard } from './vehicle/ChallanCard';
 export { default as ValueCard } from './vehicle/ValueCard';
 export { default as VehicleCard } from './vehicle/VehicleCard';
 export { default as VehicleGridCard } from './vehicle/VehicleGridCard';

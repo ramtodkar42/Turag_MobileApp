@@ -27,7 +27,7 @@ export const mockStartOtp = async ({ phone }) => {
 
 export const mockVerifyOtp = async ({ otpToken, otp }) => {
   await wait(600);
-  if (otp.length !== 4) {
+  if (otp.length !== 6) {
     throw new Error('Invalid OTP. Please try again.');
   }
   const phone = otpToken.replace('mock:', '');

@@ -1,45 +1,38 @@
 import { useCallback, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   AppText,
-  Badge,
   Button,
   CardListSkeleton,
+  FadeIn,
   Header,
-  Icon,
   ScreenContainer,
   StatusView,
 } from '../../../components';
-import { colors, radius, shadows, spacing } from '../../../theme';
-import { ms } from '../../../utils/responsive';
-import { formatDate } from '../../../utils/format';
-import { getMyVerification } from '../../../api/services/verification.api';
+import { spacing } from '../../../theme';
+import { getVerificationStatus, isEnded, showManual } from '../../../api/services/verification.api';
 import { ROUTES } from '../../../navigation/routes';
 import { useT } from '../../../i18n';
-
-const STATUS = {
-  PENDING_REVIEW: { key: 'verify.status.PENDING_REVIEW', tone: 'warning', noteKey: 'verify.status.pendingNote' },
-  APPROVED: { key: 'verify.status.APPROVED', tone: 'success', noteKey: 'verify.status.approvedNote' },
-  REJECTED: { key: 'verify.status.REJECTED', tone: 'danger', noteKey: 'verify.status.rejectedNote' },
-};
-const ICON = ms(52);
+import VerificationStatusCard from './components/VerificationStatusCard';
+import VerifyOptionCard from './components/VerifyOptionCard';
 
 // Profile > Identity verification (as the web's Account > Verification): the
-// status of the user's ID check, and a way to send one (optional - it never
-// holds up a booking or a payment). Not sent yet: "Verify your identity";
-// rejected: the reason and "Verify again"; under review / verified: the status.
-// Reloads each time it comes back into view (e.g. after sending one).
+// status of the user's ID check and the ways to do one - whichever the server
+// offers: DigiLocker (share Aadhaar, approved at once) and / or a document +
+// selfie reviewed by Turag's team (where DigiLocker is the main way, the upload
+// is offered once a DigiLocker try didn't complete). Optional - it never holds
+// up a booking. Reloads each time it comes back into view.
 function IdentityVerification({ navigation }) {
   const t = useT();
-  const [verification, setVerification] = useState(undefined); // undefined = loading
+  const [data, setData] = useState(undefined); // undefined = loading
   const [error, setError] = useState('');
 
   const load = useCallback(() => {
     let active = true;
     setError('');
-    getMyVerification()
-      .then(v => active && setVerification(v))
+    getVerificationStatus()
+      .then(d => active && setData(d))
       .catch(e => active && setError(e?.message || t('verify.status.loadError')));
     return () => {
       active = false;
@@ -47,67 +40,54 @@ function IdentityVerification({ navigation }) {
   }, [t]);
   useFocusEffect(load);
 
-  const verify = () => navigation.navigate(ROUTES.VERIFY_IDENTITY);
-  const status = verification ? STATUS[verification.status] : null;
+  const verifyManually = () => navigation.navigate(ROUTES.VERIFY_IDENTITY);
+  const verifyDigiLocker = () => navigation.navigate(ROUTES.DIGILOCKER);
 
   let body;
-  if (error && verification === undefined) {
+  if (error && data === undefined) {
     body = (
       <StatusView title={t('verify.status.title')} message={error} style={styles.status}>
-        <Button title={t('common.retry')} size="md" variant="outline" onPress={load} style={styles.action} />
+        <Button title={t('common.retry')} size="md" variant="outline" onPress={load} style={styles.retry} />
       </StatusView>
     );
-  } else if (verification === undefined) {
-    body = <CardListSkeleton cards={[3]} style={styles.card} />;
-  } else if (!verification) {
-    // Never sent one.
-    body = (
-      <View style={[styles.card, styles.panel, styles.center]}>
-        <View style={styles.icon}>
-          <Icon name="shieldCheck" size={ms(26)} color={colors.primary} />
-        </View>
-        <AppText variant="title" align="center" style={styles.heading}>
-          {t('verify.status.noneTitle')}
-        </AppText>
-        <AppText variant="caption" align="center" style={styles.note}>
-          {t('verify.status.noneNote')}
-        </AppText>
-        <Button title={t('verify.title')} onPress={verify} style={styles.action} />
-      </View>
-    );
+  } else if (data === undefined) {
+    body = <CardListSkeleton cards={[3, 3]} style={styles.card} />;
   } else {
+    const { verification, options } = data;
+    const status = verification?.status;
+    // Done or with the team: nothing more to do. Otherwise offer the ways in.
+    const settled = status === 'APPROVED' || status === 'PENDING_REVIEW';
+    const canRetry = !verification || status === 'REJECTED' || status === 'INITIATED' || isEnded(verification);
+    const offerDigiLocker = options.digilocker && canRetry && !settled;
+    const offerManual = showManual(verification, options) && canRetry && !settled;
+
     body = (
-      <View style={[styles.card, styles.panel]}>
-        <View style={styles.row}>
-          <View style={styles.flex}>
-            <AppText variant="title">{t(`verify.doc.${verification.docType}`)}</AppText>
-            {verification.docMasked ? (
-              <AppText variant="caption" style={styles.masked}>
-                {verification.docMasked}
-              </AppText>
-            ) : null}
-          </View>
-          {status ? <Badge label={t(status.key)} tone={status.tone} size="sm" /> : null}
-        </View>
-        {verification.submittedAt ? (
-          <AppText variant="caption" style={styles.note}>
-            {t('verify.status.submitted', { date: formatDate(verification.submittedAt) })}
-          </AppText>
+      <FadeIn offset={0}>
+        {verification ? <VerificationStatusCard verification={verification} style={styles.card} /> : null}
+        {offerDigiLocker ? (
+          <VerifyOptionCard
+            icon="shieldCheck"
+            titleKey="verify.dl.title"
+            noteKey="verify.dl.note"
+            badgeKey="verify.dl.instant"
+            consentKey="verify.dl.consent"
+            buttonKey={status === 'INITIATED' || isEnded(verification) ? 'verify.dl.again' : 'verify.dl.button'}
+            onPress={verifyDigiLocker}
+            style={styles.card}
+          />
         ) : null}
-        {status ? (
-          <AppText variant="caption" color={colors.body} style={styles.note}>
-            {t(status.noteKey)}
-          </AppText>
+        {offerManual ? (
+          <VerifyOptionCard
+            icon="document"
+            titleKey={offerDigiLocker ? 'verify.manual.insteadTitle' : 'verify.status.noneTitle'}
+            noteKey="verify.status.noneNote"
+            buttonKey={status === 'REJECTED' ? 'verify.status.again' : 'verify.title'}
+            variant={offerDigiLocker ? 'outline' : 'primary'}
+            onPress={verifyManually}
+            style={styles.card}
+          />
         ) : null}
-        {verification.status === 'REJECTED' && verification.rejectionReason ? (
-          <AppText variant="caption" color={colors.danger} style={styles.note}>
-            {t('verify.status.reason', { reason: verification.rejectionReason })}
-          </AppText>
-        ) : null}
-        {verification.status === 'REJECTED' ? (
-          <Button title={t('verify.status.again')} onPress={verify} style={styles.action} />
-        ) : null}
-      </View>
+      </FadeIn>
     );
   }
 
@@ -128,42 +108,7 @@ const styles = StyleSheet.create({
   card: {
     marginTop: spacing.lg,
   },
-  panel: {
-    padding: spacing.lg,
-    borderRadius: radius.lg,
-    backgroundColor: colors.white,
-    ...shadows.sm,
-  },
-  center: {
-    alignItems: 'center',
-  },
-  icon: {
-    width: ICON,
-    height: ICON,
-    borderRadius: ICON / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.dangerLight,
-  },
-  heading: {
-    marginTop: spacing.md,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  flex: {
-    flex: 1,
-  },
-  masked: {
-    marginTop: spacing.xxs,
-    letterSpacing: 1,
-  },
-  note: {
-    marginTop: spacing.sm,
-  },
-  action: {
+  retry: {
     marginTop: spacing.lg,
     alignSelf: 'stretch',
   },

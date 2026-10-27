@@ -43,12 +43,11 @@ export const validateProfile = ({ fullName, email }) => {
   return errors;
 };
 
-// Create Account: name + verified email + "What brings you" (needsProfile) and
+// Create Account: name + email + "What brings you" (needsProfile) and
 // the required consents (needsConsent). Both default to true (a new account).
 export const validateAccount = ({
   fullName,
   email,
-  emailVerified,
   purpose,
   consents,
   needsProfile = true,
@@ -57,9 +56,6 @@ export const validateAccount = ({
   const errors = {};
   if (needsProfile) {
     Object.assign(errors, validateProfile({ fullName, email }));
-    if (!errors.email && !emailVerified) {
-      errors.email = tNow('errors.verifyEmail');
-    }
     if (!purpose) {
       errors.purpose = tNow('errors.choosePurpose');
     }

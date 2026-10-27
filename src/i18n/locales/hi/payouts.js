@@ -30,6 +30,9 @@ export default {
   'payouts.account.uploadError': 'हम प्रमाण अपलोड नहीं कर सके।',
   'payouts.account.activateError': 'हम खाता नहीं बदल सके।',
   'payouts.account.proofError': 'हम प्रमाण डाउनलोड नहीं कर सके।',
+  // Right after the proof upload: the automatic bank check's result.
+  'payouts.check.instant': 'तुरंत सत्यापित। आपके बैंक विवरण मेल खा गए, इसलिए यह खाता भुगतान के लिए तैयार है।',
+  'payouts.check.review': 'प्रमाण मिल गया। Turag की टीम जल्द ही इस खाते को सत्यापित करेगी।',
 
   // Add a bank account
   'payouts.form.title': 'बैंक खाता जोड़ें',

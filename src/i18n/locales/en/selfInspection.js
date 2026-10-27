@@ -2,10 +2,10 @@
 // checklist, estimate and submit.
 export default {
   'selfInspection.title': 'Self-inspection',
-  'selfInspection.doneCount': '{done} of {total} done · free and self-declared (not Turag Verified)',
+  'selfInspection.doneCount': '{done} of {total} done · self-declared (not Turag Verified)',
   'selfInspection.liveEstimate': 'Live estimate',
   'selfInspection.doneShort': '{done} of {total} done',
-  'selfInspection.selfDeclared': 'Free · self-declared (not Turag Verified)',
+  'selfInspection.selfDeclared': 'Self-declared (not Turag Verified)',
   'selfInspection.photo.removing': 'Removing…',
   'selfInspection.yourVehicle': 'Your vehicle',
   'selfInspection.optional': 'optional',
@@ -231,6 +231,14 @@ export default {
   'selfInspection.warn.nearDuplicate': 'This looks a lot like your {label} photo. Is it the right angle?',
   'selfInspection.error.uploadFailed': 'Upload failed for the {noun}. Please try again.',
   'selfInspection.error.submitFailed': 'Could not submit. Please retry.',
+  // The self-inspection fee, taken at submit when it's switched on (as the web).
+  'selfInspection.pay.description': 'Self-inspection fee',
+  'selfInspection.pay.phase.starting': 'Opening payment…',
+  'selfInspection.pay.phase.confirming': 'Confirming payment…',
+  'selfInspection.pay.awaiting': 'We’re still confirming your payment. This can take a moment. Tap Submit again shortly.',
+  'selfInspection.pay.unavailable': 'Payments are temporarily unavailable. Please try again in a little while.',
+  'selfInspection.pay.failed': 'The payment could not be completed. Please try again.',
+  'selfInspection.pay.cancelled': 'Payment was cancelled. Tap Submit to pay and send your self-inspection.',
   'selfInspection.error.reopenFailed': 'Could not reopen. Please retry.',
   'selfInspection.error.finalFailed': 'Could not load the final valuation.',
   'selfInspection.item.A1': 'VIN/chassis plate matches RC',

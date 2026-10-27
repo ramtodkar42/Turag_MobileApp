@@ -75,6 +75,8 @@ export const ROUTES = {
 
   // Profile
   PERSONAL_INFO: 'PersonalInfo',
+  CAR_ALERTS: 'CarAlerts', // WhatsApp alerts for newly listed cars
+  DIGILOCKER: 'DigiLocker', // verify identity with DigiLocker (in the app)
   IDENTITY_VERIFICATION: 'IdentityVerification', // status of the ID check; opens VERIFY_IDENTITY to send one
   LISTING_PREVIEW: 'ListingPreview', // seller: the listing as buyers will see it
   LANGUAGE: 'Language',

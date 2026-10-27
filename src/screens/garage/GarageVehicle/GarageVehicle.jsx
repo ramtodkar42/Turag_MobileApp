@@ -26,6 +26,13 @@ import { loadGarage, removeFromGarageById, useGarage } from '../../../store/gara
 import useConfirmDialog from '../../../hooks/useConfirmDialog';
 import { phaseAction, phaseBadge, phaseHintKey } from '../garagePhase';
 
+// The self-inspection button's text by the next step.
+const PRIMARY_TITLE = {
+  resume: 'garage.card.continue',
+  pay: 'garage.card.completePayment',
+  summary: 'garage.card.viewSummary',
+};
+
 // One of the user's own vehicles (from the Garage): details, pre-estimated
 // value, where it is (the web's Garage card stages, see garagePhase) and the
 // next step:
@@ -146,11 +153,11 @@ function GarageVehicle({ navigation, route }) {
 
   // The primary next step for the vehicle's stage (as the web's Garage card).
   let primary = null;
-  if (action === 'resume' || action === 'summary') {
+  if (action === 'resume' || action === 'pay' || action === 'summary') {
     primary = (
       <Button
-        title={t(action === 'resume' ? 'garage.card.continue' : 'garage.card.viewSummary')}
-        variant={action === 'resume' ? 'primary' : 'outline'}
+        title={t(PRIMARY_TITLE[action])}
+        variant={action === 'summary' ? 'outline' : 'primary'}
         disabled={removing}
         onPress={openSelfInspection}
       />

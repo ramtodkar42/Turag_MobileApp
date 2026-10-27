@@ -52,7 +52,7 @@ function Garage({ navigation }) {
         navigation.navigate(ROUTES.CREATE_LISTING, { vehicle });
       } else if (kind === 'view') {
         navigation.navigate(ROUTES.MY_LISTING, { listingId: vehicle.listingId });
-      } else if (kind === 'resume' || kind === 'summary') {
+      } else if (kind === 'resume' || kind === 'pay' || kind === 'summary') {
         navigation.navigate(ROUTES.SELF_INSPECTION, { inspectionId: vehicle.inspectionId, vehicle, valuation });
       } else if (kind === 'book') {
         navigation.navigate(ROUTES.BOOK_APPOINTMENT, { vehicle, valuation });

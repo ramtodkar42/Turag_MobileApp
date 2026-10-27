@@ -311,7 +311,9 @@ function SelfInspection({ navigation, route }) {
   const footer = (
     <View style={styles.bar}>
       <AppText variant="caption" align="center" numberOfLines={2}>
-        {step === 'review'
+        {si.payPhase
+          ? t(`selfInspection.pay.phase.${si.payPhase}`)
+          : step === 'review'
           ? canSubmit
             ? t('selfInspection.bar.ready')
             : t('selfInspection.bar.left', { count: missing.length })

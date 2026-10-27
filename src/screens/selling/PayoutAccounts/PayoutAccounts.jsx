@@ -28,9 +28,26 @@ import AddAccountForm from './components/AddAccountForm';
 // number are ever shown. No route params.
 function PayoutAccounts({ navigation }) {
   const t = useT();
-  const { data, loading, refreshing, error, errorCode, refresh, reload, busy, errors, uploadProof, activate, viewProof } =
-    usePayoutAccounts();
-  const form = useAddAccountForm(reload);
+  const {
+    data,
+    loading,
+    refreshing,
+    error,
+    errorCode,
+    refresh,
+    reload,
+    busy,
+    errors,
+    notices,
+    markChecked,
+    uploadProof,
+    activate,
+    viewProof,
+  } = usePayoutAccounts();
+  const form = useAddAccountForm(account => {
+    markChecked(account);
+    return reload();
+  });
   // Who the proof sheet is for: an account (its card's "Upload proof") or 'form'.
   const [sourceFor, setSourceFor] = useState(null);
 
@@ -77,6 +94,7 @@ function PayoutAccounts({ navigation }) {
             account={account}
             busy={busy[account.id]}
             error={errors[account.id]}
+            notice={notices[account.id]}
             onUpload={setSourceFor}
             onActivate={activate}
             onViewProof={viewProof}
