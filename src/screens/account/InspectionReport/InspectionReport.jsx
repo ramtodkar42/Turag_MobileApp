@@ -29,6 +29,7 @@ import { useT } from '../../../i18n';
 import EstimateSummary from '../../valuation/components/EstimateSummary';
 import { DOCUMENT_STATUS, SEVERITY } from '../statuses';
 import ReportActions from './components/ReportActions';
+import VerifyReportCard from './components/VerifyReportCard';
 import useReportActions from './useReportActions';
 
 const titleCase = code =>
@@ -311,6 +312,9 @@ function InspectionReport({ navigation, route }) {
               .join(' · ')}
           </InfoNote>
         ) : null}
+
+        {/* Anyone can check the report is genuine (as the web report's last line). */}
+        <VerifyReportCard token={report.verificationToken} style={styles.card} />
 
         {report.disclaimer ? (
           <AppText variant="caption" style={styles.disclaimer}>

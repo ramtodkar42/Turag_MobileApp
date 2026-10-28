@@ -7,6 +7,7 @@ export const ROUTES = {
   // opens VerifyOtp (email) and comes back) -> AuthSuccess ("Account Created") -> Home
   LOGIN: 'Login',
   EMAIL_LOGIN: 'EmailLogin', // email + password (accounts Turag created, e.g. dealers)
+  FORGOT_PASSWORD: 'ForgotPassword', // a reset code by WhatsApp, then a new password
   VERIFY_OTP: 'VerifyOtp',
   COMPLETE_PROFILE: 'CompleteProfile',
   AUTH_SUCCESS: 'AuthSuccess',

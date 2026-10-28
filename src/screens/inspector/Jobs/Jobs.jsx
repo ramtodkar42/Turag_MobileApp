@@ -6,6 +6,7 @@ import {
   Button,
   CardListSkeleton,
   FadeIn,
+  AI_BUTTON_GAP,
   FloatingAIButton,
   HeaderCard,
   ScreenContainer,
@@ -183,7 +184,7 @@ function Jobs({ navigation }) {
       {body}
       <FloatingAIButton
         onPress={() => navigation.navigate(ROUTES.CHAT_SPLASH)}
-        style={[styles.ai, { bottom: tabBarSpace - spacing.sm }]}
+        style={[styles.ai, { bottom: tabBarSpace + AI_BUTTON_GAP }]}
       />
     </ScreenContainer>
   );

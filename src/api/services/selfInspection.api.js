@@ -125,7 +125,15 @@ export const payForSelfInspection = async (inspectionId, { onPhase, prefill } = 
       });
     } catch (e) {
       if (e?.code === PAYMENT_CANCELLED) {
-        return { result: 'failed', amountMinor, error: tNow('selfInspection.pay.cancelled') };
+        // Closed by the payer: "tap Submit to pay"; declined / no internet:
+        // the checkout's own words (api/razorpay).
+        const kind = e.details?.kind ?? 'cancelled';
+        return {
+          result: 'failed',
+          amountMinor,
+          kind,
+          error: kind === 'cancelled' ? tNow('selfInspection.pay.cancelled') : e.message,
+        };
       }
       return { result: 'awaiting', amountMinor };
     }

@@ -242,6 +242,46 @@ describe('session', () => {
     expect(bodyOf(lastCall())).toEqual({ refresh_token: 'refresh-1' });
     expect(await loadSession()).toBeNull();
   });
+
+  // A refresh held open until the test answers it.
+  const heldRefresh = () => {
+    let answer;
+    fetch.mockImplementationOnce(() => new Promise(resolve => (answer = resolve)));
+    return response => answer(response);
+  };
+
+  test('log out while a refresh is in flight stays logged out', async () => {
+    await signIn('old', 1);
+    const answerRefresh = heldRefresh();
+    const token = getAccessToken();
+
+    await endSession();
+    answerRefresh(
+      reply(200, { access_token: 'access-2', expires_in: 900 }, { 'set-cookie': 'tg_refresh=refresh-2; Path=/' }),
+    );
+
+    await expect(token).resolves.toBeNull();
+    expect(await loadSession()).toBeNull();
+    await expect(getAccessToken()).resolves.toBeNull();
+  });
+
+  test('a refresh of the old session failing after a new sign-in leaves the new session alone', async () => {
+    await signIn('old', 1);
+    const expired = jest.fn();
+    const stop = onSessionExpired(expired);
+    const answerRefresh = heldRefresh();
+    const token = getAccessToken();
+
+    await endSession();
+    await startSession({ accessToken: 'access-new', expiresIn: 900, refreshToken: 'refresh-new', user: {} });
+    answerRefresh(apiError(401, 'AUTH_REFRESH_REUSE_DETECTED'));
+
+    await expect(token).resolves.toBeNull();
+    expect(expired).not.toHaveBeenCalled();
+    expect(await loadSession()).toEqual(expect.objectContaining({ refreshToken: 'refresh-new' }));
+    await expect(getAccessToken()).resolves.toBe('access-new');
+    stop();
+  });
 });
 
 describe('notifications service', () => {

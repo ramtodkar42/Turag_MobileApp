@@ -132,6 +132,8 @@ export default function useSelfInspection(inspectionId) {
   const [submitting, setSubmitting] = useState(false);
   const [reopening, setReopening] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  // The self-inspection fee didn't go through: { kind, message } (PaymentNotice).
+  const [payProblem, setPayProblem] = useState(null);
   // The self-inspection fee being taken during submit: 'starting' | 'confirming' | null.
   const [payPhase, setPayPhase] = useState(null);
   const [finalStatus, setFinalStatus] = useState(null);
@@ -642,6 +644,7 @@ export default function useSelfInspection(inspectionId) {
   const submit = useCallback(async () => {
     setSubmitting(true);
     setSubmitError('');
+    setPayProblem(null);
     const labels = buildItemLabelMap(allItems);
     const errorText = e =>
       e?.message ? humanizeSubmitError(e.message, labels) : tNow('selfInspection.error.submitFailed');
@@ -666,14 +669,15 @@ export default function useSelfInspection(inspectionId) {
         }
         return;
       }
-      // Not paid (yet): stay on review; Submit again once it's confirmed.
-      setSubmitError(
-        paid.result === 'awaiting'
-          ? tNow('selfInspection.pay.awaiting')
-          : paid.result === 'unavailable'
-            ? tNow('selfInspection.pay.unavailable')
-            : paid.error || tNow('selfInspection.pay.failed'),
-      );
+      // Not paid (yet): stay on review, with a PaymentNotice card; Submit
+      // again once it's confirmed.
+      if (paid.result === 'awaiting') {
+        setPayProblem({ kind: 'awaiting', message: tNow('selfInspection.pay.awaiting') });
+      } else if (paid.result === 'unavailable') {
+        setPayProblem({ kind: 'unavailable', message: tNow('selfInspection.pay.unavailable') });
+      } else {
+        setPayProblem({ kind: paid.kind ?? 'failed', message: paid.error || tNow('selfInspection.pay.failed') });
+      }
     } finally {
       setPayPhase(null);
       setSubmitting(false);
@@ -818,6 +822,7 @@ export default function useSelfInspection(inspectionId) {
     payPhase,
     submit,
     submitError,
+    payProblem,
     reopening,
     fixPhotos,
     finalStatus,

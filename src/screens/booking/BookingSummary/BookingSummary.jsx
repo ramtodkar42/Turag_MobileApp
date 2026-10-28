@@ -6,6 +6,7 @@ import {
   HeaderCard,
   InfoNote,
   KeyValueCard,
+  PaymentNotice,
   ScreenContainer,
 } from '../../../components';
 import { colors, spacing } from '../../../theme';
@@ -19,13 +20,13 @@ import usePayBooking from './usePayBooking';
 // the fee. "Pay ₹799" books it and opens the payment page straight away (as
 // the web; see usePayBooking).
 // params: { vehicle?, valuation?, category, address, slot, preparation, price,
-// payError? (when a payment failed) }
+// payError? ({ kind, message } when a payment didn't finish: a PaymentNotice) }
 function BookingSummary({ navigation, route }) {
   const t = useT();
   const language = useLanguage();
   const { vehicle, valuation, category, address, slot, preparation, price } =
     route.params;
-  const { pay, busy, error } = usePayBooking({ navigation, route });
+  const { pay, busy, error, payProblem } = usePayBooking({ navigation, route });
 
   const ready = Object.entries(preparation)
     .filter(([, on]) => on)
@@ -66,6 +67,7 @@ function BookingSummary({ navigation, route }) {
       header={<Header onBack={navigation.goBack} />}
       footer={
         <View style={styles.footer}>
+          <PaymentNotice problem={payProblem} />
           {error ? (
             <AppText
               variant="caption"

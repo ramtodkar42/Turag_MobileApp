@@ -3,23 +3,24 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import {
   AppText,
   Button,
-  FadeIn,
   Header,
   Icon,
-  InfoNote,
   ScreenContainer,
   TextField,
 } from '../../../components';
-import { colors, radius, spacing } from '../../../theme';
+import { colors, spacing } from '../../../theme';
 import { HIT_SLOP } from '../../../constants/layout';
 import { ms } from '../../../utils/responsive';
 import { useT } from '../../../i18n';
+import { ROUTES } from '../../../navigation/routes';
+import FormError from '../components/FormError';
+import TextLink from '../components/TextLink';
 import useEmailLogin from './useEmailLogin';
 
 // "Have an email & password? Sign in here" (as the web's /login, ADR-0033):
-// for accounts Turag's team created (dealers) - there's no sign-up here, and
-// a lost password is reset by Turag's team. Everyone else uses their mobile
-// number ("Use your mobile number instead" goes back).
+// for accounts Turag's team created (dealers) - there's no sign-up here.
+// "Forgot password?" resets it with a code on WhatsApp (ADR-0054). Everyone
+// else uses their mobile number ("Use your mobile number instead" goes back).
 // params: { fromGuest? } - passed on from Login (back to the screen they were on).
 function EmailLogin({ navigation }) {
   const t = useT();
@@ -79,21 +80,17 @@ function EmailLogin({ navigation }) {
         />
       </View>
 
-      {errors.form ? (
-        <FadeIn offset={0} style={styles.formError}>
-          <Icon
-            name="close"
-            size={ms(14)}
-            color={colors.danger}
-            strokeWidth={3}
-          />
-          <AppText variant="caption" color={colors.danger} style={styles.flex}>
-            {errors.form}
-          </AppText>
-        </FadeIn>
-      ) : null}
+      <FormError message={errors.form} />
 
-      <InfoNote style={styles.note}>{t('auth.emailLogin.forgot')}</InfoNote>
+      <TextLink
+        label={t('auth.emailLogin.forgot')}
+        onPress={() =>
+          navigation.navigate(ROUTES.FORGOT_PASSWORD, {
+            identifier: form.email.trim(),
+          })
+        }
+        style={styles.note}
+      />
 
       <Pressable
         onPress={navigation.goBack}
@@ -120,18 +117,6 @@ const styles = StyleSheet.create({
   fields: {
     marginTop: spacing.xl,
     gap: spacing.lg,
-  },
-  formError: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.lg,
-    padding: spacing.md,
-    borderRadius: radius.md,
-    backgroundColor: colors.dangerLight,
-  },
-  flex: {
-    flex: 1,
   },
   note: {
     marginTop: spacing.xl,

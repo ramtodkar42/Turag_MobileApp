@@ -9,15 +9,18 @@ import HomeHeader from './HomeHeader';
 import PromoBanner from './PromoBanner';
 import QuickFilters from './QuickFilters';
 import SearchStatus from './SearchStatus';
+import SmartSearchChips from './SmartSearchChips';
+import ClosestNote from './ClosestNote';
 import { useT } from '../../../../i18n';
 
-const BANNER_IMAGE = require('../../../../assets/images/home/banner-dream-car.jpg');
+const BANNER_IMAGE = require('../../../../assets/images/home/banner-red-car.jpg');
 
 // Everything above the vehicle grid (rendered as the list header, so the
 // whole page scrolls together): greeting with search and notifications, the
 // search bar (while a search from the search screen is showing - it can be
-// changed here, or cleared with the X), the quick filters, the banner and the
-// category bar.
+// changed here, or cleared with the X) with what the search was understood as
+// (smart search chips), the quick filters, the banner, the category bar and,
+// when nothing matched exactly, a note that the closest vehicles are shown.
 // onLanguagePress(anchor): the language pill (first filter) was tapped.
 // onOpenSearch(): the search button - opens the search screen.
 function HomeListHeader({
@@ -99,6 +102,9 @@ function HomeListHeader({
               searching={market.searching}
               query={market.query}
             />
+            {market.searching ? null : (
+              <SmartSearchChips chips={market.smart?.chips} onRemove={market.removeChip} />
+            )}
           </View>
         ) : null}
       </View>
@@ -118,6 +124,7 @@ function HomeListHeader({
           onChange={market.setCategory}
           style={styles.tabs}
         />
+        {market.closest && !market.updating ? <ClosestNote style={styles.closest} /> : null}
       </View>
     </View>
   );
@@ -143,6 +150,9 @@ const styles = StyleSheet.create({
   tabs: {
     marginTop: spacing.lg,
     marginBottom: spacing.xs,
+  },
+  closest: {
+    marginTop: spacing.sm,
   },
 });
 

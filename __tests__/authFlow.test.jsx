@@ -36,6 +36,8 @@ jest.mock('../src/api/services/auth.api', () => ({
   ),
   verifyLoginOtp: jest.fn(),
   loginWithPassword: jest.fn(),
+  requestPasswordReset: jest.fn(() => Promise.resolve({ otpToken: 'reset-token-1', resendAfter: 30 })),
+  resetPassword: jest.fn(() => Promise.resolve()),
   // The server doesn't say how the code is sent: no WhatsApp / SMS choice.
   getOtpChannels: jest.fn(() => Promise.resolve([])),
   refreshSession: jest.fn(),
@@ -503,6 +505,64 @@ test('OTP fields tell the phone they take a one-time code (SMS autofill)', async
   expect(input.props.textContentType).toBe('oneTimeCode'); // iOS
 });
 
+describe('Forgot password over WhatsApp (ADR-0054, as the web)', () => {
+  const ForgotPassword = require('../src/screens/auth/ForgotPassword/ForgotPassword').default;
+  const hasText = (root, text) => root.findAll(n => n.props.children === text).length > 0;
+
+  test('email or mobile -> code on WhatsApp -> code + new password -> sign in again', async () => {
+    const navigation = makeNavigation();
+    const root = await render(
+      <ForgotPassword navigation={navigation} route={{ params: { identifier: 'dealer@shree.in' } }} />,
+    );
+    expect(byProp(root, 'label', 'Email or mobile number').props.value).toBe('dealer@shree.in');
+    await press(root, 'Send code on WhatsApp');
+    expect(authApi.requestPasswordReset).toHaveBeenCalledWith('dealer@shree.in');
+
+    // Step 2: checks on the phone first, so a bad password doesn't spend the code.
+    expect(hasText(root, 'Send again in 30s')).toBe(true);
+    await press(root, 'Set new password');
+    expect(hasText(root, 'Enter the 6-digit code from WhatsApp.')).toBe(true);
+    await act(async () => byProp(root, 'maxLength', 6).props.onChangeText('123456'));
+    await type(root, 'label', 'New password', 'short');
+    await press(root, 'Set new password');
+    expect(hasText(root, 'Use at least 8 characters for your new password.')).toBe(true);
+    await type(root, 'label', 'New password', 'new-pass-123');
+    await type(root, 'label', 'Confirm new password', 'new-pass-124');
+    await press(root, 'Set new password');
+    expect(hasText(root, 'The two passwords do not match.')).toBe(true);
+    expect(authApi.resetPassword).not.toHaveBeenCalled();
+
+    // A wrong code: the web's message.
+    authApi.resetPassword.mockRejectedValueOnce(new ApiError({ status: 400, code: 'AUTH_OTP_INVALID', message: 'x' }));
+    await type(root, 'label', 'Confirm new password', 'new-pass-123');
+    await press(root, 'Set new password');
+    expect(hasText(root, 'That code is incorrect. Check WhatsApp and try again.')).toBe(true);
+
+    await press(root, 'Set new password');
+    expect(authApi.resetPassword).toHaveBeenLastCalledWith({
+      otpToken: 'reset-token-1',
+      code: '123456',
+      password: 'new-pass-123',
+    });
+    expect(hasText(root, 'Password changed')).toBe(true);
+    await press(root, 'Sign in with your new password');
+    expect(navigation.popTo).toHaveBeenCalledWith(ROUTES.EMAIL_LOGIN);
+  });
+
+  test('nothing typed: asks for it; a busy server: says to wait', async () => {
+    const root = await render(<ForgotPassword navigation={makeNavigation()} route={{ params: {} }} />);
+    await press(root, 'Send code on WhatsApp');
+    expect(hasText(root, 'Enter your email or mobile number.')).toBe(true);
+    expect(authApi.requestPasswordReset).not.toHaveBeenCalled();
+
+    authApi.requestPasswordReset.mockRejectedValueOnce(new ApiError({ status: 429, code: 'RATE_LIMITED', message: 'x' }));
+    await type(root, 'label', 'Email or mobile number', '9876543210');
+    await press(root, 'Send code on WhatsApp');
+    expect(hasText(root, 'Please wait a minute before asking for another code.')).toBe(true);
+    expect(byProp(root, 'title', 'Send code on WhatsApp')).toBeDefined(); // still on step 1
+  });
+});
+
 describe('Email + password sign-in (accounts Turag created, as the web)', () => {
   const EmailLogin = require('../src/screens/auth/EmailLogin/EmailLogin').default;
   const dealerSession = () => ({
@@ -530,6 +590,19 @@ describe('Email + password sign-in (accounts Turag created, as the web)', () => 
     expect(authApi.loginWithPassword).toHaveBeenCalledWith({ email: 'dealer@shree.in', password: 'wrong-pass' });
     expect(root.findAll(n => n.props.children === 'Email or password is incorrect.').length).toBeGreaterThan(0);
     expect(navigation.reset).not.toHaveBeenCalled();
+  });
+
+  test('"Forgot password?" opens the reset with the email already typed', async () => {
+    const navigation = makeNavigation();
+    const root = await render(<EmailLogin navigation={navigation} route={{ params: {} }} />);
+    await type(root, 'label', 'Email', ' dealer@shree.in ');
+    await act(async () =>
+      root
+        .findAll(n => n.props.accessibilityRole === 'button' && n.props.onPress)
+        .find(n => n.findAll(c => c.props.children === 'Forgot password?').length > 0)
+        .props.onPress(),
+    );
+    expect(navigation.navigate).toHaveBeenCalledWith(ROUTES.FORGOT_PASSWORD, { identifier: 'dealer@shree.in' });
   });
 
   test('a dealer is signed in and lands in their Business section', async () => {

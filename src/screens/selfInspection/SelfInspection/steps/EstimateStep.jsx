@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, View } from 'react-native';
-import { AppText, Icon } from '../../../../components';
+import { AppText, Icon, PaymentNotice } from '../../../../components';
 import { colors, fonts, radius, spacing } from '../../../../theme';
 import { fs, ms } from '../../../../utils/responsive';
 import { useT } from '../../../../i18n';
@@ -82,6 +82,7 @@ function EstimateStep({ si, vehicleLabel, onGoStep, onGoMissing }) {
             {si.submitError}
           </AppText>
         ) : null}
+        <PaymentNotice problem={si.payProblem} />
       </SectionCard>
     </View>
   );

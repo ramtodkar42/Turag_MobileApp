@@ -74,8 +74,55 @@ describe('support chat', () => {
     expect(view.props.source.uri).toBe(SUPPORT_CHAT_URL);
     expect(global.fetch).not.toHaveBeenCalled(); // no pass for a guest
     expect(hasText(root, 'Connecting you to Turag support…')).toBe(true);
+    // Loaded: the loader stays until the page reports in (its top bar is hidden by then).
     await act(async () => view.props.onLoadEnd());
+    expect(hasText(root, 'Connecting you to Turag support…')).toBe(true);
+    await act(async () =>
+      view.props.onMessage({
+        nativeEvent: { url: SUPPORT_CHAT_URL, data: JSON.stringify({ type: 'newChat', available: false }) },
+      }),
+    );
     expect(hasText(root, 'Connecting you to Turag support…')).toBe(false);
+  });
+
+  test('a page that never reports in is still shown shortly after loading', async () => {
+    jest.useFakeTimers();
+    const root = await render(<Chat navigation={{ goBack: jest.fn() }} />);
+    await act(async () => root.findByType(WebView).props.onLoadEnd());
+    await advance(1400);
+    expect(hasText(root, 'Connecting you to Turag support…')).toBe(true);
+    await advance(200);
+    expect(hasText(root, 'Connecting you to Turag support…')).toBe(false);
+  });
+
+  test('one header: "Turag Support", the page’s own bar hidden; New chat once a chat is going', async () => {
+    const { HIDE_PAGE_HEADER, PRESS_NEW_CHAT, WATCH_NEW_CHAT } = require('../src/screens/chat/Chat/supportPage');
+    const root = await render(<Chat navigation={{ goBack: jest.fn() }} />);
+    expect(hasText(root, 'Turag')).toBe(true);
+    expect(hasText(root, 'Online · replies in minutes')).toBe(true);
+    expect(root.findAll(n => n.props.accessibilityLabel === 'TURAG.AI')).toHaveLength(0); // no second header
+
+    const view = root.findByType(WebView);
+    expect(view.props.injectedJavaScriptBeforeContentLoaded).toBe(HIDE_PAGE_HEADER);
+    expect(HIDE_PAGE_HEADER).toContain('header { display: none !important; }');
+    expect(view.props.injectedJavaScript).toBe(WATCH_NEW_CHAT);
+    expect(hasText(root, 'New chat')).toBe(false); // nothing to start over yet
+
+    // Another site can't drive the header.
+    const say = (url, data) => act(async () => view.props.onMessage({ nativeEvent: { url, data } }));
+    await say('https://evil.example/', JSON.stringify({ type: 'newChat', available: true }));
+    expect(hasText(root, 'New chat')).toBe(false);
+
+    await say(`${SUPPORT_CHAT_URL}`, JSON.stringify({ type: 'newChat', available: true }));
+    expect(hasText(root, 'New chat')).toBe(true);
+    const newChat = root.findAll(n => n.props.accessibilityRole === 'button' && n.props.onPress).find(
+      n => n.findAll(c => c.props.children === 'New chat').length > 0,
+    );
+    await act(async () => newChat.props.onPress());
+    expect(WebView.injectJavaScript).toHaveBeenCalledWith(PRESS_NEW_CHAT);
+
+    await say(`${SUPPORT_CHAT_URL}`, JSON.stringify({ type: 'newChat', available: false }));
+    expect(hasText(root, 'New chat')).toBe(false);
   });
 
   test('signed in: the chat opens with the user’s own pass', async () => {

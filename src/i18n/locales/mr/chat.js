@@ -3,6 +3,9 @@ export default {
   'chat.activeNow': 'आता सक्रिय',
   // The support chat (Support Engine), as the web.
   'chat.support.connecting': 'Turag सपोर्टशी जोडत आहोत…',
+  'chat.support.title': 'सपोर्ट',
+  'chat.support.online': 'ऑनलाइन · काही मिनिटांत उत्तर',
+  'chat.support.newChat': 'नवीन चॅट',
   'chat.support.errorTitle': 'चॅट उघडता आली नाही',
   'chat.support.errorText': 'तुमचे इंटरनेट कनेक्शन तपासा आणि पुन्हा प्रयत्न करा.',
   'chat.typing': 'TURAG.AI लिहित आहे',

@@ -52,6 +52,16 @@ export const formatDateTime = (time, language = 'en') =>
     timeZone: IST,
   });
 
+// A day and time this year, short (India time): "28 Oct, 4:30 pm".
+export const formatDayTime = (time, language = 'en') =>
+  new Date(time).toLocaleString(LOCALES[language] ?? 'en-IN', {
+    day: 'numeric',
+    month: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: IST,
+  });
+
 // A booking's day and time on their own rows (India time):
 //   formatSlotDate: "25/10/2026"   formatSlotTime: "12:30 pm"
 export const formatSlotDate = time =>

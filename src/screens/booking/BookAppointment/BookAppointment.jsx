@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import {
   AppText,
   Button,
+  Card,
   CardListSkeleton,
   CheckRow,
   ChoiceChip,
@@ -78,6 +79,7 @@ function BookAppointment({ navigation, route }) {
       address,
       slot: form.slot,
       preparation: form.preparation,
+      whatsappUpdates: form.whatsappUpdates,
       price: slots.price,
     });
   };
@@ -227,6 +229,18 @@ function BookAppointment({ navigation, route }) {
           ))}
         </View>
       </TitledCard>
+
+      {/* Booking updates on WhatsApp (as the web): ticked to start with */}
+      <Card style={styles.card}>
+        <CheckRow
+          label={t('booking.whatsappUpdates.label')}
+          checked={form.whatsappUpdates}
+          onToggle={form.toggleWhatsappUpdates}
+        />
+        <AppText variant="caption" style={styles.help}>
+          {t('booking.whatsappUpdates.help')}
+        </AppText>
+      </Card>
     </ScreenContainer>
   );
 }

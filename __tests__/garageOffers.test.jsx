@@ -248,6 +248,102 @@ describe('My offers', () => {
   });
 });
 
+describe('Token refund on cancel (ADR-0051, as the web)', () => {
+  beforeEach(() => offerApi.resetMockOffers());
+  const money = rupees => ({ amount_minor: rupees * 100, currency: 'INR' });
+  const tokenPaid = quote => {
+    const raw = offerApi.mockOfferState().orders.ord_mock_1;
+    raw.status = 'TOKEN_PAID';
+    raw.token = { amount: money(10000), paid_at: '2026-10-28T05:00:00.000Z', cancellation_quote: quote, cancellation_refund: null };
+    return raw;
+  };
+
+  test('the order maps the token, the quote and the refund (server numbers only)', () => {
+    const { mapOrder } = require('../src/api/mappers/offer');
+    const order = mapOrder({
+      order_id: 'ord_1',
+      status: 'TOKEN_PAID',
+      agreed_price: money(500000),
+      token: {
+        amount: money(10000),
+        paid_at: '2026-10-28T05:00:00.000Z',
+        cancellation_quote: {
+          refund_percent: 75,
+          refund: money(7500),
+          retained: money(2500),
+          policy_version: 'v1',
+          next_change_at: '2026-10-28T17:00:00.000Z',
+        },
+        cancellation_refund: null,
+      },
+    });
+    expect(order.token).toEqual({
+      amount: 10000,
+      paidAt: Date.parse('2026-10-28T05:00:00.000Z'),
+      quote: { refundPercent: 75, refund: 7500, retained: 2500, nextChangeAt: Date.parse('2026-10-28T17:00:00.000Z') },
+      refund: null,
+    });
+    // Orders paid before the slabs (or not paid): no token.
+    expect(mapOrder({ order_id: 'ord_2', status: 'CREATED' }).token).toBeNull();
+  });
+
+  test('before paying, the refund schedule is shown next to Pay token', async () => {
+    const root = await render(<OfferDetails navigation={nav()} route={{ params: { offerId: 'off_mock_2' } }} />);
+    await wait(1300);
+    expect(hasText(root, 'within 12 hours you get 75% back, from 12 to 24 hours 50%, after 24 hours nothing')).toBe(true);
+  });
+
+  test('token paid: Cancel shows the fresh quote first, then the refund decided', async () => {
+    transferApi.getTransferChecklist.mockResolvedValue(checklist());
+    const raw = tokenPaid({
+      refund_percent: 75,
+      refund: money(7500),
+      retained: money(2500),
+      policy_version: 'v1',
+      next_change_at: '2026-10-28T17:00:00.000Z',
+    });
+    const getOrder = jest.spyOn(offerApi, 'getOrder');
+    const cancel = jest.spyOn(offerApi, 'cancelOrder').mockImplementation(async () => {
+      raw.status = 'CANCELLED';
+      raw.token.cancellation_refund = { refund_percent: 75, refund: money(7500), retained: money(2500), policy_version: 'v1' };
+      return null;
+    });
+    const root = await render(<OfferDetails navigation={nav()} route={{ params: { offerId: 'off_mock_2' } }} />);
+    await wait(1300);
+    expect(hasText(root, 'Token paid')).toBe(true);
+
+    getOrder.mockClear();
+    await act(async () => button(root, 'Cancel order').props.onPress());
+    await wait(300);
+    // A fresh quote from the server, then exactly its numbers.
+    expect(getOrder).toHaveBeenCalledWith('ord_mock_1');
+    expect(cancel).not.toHaveBeenCalled();
+    expect(hasText(root, 'Cancel this order?')).toBe(true);
+    expect(
+      hasText(root, 'If you cancel now, ₹7,500 (75% of the token) is refunded to your original payment method. ₹2,500 is not refunded.'),
+    ).toBe(true);
+    expect(hasText(root, 'The refund goes down at 28 Oct')).toBe(true);
+    expect(button(root, 'Keep my order')).toBeDefined();
+
+    await act(async () => button(root, 'Yes, cancel the order').props.onPress());
+    await wait(1300);
+    expect(cancel).toHaveBeenCalledWith('ord_mock_1');
+    expect(hasText(root, 'Cancelled. ₹7,500 (75% of the token) is being refunded.')).toBe(true);
+    expect(button(root, 'Cancel order')).toBeUndefined();
+  });
+
+  test('more than 24 hours after paying: says the token is not refunded', async () => {
+    transferApi.getTransferChecklist.mockResolvedValue(checklist());
+    tokenPaid({ refund_percent: 0, refund: money(0), retained: money(10000), policy_version: 'v1', next_change_at: null });
+    const root = await render(<OfferDetails navigation={nav()} route={{ params: { offerId: 'off_mock_2' } }} />);
+    await wait(1300);
+    await act(async () => button(root, 'Cancel order').props.onPress());
+    await wait(300);
+    expect(hasText(root, 'If you cancel now, the token is not refunded.')).toBe(true);
+    expect(hasText(root, 'The refund goes down')).toBe(false);
+  });
+});
+
 describe('Ownership transfer + handover gate', () => {
   test('handover needs Forms 29 and 30 (and the NOC when it applies)', () => {
     expect(isHandoverReady(checklist().items)).toBe(false);

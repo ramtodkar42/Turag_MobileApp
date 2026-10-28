@@ -1,11 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { BackHandler } from 'react-native';
-import {
-  PAYMENT_CANCELLED,
-  PAYMENT_UNAVAILABLE,
-  getMyBooking,
-  payForBooking,
-} from '../../../api/services/booking.api';
+import { getMyBooking, payForBooking } from '../../../api/services/booking.api';
+import { paymentProblem } from '../../../api/razorpay';
 import { ROUTES } from '../../../navigation/routes';
 import { currentHomeRoute } from '../../../navigation/homeRoute';
 import { refreshNotifications } from '../../../store/notificationStore';
@@ -38,13 +34,9 @@ export default function usePaymentStatus({ navigation, booking }) {
           prefill: paymentPrefill(),
         }));
       } catch (e) {
-        // The user's own cancel / an unavailable gateway carries a clear message;
-        // anything else is a generic failure.
-        const payError =
-          e.code === PAYMENT_UNAVAILABLE || e.code === PAYMENT_CANCELLED
-            ? e.message
-            : tNow('booking.summary.payError');
-        navigation.popTo(ROUTES.BOOKING_SUMMARY, { payError }, { merge: true });
+        // Back to the summary with what happened ({ kind, message }), shown
+        // there as a calm PaymentNotice card.
+        navigation.popTo(ROUTES.BOOKING_SUMMARY, { payError: paymentProblem(e) }, { merge: true });
         return;
       }
       // Only the server confirms payment (the verified webhook). If it hasn't yet

@@ -23,6 +23,9 @@ export default function useBookingForm({ vehicle, slots }) {
     openSpace: false,
     keysAvailable: false,
   });
+  // "Send me booking updates on WhatsApp" (as the web): ticked to start with;
+  // service updates only (marketing needs its own consent).
+  const [whatsappUpdates, setWhatsappUpdates] = useState(true);
 
   // Slots loaded: start on the first day that still has a free time.
   useEffect(() => {
@@ -61,6 +64,8 @@ export default function useBookingForm({ vehicle, slots }) {
     location,
     preparation,
     togglePreparation,
+    whatsappUpdates,
+    toggleWhatsappUpdates: () => setWhatsappUpdates(on => !on),
     ready,
   };
 }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import useDebounce from '../../../hooks/useDebounce';
-import { getMarketplaceVehicles } from '../../../api/services/vehicle.api';
+import { getMarketplaceVehicles, parseSearchQuery } from '../../../api/services/vehicle.api';
+import { withoutChips } from '../../../api/mappers/searchParse';
 import { useListedCount } from '../../../store/garageStore';
 import { onReconnect } from '../../../store/networkStore';
 import prefetchImages from '../../../utils/prefetchImages';
@@ -38,6 +39,10 @@ const prune = (filters, category) => {
   return rest;
 };
 
+// Search texts already understood (smart search), so a tab change, a filter
+// or the next page doesn't ask the server again. Small: the latest few.
+const PARSE_CACHE_LIMIT = 30;
+
 // What makes a first page "the same": vehicles, prices and reserved state.
 // (Photo links are left out: the backend signs a new short-lived link each time.)
 const signature = items => items.map(v => `${v.id}:${v.price}:${v.reserved ? 1 : 0}`).join('|');
@@ -51,10 +56,20 @@ const signature = items => items.map(v => `${v.id}:${v.price}:${v.reserved ? 1 :
 // - loadMore() fetches the next page (infinite scroll).
 // - Pull-to-refresh and "a listing went live" fetch fresh data.
 // - Answers that arrive after a newer search are ignored.
+// Smart search (as the web): the text is first understood by the server
+// ("diesel SUV under 10 lakh" -> fuel, body type, price) and searched as those
+// filters; each shows as a chip that can be removed. When nothing matches
+// exactly, the backend's closest vehicles are shown instead (`closest`).
 export default function useMarketplace() {
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [category, setCategory] = useState('all');
+  // Chips taken off for one search text: { query, keys }.
+  const [removed, setRemoved] = useState({ query: '', keys: [] });
+  // What the current search was understood as ({ chips } | null), and whether
+  // the grid shows the closest vehicles (nothing matched exactly).
+  const [smart, setSmart] = useState(null);
+  const [closest, setClosest] = useState(false);
   const [vehicles, setVehicles] = useState([]);
   const [nextCursor, setNextCursor] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -78,8 +93,44 @@ export default function useMarketplace() {
   const shownCount = useRef(0);
   shownCount.current = vehicles.length;
 
+  // search text -> what it was understood as (null: nothing / couldn't ask)
+  const parsed = useRef(new Map());
+
   const comingSoon = !!CATEGORIES.find(c => c.id === category)?.comingSoon;
-  const searchKey = JSON.stringify([debouncedQuery.trim(), category, filters]);
+  const text = debouncedQuery.trim();
+  const removedKeys = removed.query === text ? removed.keys : [];
+  const searchKey = JSON.stringify([text, category, filters, removedKeys]);
+
+  // One page: the text understood first (once per text), then the search.
+  // Returns { items, closest (bool: showing the nearest ones), nextCursor, smart }.
+  const searchPage = useCallback(async (key, cursor = null) => {
+    const [q, cat, chosen, dropped] = JSON.parse(key);
+    let understood = null;
+    if (q) {
+      if (!parsed.current.has(q)) {
+        const result = await parseSearchQuery(q);
+        parsed.current.set(q, result);
+        if (parsed.current.size > PARSE_CACHE_LIMIT) {
+          parsed.current.delete(parsed.current.keys().next().value);
+        }
+      }
+      understood = withoutChips(parsed.current.get(q), dropped);
+    }
+    const page = await getMarketplaceVehicles({
+      query: q,
+      category: cat,
+      filters: toFilters(chosen),
+      smart: understood?.filters ?? null,
+      cursor,
+    });
+    const nearest = !cursor && page.items.length === 0 && page.closest.length > 0;
+    return {
+      items: nearest ? page.closest : page.items,
+      closest: nearest,
+      nextCursor: nearest ? null : page.nextCursor,
+      smart: understood?.chips.length ? { chips: understood.chips } : null,
+    };
+  }, []);
 
   const remember = useCallback((key, entry) => {
     const map = cache.current;
@@ -124,6 +175,8 @@ export default function useMarketplace() {
       // Seen before: show it now - no placeholders, no blink.
       setVehicles(cached.items);
       setNextCursor(cached.nextCursor);
+      setSmart(cached.smart ?? null);
+      setClosest(!!cached.closest);
       setError(null);
       setLoading(false);
       setUpdating(false);
@@ -145,12 +198,13 @@ export default function useMarketplace() {
       }
     }
 
-    const [q, cat, chosen] = JSON.parse(searchKey);
-    getMarketplaceVehicles({ query: q, category: cat, filters: toFilters(chosen) })
-      .then(({ items, nextCursor: cursor }) => {
+    searchPage(searchKey)
+      .then(({ items, closest: nearest, nextCursor: cursor, smart: understood }) => {
         if (id !== requestId.current) {
           return;
         }
+        setSmart(understood);
+        setClosest(nearest);
         const firstPage = signature(items);
         const keepScrolled = cached && cached.firstPage === firstPage;
         if (keepScrolled) {
@@ -159,7 +213,14 @@ export default function useMarketplace() {
         } else {
           setVehicles(items);
           setNextCursor(cursor);
-          remember(searchKey, { items, nextCursor: cursor, firstPage, fetchedAt: Date.now() });
+          remember(searchKey, {
+            items,
+            nextCursor: cursor,
+            firstPage,
+            fetchedAt: Date.now(),
+            smart: understood,
+            closest: nearest,
+          });
           // Warm the cache with the cards' photos so the grid paints instantly.
           prefetchImages(items.map(v => v.image));
         }
@@ -171,6 +232,8 @@ export default function useMarketplace() {
           // The previous search's cards don't belong to this one.
           setVehicles([]);
           setNextCursor(null);
+          setSmart(null);
+          setClosest(false);
           setError(e.message || tNow('home.error.load'));
         }
       })
@@ -181,7 +244,7 @@ export default function useMarketplace() {
           setRefreshing(false);
         }
       });
-  }, [searchKey, comingSoon, reload, listedCount, remember]);
+  }, [searchKey, comingSoon, reload, listedCount, remember, searchPage]);
 
   const loadMore = useCallback(() => {
     if (!nextCursor || loading || loadingMore || refreshing) {
@@ -189,9 +252,8 @@ export default function useMarketplace() {
     }
     const id = requestId.current;
     const key = searchKey;
-    const [q, cat, chosen] = JSON.parse(key);
     setLoadingMore(true);
-    getMarketplaceVehicles({ query: q, category: cat, filters: toFilters(chosen), cursor: nextCursor })
+    searchPage(key, nextCursor)
       .then(({ items, nextCursor: cursor }) => {
         if (id !== requestId.current) {
           return;
@@ -213,7 +275,14 @@ export default function useMarketplace() {
           setLoadingMore(false);
         }
       });
-  }, [nextCursor, loading, loadingMore, refreshing, searchKey, remember]);
+  }, [nextCursor, loading, loadingMore, refreshing, searchKey, remember, searchPage]);
+
+  // Takes one understood filter off this search (its chip's × ).
+  const removeChip = chipKey =>
+    setRemoved(prev => ({
+      query: text,
+      keys: [...(prev.query === text ? prev.keys : []), chipKey],
+    }));
 
   // Category tab (and the Car / Bike filter): drops a make / model that
   // doesn't fit the new type.
@@ -285,6 +354,11 @@ export default function useMarketplace() {
     searching: query.trim() !== '' && (query.trim() !== debouncedQuery.trim() || loading || updating),
     // New results on their way over the cards on screen (any search / filter / tab).
     updating,
+    // Smart search: what the text was understood as ({ chips } | null, only
+    // while that text is in the box), and whether the closest vehicles show.
+    smart: text && query.trim() === text ? smart : null,
+    removeChip,
+    closest,
     category,
     setCategory: changeCategory,
     comingSoon,

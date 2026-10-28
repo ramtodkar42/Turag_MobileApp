@@ -62,6 +62,8 @@ export default {
   'booking.section.time': 'तारीख आणि वेळ',
   'booking.section.where': 'वाहन कुठे असेल',
   'booking.section.onTheDay': 'त्या दिवशी',
+  'booking.whatsappUpdates.label': 'बुकिंग अपडेट मला WhatsApp वर पाठवा',
+  'booking.whatsappUpdates.help': 'बुकिंगची पुष्टी आणि इन्स्पेक्टरची माहिती. मार्केटिंग मेसेज नाहीत. हे तुमच्या प्रोफाइलमध्ये बंद करू शकता.',
   'booking.category.PASSENGER': 'कार',
   'booking.category.TWO_WHEELER': 'टू-व्हीलर',
   'booking.category.PASSENGER_info': '68 तपासण्या · 45 मिनिटे',
@@ -104,6 +106,9 @@ export default {
   'booking.summary.cancelNote':
     'वेळेच्या 2 तास आधीपर्यंत मोफत रद्द करता येते. इन्स्पेक्टर तुमच्यापर्यंत पोहोचू न शकल्यास शुल्क नाही.',
   'booking.summary.payError': 'पेमेंट झाले नाही. पुन्हा प्रयत्न करण्यासाठी पुन्हा पैसे भरा वर टॅप करा.',
+  'booking.summary.payCancelled': 'तुम्ही पेमेंट पेज बंद केले, त्यामुळे कोणतीही रक्कम कापली गेली नाही. तयार असाल तेव्हा पैसे भरा वर टॅप करा.',
+  'booking.summary.payFailed': 'तुमच्या बँकेने किंवा UPI ॲपने हे मंजूर केले नाही. पुन्हा प्रयत्न करण्यासाठी पैसे भरा वर टॅप करा किंवा पेमेंटची दुसरी पद्धत निवडा. खात्यातून पैसे कापले गेले असल्यास ते आपोआप परत येतील.',
+  'booking.summary.payNetwork': 'पेमेंट पेज उघडले नाही. तुमचे इंटरनेट तपासा आणि पुन्हा पैसे भरा वर टॅप करा.',
   'booking.summary.payDescription': 'डोअरस्टेप तपासणी शुल्क',
   'booking.summary.payUnavailable': 'अॅपमध्ये ऑनलाइन पेमेंट अजून उपलब्ध नाही. कृपया ही बुकिंग Turag वेबसाइटवर पूर्ण करा.',
   'booking.summary.slotGone': 'ही वेळ आता उपलब्ध नाही. कृपया मागे जाऊन दुसरी निवडा.',

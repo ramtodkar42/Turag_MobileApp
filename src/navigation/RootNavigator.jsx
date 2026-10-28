@@ -5,6 +5,7 @@ import Intro from '../screens/onboarding/Intro/Intro';
 import Login from '../screens/auth/Login/Login';
 import VerifyOtp from '../screens/auth/VerifyOtp/VerifyOtp';
 import EmailLogin from '../screens/auth/EmailLogin/EmailLogin';
+import ForgotPassword from '../screens/auth/ForgotPassword/ForgotPassword';
 import CompleteProfile from '../screens/auth/CompleteProfile/CompleteProfile';
 import AuthSuccess from '../screens/auth/AuthSuccess/AuthSuccess';
 import ChatSplash from '../screens/chat/ChatSplash/ChatSplash';
@@ -144,6 +145,7 @@ function RootNavigator({ initialRoute = { name: ROUTES.INTRO } }) {
       />
       <Stack.Screen name={ROUTES.VERIFY_OTP} component={VerifyOtp} />
       <Stack.Screen name={ROUTES.EMAIL_LOGIN} component={EmailLogin} />
+      <Stack.Screen name={ROUTES.FORGOT_PASSWORD} component={ForgotPassword} />
       <Stack.Screen
         name={ROUTES.COMPLETE_PROFILE}
         component={CompleteProfile}

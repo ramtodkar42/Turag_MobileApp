@@ -104,6 +104,28 @@ export const loginWithPassword = async ({ email, password }) => {
   };
 };
 
+// Forgot password (ADR-0054, as the web's /forgot-password): asks for a reset
+// code for the account with this email or mobile number. It goes by WhatsApp
+// to the account's registered number. The answer is the same whether or not an
+// account matched. Returns { otpToken, resendAfter (s) }.
+export const requestPasswordReset = async identifier => {
+  const data = await request(ENDPOINTS.PASSWORD_FORGOT, {
+    method: 'POST',
+    body: { identifier: identifier.trim() },
+    auth: false,
+  });
+  return { otpToken: data.otp_token, resendAfter: data.resend_after ?? 0 };
+};
+
+// Sets the new password with the code. Every session of the account is signed
+// out; the user then signs in again (no session is made here).
+export const resetPassword = ({ otpToken, code, password }) =>
+  request(ENDPOINTS.PASSWORD_RESET, {
+    method: 'POST',
+    body: { otp_token: otpToken, code: code.trim(), password },
+    auth: false,
+  });
+
 // "Continue with Google" (as the web): the Supabase token from the Google
 // sign-in. Returns either
 //   { status: 'SESSION', accessToken, refreshToken, expiresIn, user, consentRequired }

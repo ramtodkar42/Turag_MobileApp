@@ -45,7 +45,33 @@ export const mapOffer = o => {
   };
 };
 
-// OrderView -> { id, listingId, offerId, agreedPrice (₹), status, cancelReason, vehicle, handoverAt }
+// A token cancellation split (server numbers only, never worked out here):
+// { refundPercent, refund (₹), retained (₹), nextChangeAt (ms, quotes only) }.
+const mapRefund = r =>
+  r
+    ? {
+        refundPercent: r.refund_percent,
+        refund: toRupees(r.refund) ?? 0,
+        retained: toRupees(r.retained) ?? 0,
+        nextChangeAt: toTime(r.next_change_at),
+      }
+    : null;
+
+// The booking token (ADR-0051), null until it's paid: { amount (₹), paidAt,
+// quote (TOKEN_PAID: what cancelling right now would refund), refund
+// (CANCELLED after paying: what was decided) }.
+const mapToken = tk =>
+  tk
+    ? {
+        amount: toRupees(tk.amount),
+        paidAt: toTime(tk.paid_at),
+        quote: mapRefund(tk.cancellation_quote),
+        refund: mapRefund(tk.cancellation_refund),
+      }
+    : null;
+
+// OrderView -> { id, listingId, offerId, agreedPrice (₹), status, cancelReason,
+// vehicle, handoverAt, token }
 export const mapOrder = o => ({
   id: o.order_id,
   listingId: o.listing_id,
@@ -57,6 +83,7 @@ export const mapOrder = o => ({
   createdAt: toTime(o.created_at),
   updatedAt: toTime(o.updated_at),
   handoverAt: toTime(o.handover_at),
+  token: mapToken(o.token),
 });
 
 // Ownership-transfer checklist item (§8.1) -> { code, label, required,

@@ -12,13 +12,22 @@ import { comingSoonPlace } from '../comingSoonPlace';
 // the web - asks for an ID first if the user isn't verified yet ("Verify your
 // identity"), and opens "Hold On", which opens the payment page (Razorpay /
 // PhonePe) straight away. If paying fails, "Hold On" comes back here with
-// params.payError, and paying again reuses the same booking (no duplicate).
+// params.payError ({ kind, message }), and paying again reuses the same
+// booking (no duplicate).
 // The verification status is read as soon as this screen opens, so tapping
 // Pay doesn't wait for it.
 export default function usePayBooking({ navigation, route }) {
   const t = useT();
-  const { category, address, slot, preparation, vehicle, valuation, payError } =
-    route.params;
+  const {
+    category,
+    address,
+    slot,
+    preparation,
+    whatsappUpdates,
+    vehicle,
+    valuation,
+    payError,
+  } = route.params;
   const created = useRef(null);
   const sending = useRef(false);
   const verification = useRef(null);
@@ -43,6 +52,7 @@ export default function usePayBooking({ navigation, route }) {
         address,
         slotAt: slot.slotAt,
         preparation,
+        whatsappUpdates,
         vehicleId: vehicle?.vehicleId ?? null,
         valuationId: valuation?.valuationId ?? null,
       });
@@ -78,5 +88,7 @@ export default function usePayBooking({ navigation, route }) {
     }
   };
 
-  return { pay, busy, error: error || payError || '' };
+  // error: booking problems (time taken...); payProblem: the last payment
+  // that didn't finish ({ kind, message }), until Pay is tapped again.
+  return { pay, busy, error, payProblem: error ? null : payError ?? null };
 }

@@ -3,6 +3,7 @@ import { ActivityIndicator, Animated, FlatList, StyleSheet, View } from 'react-n
 import { ms } from '../../../utils/responsive';
 import {
   AppRefreshControl,
+  AI_BUTTON_GAP,
   FloatingAIButton,
   PinnedToBottom,
   ScreenContainer,
@@ -173,7 +174,7 @@ function Home({ navigation, route }) {
 
       {/* Like the tab bar: stays put when the keyboard opens, hidden while typing. */}
       {/* Floats clearly ABOVE the tab bar (tab bar space + a comfortable gap). */}
-      <PinnedToBottom offset={tabBarSpace + spacing.xl} hidden={keyboardOpen} style={styles.ai}>
+      <PinnedToBottom offset={tabBarSpace + AI_BUTTON_GAP} hidden={keyboardOpen} style={styles.ai}>
         <FloatingAIButton onPress={() => navigation.navigate(ROUTES.CHAT_SPLASH)} />
       </PinnedToBottom>
 

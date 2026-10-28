@@ -1,10 +1,11 @@
 // Vehicle / marketplace API (buyer side, no sign-in needed).
 // Real backend when USE_REAL_API.marketplace is true (src/api/config.js), mock otherwise.
 import { ApiError, request } from '../client';
-import { USE_REAL_API } from '../config';
+import { BACKEND_URL, USE_REAL_API } from '../config';
 import { tNow } from '../../i18n';
 import { ENDPOINTS } from '../endpoints';
 import { CATEGORY_TO_API, mapListingDetail, mapListingSummary } from '../mappers/listing';
+import { mapSearchParse } from '../mappers/searchParse';
 import sampleVehicles from '../mock/vehicles';
 import listings from '../mock/listings';
 
@@ -43,35 +44,73 @@ const mockSearch = ({ query, category, filters }) => {
   return { items, nextCursor: null };
 };
 
+const SEARCH_PARSE_TIMEOUT_MS = 6000;
+
+// Smart search (as the web's parseQueryWithAi): what a typed / spoken search
+// means, e.g. "diesel SUV under 10 lakh in Pune" -> fuel, body type, price and
+// city. The server's own parser (/api/ai/search-parse, no sign-in). Returns
+// mapSearchParse's { filters, chips }, or null when nothing was understood or
+// it couldn't be asked (the search then goes as plain text).
+export const parseSearchQuery = async query => {
+  const text = query.trim();
+  if (!text || !real()) {
+    return null;
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), SEARCH_PARSE_TIMEOUT_MS);
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/ai/search-parse?q=${encodeURIComponent(text)}`, {
+      headers: { Accept: 'application/json' },
+      credentials: 'omit',
+      signal: controller.signal,
+    });
+    const data = res.ok ? await res.json() : null;
+    return data?.success ? mapSearchParse(data.parsed) : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
 // Marketplace grid. filters (backend parameter names): { city?, fuel?, make?,
 // model?, body_type?, transmission?, grade_min?, tier? ('BUDGET' | 'ASSURED' |
 // 'PREMIUM'), price_min?, price_max? (rupees) }.
+// smart: what smart search understood (parseSearchQuery's filters, any
+// backend names) - then the text isn't sent as well, as on the web; the
+// filters picked on screen win over it.
 // cursor: the previous page's nextCursor (null = first page).
-// Returns { items, nextCursor } - nextCursor is null on the last page.
+// Returns { items, closest, nextCursor } - nextCursor is null on the last page;
+// closest: the backend's nearest vehicles when nothing matches exactly.
 export const getMarketplaceVehicles = async ({
   query = '',
   category = 'all',
   filters = {},
+  smart = null,
   cursor = null,
 } = {}) => {
   if (!real()) {
     await wait(400);
-    return mockSearch({ query, category, filters });
+    return { ...mockSearch({ query, category, filters }), closest: [] };
   }
+  const understood = smart && Object.keys(smart).length > 0 ? smart : null;
   const data = await request(
     `${ENDPOINTS.MARKETPLACE_LISTINGS}${toQuery({
-      q: query.trim() || undefined,
-      category: CATEGORY_TO_API[category],
-      city: filters.city,
-      fuel: filters.fuel,
-      make: filters.make,
-      model: filters.model,
-      body_type: filters.body_type,
-      transmission: filters.transmission,
+      ...understood,
+      q: understood ? undefined : query.trim() || undefined,
+      category: CATEGORY_TO_API[category] ?? understood?.category,
+      city: filters.city ?? understood?.city,
+      fuel: filters.fuel ?? understood?.fuel,
+      make: filters.make ?? understood?.make,
+      model: filters.model ?? understood?.model,
+      body_type: filters.body_type ?? understood?.body_type,
+      transmission: filters.transmission ?? understood?.transmission,
       grade_min: filters.grade_min,
       tier: filters.tier,
-      price_min: filters.price_min,
-      price_max: filters.price_max,
+      price_min: filters.price_min ?? understood?.price_min,
+      price_max: filters.price_max ?? understood?.price_max,
+      min_price: filters.price_min ?? understood?.min_price,
+      max_price: filters.price_max ?? understood?.max_price,
       limit: PAGE_SIZE,
       cursor,
     })}`,
@@ -79,6 +118,7 @@ export const getMarketplaceVehicles = async ({
   );
   return {
     items: (data.data ?? []).map(mapListingSummary),
+    closest: cursor ? [] : (data.closest_matches ?? []).map(mapListingSummary),
     nextCursor: data.next_cursor ?? null,
   };
 };

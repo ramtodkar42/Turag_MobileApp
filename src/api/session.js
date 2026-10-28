@@ -19,6 +19,9 @@ let accessExpiresAt = 0;
 // What is in the keychain: { refreshToken, user, pending }.
 let stored = null;
 let refreshing = null;
+// Bumped on every sign-in and sign-out. A refresh that finishes under an older
+// generation belongs to a session that is gone and must not touch this one.
+let generation = 0;
 const expiredListeners = new Set();
 
 const setAccess = (token, expiresIn) => {
@@ -37,6 +40,7 @@ const notifyExpired = () => expiredListeners.forEach(listener => listener());
 // (in the background - signing out never waits for the network).
 export const endSession = async ({ remote = false } = {}) => {
   const token = stored?.refreshToken;
+  generation += 1;
   accessToken = null;
   accessExpiresAt = 0;
   stored = null;
@@ -52,13 +56,23 @@ const doRefresh = async () => {
   if (!token) {
     return null;
   }
+  const startedIn = generation;
   try {
     const next = await refreshSession(token);
+    if (startedIn !== generation) {
+      // Signed out (or in as someone else) while this was in flight: drop it,
+      // or the old session would be written back to the keychain.
+      return null;
+    }
     setAccess(next.accessToken, next.expiresIn);
     // Save the rotated token before anything else can use the old one.
     await persist({ ...stored, refreshToken: next.refreshToken });
     return accessToken;
   } catch (e) {
+    if (startedIn !== generation) {
+      // The session this refresh was for is already gone.
+      return null;
+    }
     if (e instanceof ApiError && e.isAuthError) {
       // The session is over (expired, revoked or reused): sign in again.
       await endSession();
@@ -72,9 +86,13 @@ const doRefresh = async () => {
 
 export const refreshAccessToken = () => {
   if (!refreshing) {
-    refreshing = doRefresh().finally(() => {
-      refreshing = null;
+    const current = doRefresh().finally(() => {
+      // Only clear our own: after a sign-out a newer refresh may be running.
+      if (refreshing === current) {
+        refreshing = null;
+      }
     });
+    refreshing = current;
   }
   return refreshing;
 };
@@ -90,6 +108,8 @@ setAuthHandler({ getAccessToken, refreshAccessToken });
 
 // After OTP verify: keep the new session. `pending`: sign-up steps still to do.
 export const startSession = async ({ accessToken: token, expiresIn, refreshToken, user, pending = null }) => {
+  generation += 1;
+  refreshing = null;
   setAccess(token, expiresIn);
   await persist({ refreshToken, user, pending });
 };

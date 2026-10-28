@@ -14,6 +14,7 @@ import {
   DatePickerSheet,
   InfoNote,
   KeyValueRow,
+  PaymentNotice,
   TextField,
 } from '../src/components';
 import ConfirmDialog from '../src/components/feedback/ConfirmDialog';
@@ -171,7 +172,10 @@ describe('Book a doorstep inspection', () => {
       'I will be present with the original RC',
       'The vehicle will be parked in open space',
       'Keys and service records will be available',
+      'Send me booking updates on WhatsApp',
     ]);
+    // WhatsApp updates are ticked to start with (as the web).
+    expect(checks[3].props.checked).toBe(true);
     await act(async () => checks[0].props.onToggle());
 
     await act(async () => button(root, 'Continue').props.onPress());
@@ -183,6 +187,7 @@ describe('Book a doorstep inspection', () => {
       address: { ...address, geo: null },
       slot,
       preparation: { rcPresent: true, openSpace: false, keysAvailable: false },
+      whatsappUpdates: true,
       price: 799,
     });
   });
@@ -635,18 +640,19 @@ describe('Booking summary and confirmation', () => {
       booking: expect.objectContaining({ id: expect.stringMatching(/^bkg_mock_/), status: 'PENDING_PAYMENT' }),
     });
 
-    // Back here after a failed payment: the error, and paying again reuses the booking.
+    // Back here after a declined payment: a calm notice card (title + what to
+    // do), and paying again reuses the booking.
+    const declined = { kind: 'declined', message: 'Your bank or UPI app didn’t approve it.' };
     await act(async () =>
       tree.update(
         <SafeAreaProvider initialMetrics={metrics}>
-          <BookingSummary
-            navigation={navigation}
-            route={{ params: { ...params, payError: 'Payment didn’t go through. Tap Pay again to retry.' } }}
-          />
+          <BookingSummary navigation={navigation} route={{ params: { ...params, payError: declined } }} />
         </SafeAreaProvider>,
       ),
     );
-    expect(hasText(root, 'Payment didn’t go through.')).toBe(true);
+    expect(root.findAllByType(PaymentNotice)[0].props.problem).toEqual(declined);
+    expect(hasText(root, 'Payment not approved')).toBe(true);
+    expect(hasText(root, 'Your bank or UPI app didn’t approve it.')).toBe(true);
     await act(async () => {
       button(root, 'Pay ₹799').props.onPress();
     });
@@ -693,7 +699,7 @@ describe('Booking summary and confirmation', () => {
     await advance(200);
     expect(navigation.popTo).toHaveBeenCalledWith(
       ROUTES.BOOKING_SUMMARY,
-      { payError: 'Payment didn’t go through. Tap Pay again to retry.' },
+      { payError: { kind: 'failed', message: 'Payment didn’t go through. Tap Pay again to retry.' } },
       { merge: true },
     );
     expect(navigation.reset).not.toHaveBeenCalled();
@@ -988,6 +994,7 @@ describe('real backend', () => {
       address: { ...address, city: 'Pune', geo: { lat: 18.559, lng: 73.7868 } }, // picked on the map
       slotAt: '2026-10-07T04:30:00.000Z',
       preparation: { rcPresent: true, openSpace: false, keysAvailable: true },
+      whatsappUpdates: true,
       vehicleId: 'veh_1',
       valuationId: 'val_1',
     });
@@ -1011,6 +1018,7 @@ describe('real backend', () => {
       vehicle_id: 'veh_1',
       valuation_id: 'val_1',
       inspection_consent: true,
+      whatsapp_updates: true, // "Send me booking updates on WhatsApp"
     });
     expect(booking).toEqual(
       expect.objectContaining({ id: 'bkg_1', status: 'REQUESTED', inspectorAssigned: false, price: 799, city: 'Pune' }),

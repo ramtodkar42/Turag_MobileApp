@@ -14,6 +14,12 @@ export default {
   'common.next': 'Next',
   'common.back': 'Go back',
   'common.retry': 'Try again',
+  'common.payNotice.cancelled': 'Payment cancelled',
+  'common.payNotice.declined': 'Payment not approved',
+  'common.payNotice.network': 'Couldn’t connect',
+  'common.payNotice.unavailable': 'Payment not available',
+  'common.payNotice.failed': 'Payment not completed',
+  'common.payNotice.awaiting': 'Confirming your payment',
   'common.upload': 'Upload',
   'common.change': 'Change',
   // Changing an uploaded photo / document (the old one stays until the new one is in)

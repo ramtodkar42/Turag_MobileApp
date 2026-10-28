@@ -106,6 +106,8 @@ export const mapReport = r => {
 
   return {
     inspectionId: r.identity?.inspection_id ?? null,
+    // The public check that the report is genuine: /verify/<token> (null until issued).
+    verificationToken: r.identity?.verification_token ?? null,
     vehicle: {
       make: r.vehicle?.make ?? '',
       model: r.vehicle?.model ?? '',

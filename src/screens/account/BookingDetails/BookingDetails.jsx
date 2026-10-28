@@ -8,6 +8,7 @@ import {
   FadeIn,
   Header,
   InfoNote,
+  PaymentNotice,
   ScreenContainer,
   StatusTimeline,
   StatusView,
@@ -163,13 +164,14 @@ function BookingDetails({ navigation, route }) {
             {payment.note ? (
               <AppText
                 variant="caption"
-                color={payment.note.tone === 'error' ? colors.danger : colors.body}
+                color={colors.body}
                 style={styles.payNote}
                 accessibilityLiveRegion="polite"
               >
                 {payment.note.text}
               </AppText>
             ) : null}
+            <PaymentNotice problem={payment.problem} style={styles.payNote} />
           </ActionPanel>
         ) : null}
 

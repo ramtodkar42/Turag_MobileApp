@@ -117,8 +117,9 @@ export const withOrders = offers =>
     ),
   );
 
-// Cancels an order (while CREATED; the buyer may also cancel after paying the
-// token, which refunds it). Returns the order.
+// Cancels an order (while CREATED; after the token is paid only the buyer can,
+// and the refund depends on the time since paying - ADR-0051: the server
+// decides it and returns it on order.token.refund). Returns the order.
 export const cancelOrder = async (orderId, reason = null) => {
   if (!real()) {
     await wait(600);

@@ -43,6 +43,7 @@ export const createInspectionBooking = async ({
   address,
   slotAt,
   preparation = {},
+  whatsappUpdates = false,
   vehicleId = null,
   valuationId = null,
 }) => {
@@ -70,6 +71,9 @@ export const createInspectionBooking = async ({
     valuation_id: valuationId,
     // DPDP inspection consent (as the web): the person agreed before booking.
     inspection_consent: true,
+    // "Send me booking updates on WhatsApp": true opts in (service updates
+    // only); false changes nothing - an earlier opt-in is never withdrawn here.
+    whatsapp_updates: !!whatsappUpdates,
   };
   if (!real()) {
     await wait(900);

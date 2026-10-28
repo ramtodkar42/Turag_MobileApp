@@ -100,11 +100,18 @@ jest.mock('@react-native-community/geolocation', () => ({
   },
 }));
 
-// Web view (react-native-webview, the booking map): a plain view; tests send
-// its messages through the onMessage prop.
+// Web view (react-native-webview: the booking map, the support chat): a plain
+// view; tests send its messages through the onMessage prop, and what the app
+// runs inside it lands on WebView.injectJavaScript (a jest.fn).
 jest.mock('react-native-webview', () => {
+  const { forwardRef, useImperativeHandle } = require('react');
   const { View } = require('react-native');
-  const WebView = props => <View {...props} />;
+  const injectJavaScript = jest.fn();
+  const WebView = forwardRef((props, ref) => {
+    useImperativeHandle(ref, () => ({ injectJavaScript }));
+    return <View {...props} />;
+  });
+  WebView.injectJavaScript = injectJavaScript;
   return { __esModule: true, default: WebView, WebView };
 });
 
@@ -177,6 +184,14 @@ jest.mock('@react-native-firebase/messaging', () => {
     onNotificationOpenedApp: on('opened'),
     __emit: (event, value) => handlers[event]?.(value),
   };
+});
+
+// Network status (@react-native-community/netinfo): the library's mock, always
+// online. Without it the store falls back to request-outcome reports, so one
+// simulated network error would leave every later request in the file offline.
+jest.mock('@react-native-community/netinfo', () => {
+  const NetInfo = require('@react-native-community/netinfo/jest/netinfo-mock');
+  return { __esModule: true, default: NetInfo, ...NetInfo };
 });
 
 // App settings (async-storage v3): the library's in-memory storage.

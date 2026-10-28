@@ -15,7 +15,7 @@ export { default as ChoiceChip } from './common/ChoiceChip';
 export { default as DateCalendar } from './common/DateCalendar';
 export { default as DatePickerField } from './common/DatePickerField';
 export { default as Divider } from './common/Divider';
-export { default as FloatingAIButton } from './common/FloatingAIButton';
+export { default as FloatingAIButton, AI_BUTTON_GAP } from './common/FloatingAIButton';
 export { default as FillImage } from './common/FillImage';
 export { default as HeaderCard } from './common/HeaderCard';
 export { default as IconButton } from './common/IconButton';
@@ -42,6 +42,7 @@ export { default as StatusTimeline } from './common/StatusTimeline';
 export { default as Stepper } from './common/Stepper';
 export { default as Tag } from './common/Tag';
 export { default as TuragLogo } from './common/TuragLogo';
+export { default as SupportBadge } from './common/SupportBadge';
 export { default as TuragWordmark } from './common/TuragWordmark';
 export { default as TextField } from './common/TextField';
 export { default as UploadRow } from './common/UploadRow';
@@ -67,6 +68,7 @@ export { default as SkeletonBox } from './feedback/SkeletonBox';
 export { default as SkeletonPulse } from './feedback/SkeletonPulse';
 export { default as Spinner } from './feedback/Spinner';
 export { default as StatusView } from './feedback/StatusView';
+export { default as PaymentNotice } from './feedback/PaymentNotice';
 export { default as SuccessSheet } from './feedback/SuccessSheet';
 
 // icons

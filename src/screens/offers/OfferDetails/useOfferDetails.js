@@ -6,10 +6,11 @@ import {
   cancelOrder,
   counterOffer,
   getMyOffers,
+  getOrder,
   payOrderToken,
   withdrawOffer,
 } from '../../../api/services/offer.api';
-import { PAYMENT_CANCELLED, PAYMENT_UNAVAILABLE } from '../../../api/razorpay';
+import { PAYMENT_CANCELLED, PAYMENT_UNAVAILABLE, paymentProblem } from '../../../api/razorpay';
 import { getVehicleDetails } from '../../../api/services/vehicle.api';
 import { ApiError } from '../../../api/client';
 import { refreshNotifications } from '../../../store/notificationStore';
@@ -31,10 +32,11 @@ const loadOffer = async offerId => {
 // The offer page's data and actions: answer a counter, counter back, withdraw,
 // and once accepted pay the token / cancel the order. Every action reloads the
 // offer (the server's word is final).
-// pay: { phase: 'paying' | 'awaiting' | 'paid' | 'failed' | 'unavailable', amount (₹ token), message }.
+// pay: { phase: 'paying' | 'awaiting' | 'paid' | 'failed' | 'unavailable', amount (₹ token),
+// kind + message (failed / unavailable: shown as a PaymentNotice) }.
 export default function useOfferDetails(offerId) {
   const remote = useRemoteData(() => loadOffer(offerId), [offerId]);
-  const [busy, setBusy] = useState(null); // 'accept' | 'withdraw' | 'cancel' | 'counter'
+  const [busy, setBusy] = useState(null); // 'accept' | 'withdraw' | 'cancel' | 'quote' | 'counter'
   const [actionError, setActionError] = useState('');
   const [pay, setPay] = useState(null);
   const paying = useRef(false);
@@ -61,6 +63,21 @@ export default function useOfferDetails(offerId) {
   const accept = () => run('accept', () => acceptOffer(offer.id));
   const withdraw = () => run('withdraw', () => withdrawOffer(offer.id));
   const cancel = () => run('cancel', () => cancelOrder(offer.order.id));
+
+  // Before cancelling a paid order: the order again, for a fresh refund quote
+  // from the server (it shrinks with time). Null when it couldn't be read.
+  const loadCancelQuote = async () => {
+    setBusy('quote');
+    setActionError('');
+    try {
+      return await getOrder(offer.order.id);
+    } catch (e) {
+      setActionError(e?.message || tNow('offers.error.action'));
+      return null;
+    } finally {
+      setBusy(null);
+    }
+  };
   const counter = async amount => {
     await counterOffer(offer.id, amount);
     await reload();
@@ -79,18 +96,17 @@ export default function useOfferDetails(offerId) {
         refreshNotifications();
         await reload();
       } else if (result === 'failed') {
-        setPay({ phase: 'failed', amount, message: tNow('offers.pay.failed') });
+        setPay({ phase: 'failed', amount, kind: 'declined', message: tNow('offers.pay.failed') });
       } else {
         setPay({ phase: 'awaiting', amount });
       }
     } catch (e) {
       if (e?.code === PAYMENTS_UNAVAILABLE || e?.code === PAYMENT_UNAVAILABLE) {
-        setPay({ phase: 'unavailable', message: e.message });
+        setPay({ phase: 'unavailable', kind: 'unavailable', message: e.message });
+      } else if (e?.code === PAYMENT_CANCELLED) {
+        setPay({ phase: 'failed', ...paymentProblem(e) });
       } else {
-        setPay({
-          phase: 'failed',
-          message: e?.code === PAYMENT_CANCELLED ? e.message : e?.message || tNow('offers.pay.failed'),
-        });
+        setPay({ phase: 'failed', kind: 'failed', message: e?.message || tNow('offers.pay.failed') });
       }
     } finally {
       paying.current = false;
@@ -101,5 +117,19 @@ export default function useOfferDetails(offerId) {
   // Once the server has it, the order moves on and the token panel goes.
   const checkAgain = () => reload();
 
-  return { ...remote, offer, listing: remote.data?.listing ?? null, busy, actionError, accept, withdraw, cancel, counter, pay, payToken, checkAgain };
+  return {
+    ...remote,
+    offer,
+    listing: remote.data?.listing ?? null,
+    busy,
+    actionError,
+    accept,
+    withdraw,
+    cancel,
+    loadCancelQuote,
+    counter,
+    pay,
+    payToken,
+    checkAgain,
+  };
 }

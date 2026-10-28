@@ -85,7 +85,8 @@ const signIn = () =>
   startSession({ accessToken: 'access-1', expiresIn: 900, refreshToken: 'refresh-1', user: {} });
 
 describe('vehicle lookup', () => {
-  test('propose sends the plate (no sign-in) and maps the registry facts', async () => {
+  test('propose sends the plate (signed in: each lookup is a paid registry call) and maps the registry facts', async () => {
+    await signIn();
     fetch.mockResolvedValueOnce(reply(200, vehicleData()));
     const vehicle = await proposeVehicle('mh 12 ab 1234');
 
@@ -93,7 +94,7 @@ describe('vehicle lookup', () => {
     expect(url).toMatch(/\/vehicles\/propose$/);
     expect(init.method).toBe('POST');
     expect(bodyOf(fetch.mock.calls[0])).toEqual({ registration_number: 'MH12AB1234' });
-    expect(headerOf(fetch.mock.calls[0], 'Authorization')).toBeUndefined();
+    expect(headerOf(fetch.mock.calls[0], 'Authorization')).toBe('Bearer access-1');
     expect(vehicle).toEqual(
       expect.objectContaining({
         vehicleId: null,
@@ -115,6 +116,7 @@ describe('vehicle lookup', () => {
   });
 
   test('404 = no registry record, 422 = invalid plate: readable messages', async () => {
+    await signIn();
     fetch.mockResolvedValueOnce(reply(404, { error: { code: 'NOT_FOUND', message: 'x' } }));
     await expect(proposeVehicle('MH12AB1234')).rejects.toMatchObject({
       status: 404,

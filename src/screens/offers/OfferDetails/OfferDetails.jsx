@@ -12,6 +12,7 @@ import {
   Header,
   Icon,
   InfoNote,
+  PaymentNotice,
   ScreenContainer,
   StatusView,
   TitledCard,
@@ -23,7 +24,7 @@ import { formatINR } from '../../../utils/format';
 import { openWebPage } from '../../../utils/linking';
 import useConfirmDialog from '../../../hooks/useConfirmDialog';
 import { codeLabel } from '../../../i18n/vehicleLabels';
-import { useT } from '../../../i18n';
+import { useLanguage, useT } from '../../../i18n';
 import { ROUTES } from '../../../navigation/routes';
 import { OFFER_STATUS, ORDER_STATUS } from '../../account/statuses';
 import CounterSheet from '../components/CounterSheet';
@@ -31,6 +32,7 @@ import TransferChecklist from '../components/TransferChecklist';
 import { expiresLabel, vehicleName } from '../offerTime';
 import OfferTimeline from './components/OfferTimeline';
 import { buildOfferTimeline } from './offerTimeline';
+import { cancelQuoteText, refundOutcomeText } from './tokenRefund';
 import useOfferDetails from './useOfferDetails';
 
 // A line of the token breakdown: label on the left, amount on the right.
@@ -52,11 +54,15 @@ function AmountRow({ label, amount, strong }) {
 //   PENDING / COUNTERED: accept the counter, counter back, withdraw
 //   ACCEPTED, order new: pay the token (held in escrow until handover), cancel
 //     the order, or apply for a loan
-//   token paid:          upload your transfer documents (KYC, insurance)
+//   token paid:          upload your transfer documents (KYC, insurance), or
+//                        cancel - the refund shrinks with time (ADR-0051), so
+//                        the server's quote is shown before confirming
+//   cancelled:           what was refunded, when the token had been paid
 //   handed over:         the purchase documents
 // params: { offerId }
 function OfferDetails({ navigation, route }) {
   const t = useT();
+  const language = useLanguage();
   const { offerId } = route.params;
   const d = useOfferDetails(offerId);
   const { confirm, dialog } = useConfirmDialog();
@@ -130,6 +136,21 @@ function OfferDetails({ navigation, route }) {
       cancelLabel: t('offers.keep'),
       onConfirm: d.cancel,
     });
+  // Token paid (as the web): read the order again for a fresh refund quote,
+  // show exactly what comes back, then cancel. The server decides again with
+  // its own clock when it cancels; the outcome is shown after.
+  const onCancelPaidOrder = async () => {
+    const fresh = await d.loadCancelQuote();
+    if (!fresh) return;
+    confirm({
+      title: t('offers.cancelPaid.title'),
+      message: cancelQuoteText(fresh.token?.quote ?? null, t, language),
+      confirmLabel: t('offers.cancelPaid.confirm'),
+      cancelLabel: t('offers.cancelPaid.keep'),
+      onConfirm: d.cancel,
+    });
+  };
+  const refundOutcome = order?.status === 'CANCELLED' ? refundOutcomeText(order.token?.refund, t) : null;
   const openLoan = () =>
     navigation.navigate(ROUTES.LOAN_APPLICATION, {
       listingId: offer.listingId,
@@ -274,6 +295,8 @@ function OfferDetails({ navigation, route }) {
                 <AppText variant="caption">{t('offers.pay.tokenNote')}</AppText>
               )}
               <InfoNote>{t('offers.pay.escrowNote')}</InfoNote>
+              {/* ADR-0051: the time-based refund is told BEFORE paying, not only at cancel time. */}
+              <InfoNote>{t('offers.pay.refundScheduleNote')}</InfoNote>
 
               {pay?.phase === 'paying' ? (
                 <Badge label={t('offers.pay.confirming')} tone="warning" size="sm" style={styles.selfStart} />
@@ -286,11 +309,7 @@ function OfferDetails({ navigation, route }) {
                   <Button title={t('offers.pay.checkAgain')} size="sm" variant="outline" fullWidth={false} onPress={d.checkAgain} />
                 </View>
               ) : null}
-              {pay?.phase === 'unavailable' || pay?.phase === 'failed' ? (
-                <AppText variant="caption" color={pay.phase === 'failed' ? colors.danger : colors.body} accessibilityLiveRegion="polite">
-                  {pay.message}
-                </AppText>
-              ) : null}
+              {pay?.phase === 'unavailable' || pay?.phase === 'failed' ? <PaymentNotice problem={pay} /> : null}
 
               {canPay ? (
                 <>
@@ -346,6 +365,23 @@ function OfferDetails({ navigation, route }) {
               />
               <AppText variant="subtitle">{t('offers.agreedAt', { amount: formatINR(acceptedAmount) })}</AppText>
             </View>
+            {refundOutcome ? (
+              <AppText variant="caption" color={colors.body} style={styles.orderNote}>
+                {refundOutcome}
+              </AppText>
+            ) : null}
+            {/* Token paid: only the buyer can cancel now, and it may cost part of the token. */}
+            {order.status === 'TOKEN_PAID' ? (
+              <Button
+                title={t('offers.cancelOrder')}
+                size="md"
+                variant="outline"
+                onPress={onCancelPaidOrder}
+                loading={d.busy === 'quote' || d.busy === 'cancel'}
+                disabled={!!d.busy}
+                style={styles.orderNote}
+              />
+            ) : null}
           </Card>
         ) : null}
 
@@ -506,6 +542,9 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     alignItems: 'center',
     gap: spacing.sm,
+  },
+  orderNote: {
+    marginTop: spacing.md,
   },
   footer: {
     gap: spacing.xs,

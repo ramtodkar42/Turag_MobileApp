@@ -14,6 +14,12 @@ export default {
   'common.next': 'पुढे',
   'common.back': 'मागे जा',
   'common.retry': 'पुन्हा प्रयत्न करा',
+  'common.payNotice.cancelled': 'पेमेंट रद्द झाले',
+  'common.payNotice.declined': 'पेमेंट मंजूर झाले नाही',
+  'common.payNotice.network': 'कनेक्ट होऊ शकले नाही',
+  'common.payNotice.unavailable': 'पेमेंट उपलब्ध नाही',
+  'common.payNotice.failed': 'पेमेंट पूर्ण झाले नाही',
+  'common.payNotice.awaiting': 'तुमच्या पेमेंटची पुष्टी होत आहे',
   'common.upload': 'अपलोड करा',
   'common.change': 'बदला',
   // Changing an uploaded photo / document (the old one stays until the new one is in)

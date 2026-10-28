@@ -62,6 +62,8 @@ export default {
   'booking.section.time': 'Date and time',
   'booking.section.where': 'Where the vehicle will be',
   'booking.section.onTheDay': 'On the day',
+  'booking.whatsappUpdates.label': 'Send me booking updates on WhatsApp',
+  'booking.whatsappUpdates.help': 'Booking confirmation and inspector details. No marketing messages. You can switch this off in your profile.',
   'booking.category.PASSENGER': 'Car',
   'booking.category.TWO_WHEELER': 'Two-wheeler',
   'booking.category.PASSENGER_info': '68 checks · 45 min',
@@ -104,6 +106,9 @@ export default {
   'booking.summary.cancelNote':
     'Free cancellation up to 2 hours before the slot. No charge if the inspector cannot reach you.',
   'booking.summary.payError': 'Payment didn’t go through. Tap Pay again to retry.',
+  'booking.summary.payCancelled': 'You closed the payment page, so nothing was charged. Tap Pay when you’re ready.',
+  'booking.summary.payFailed': 'Your bank or UPI app didn’t approve it. Tap Pay to try again, or choose another way to pay. If money left your account, it comes back automatically.',
+  'booking.summary.payNetwork': 'The payment page didn’t open. Check your internet and tap Pay again.',
   'booking.summary.payDescription': 'Doorstep inspection fee',
   'booking.summary.payUnavailable': 'Online payment isn’t available in the app yet. Please complete this booking on the Turag website.',
   'booking.summary.slotGone': 'That time is no longer available. Please go back and pick another.',
