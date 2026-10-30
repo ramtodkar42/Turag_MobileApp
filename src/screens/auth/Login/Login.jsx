@@ -21,6 +21,7 @@ import LoginFooter from './components/LoginFooter';
 import AgeConfirm from './components/AgeConfirm';
 import SignInMethods from './components/SignInMethods';
 import TrustNote from './components/TrustNote';
+import KeyboardFade from './components/KeyboardFade';
 import GooglePhoneNote from './components/GooglePhoneNote';
 import useGoogleSignIn from './useGoogleSignIn';
 import { googleSignInConfigured } from '../../../api/googleAuth';
@@ -59,7 +60,8 @@ function Login({ navigation, route }) {
   const accountDeleted = !!route?.params?.accountDeleted;
   // Typing: the extra choices step aside (smoothly, from the moment the number
   // box is tapped) so the logo and the number stay above the keyboard.
-  const { compact: keyboardOpen, onFocus: onPhoneFocus } = useCompactOnKeyboard();
+  // (No layout animation: nothing is added / removed, only faded - see KeyboardFade.)
+  const { compact: keyboardOpen, onFocus: onPhoneFocus } = useCompactOnKeyboard({ animate: false });
   // Where the content sits: centred in the screen as measured with the
   // keyboard CLOSED, then held there - so opening / closing the keyboard
   // never re-centres it (no logo jumping up and back). Only the extra choices
@@ -165,6 +167,16 @@ function Login({ navigation, route }) {
   return (
     <ScreenContainer
       scroll
+      // The content stays put while typing: no layout animation to run (on
+      // Android one can flicker the whole screen for a frame).
+      animateKeyboard={false}
+      // The number box sits high, above the keyboard on every phone: no
+      // automatic scroll to it (that only pushed the content up).
+      followFocus={false}
+      // No room made for the keyboard: nothing moves; what it covers (the
+      // faded choices) is simply under it. On phones that also shrink the
+      // screen, that room was counted twice and the page scrolled up.
+      keyboardRoom={false}
       backgroundColor={colors.primary}
       header={
         fromGuest ? (
@@ -262,15 +274,15 @@ function Login({ navigation, route }) {
             error: google.error,
             onPress: google.start,
           }}
-          // Keyboard open: only the main button, so the logo and the number
-          // stay on screen; the rest comes back once it closes.
+          // Keyboard open: everything under the main button fades away in place
+          // (nothing re-lays out, so nothing moves or blinks) and fades back.
           compact={keyboardOpen}
           style={styles.button}
         />
-        {!keyboardOpen ? <TrustNote style={styles.trust} /> : null}
-        {/* One quiet bottom: browse | email sign-in (accounts Turag created,
-            e.g. dealers), and the website's Terms / Privacy Policy under it. */}
-        {keyboardOpen ? null : (
+        <KeyboardFade hidden={keyboardOpen}>
+          <TrustNote style={styles.trust} />
+          {/* One quiet bottom: browse | email sign-in (accounts Turag created,
+              e.g. dealers), and the website's Terms / Privacy Policy under it. */}
           <LoginFooter
             onBrowse={fromGuest ? null : browseAsGuest}
             onEmail={() =>
@@ -280,7 +292,7 @@ function Login({ navigation, route }) {
             onPrivacy={() => openPage('profile.item.privacyPolicy', '/privacy_policy')}
             style={styles.footer}
           />
-        )}
+        </KeyboardFade>
       </View>
       </View>
     </ScreenContainer>

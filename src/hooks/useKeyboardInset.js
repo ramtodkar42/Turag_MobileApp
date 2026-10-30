@@ -24,8 +24,12 @@ const animateNext = () =>
 // Returns { bottom (padding to add), open (keyboard up), onLayout (put it on
 // the full-height view being measured) }. iOS: bottom stays 0 (iOS uses
 // KeyboardAvoidingView, which works there).
-export default function useKeyboardInset() {
+// animate: false skips the layout animation (a screen whose content doesn't
+// move with the keyboard has nothing to animate).
+export default function useKeyboardInset({ animate = true } = {}) {
   const insets = useSafeAreaInsets();
+  const animateRef = useRef(animate);
+  animateRef.current = animate;
   const [keyboard, setKeyboard] = useState(0);
   const [baseHeight, setBaseHeight] = useState(0);
   const [height, setHeight] = useState(0);
@@ -38,14 +42,14 @@ export default function useKeyboardInset() {
     const show = Keyboard.addListener('keyboardDidShow', e => {
       const next = Math.max(0, e?.endCoordinates?.height ?? 0);
       if (next !== keyboardRef.current) {
-        animateNext();
+        if (animateRef.current) animateNext();
         keyboardRef.current = next;
         setKeyboard(next);
       }
     });
     const hide = Keyboard.addListener('keyboardDidHide', () => {
       if (keyboardRef.current !== 0) {
-        animateNext();
+        if (animateRef.current) animateNext();
         keyboardRef.current = 0;
         setKeyboard(0);
       }

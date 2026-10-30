@@ -13,16 +13,21 @@ const animateNext = () =>
 //     keyboard rises - instead of after the keyboard has finished opening;
 //   - every change slides / fades in step with the keyboard, both ways.
 // Returns { compact, onFocus } - put onFocus on the screen's text field(s).
-export default function useCompactOnKeyboard() {
+// animate: false when the screen only fades things in place (no layout change
+// to animate - a layout animation would only risk a flicker on Android).
+export default function useCompactOnKeyboard({ animate = true } = {}) {
   const [compact, setCompact] = useState(false);
   const compactRef = useRef(false);
 
-  const set = useCallback(next => {
-    if (compactRef.current === next) return;
-    animateNext();
-    compactRef.current = next;
-    setCompact(next);
-  }, []);
+  const set = useCallback(
+    next => {
+      if (compactRef.current === next) return;
+      if (animate) animateNext();
+      compactRef.current = next;
+      setCompact(next);
+    },
+    [animate],
+  );
 
   useEffect(() => {
     // A field focused some other way (e.g. autofocus) still opens the keyboard.

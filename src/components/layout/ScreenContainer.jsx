@@ -25,9 +25,22 @@ const FOCUS_CHECK_MS = 300;
 // field). Android: useKeyboardInset pads by exactly what the keyboard covers -
 // right on Android 15+ edge-to-edge (where the screen no longer shrinks) and on
 // older phones that still shrink it. iOS: KeyboardAvoidingView.
+// animateKeyboard: false skips the layout animation when the keyboard comes
+// and goes (a screen that keeps its content still, e.g. Login).
+// followFocus: false - the screen never scrolls by itself to the focused field
+// (Login: its field sits high, always above the keyboard; scrolling there only
+// moved the content up for nothing, as some keyboards over-report their height).
+// keyboardRoom: false - no room is made for the keyboard at all (Login: its
+// content stays where it is and the parts under the keyboard just fade). Some
+// phones (e.g. Samsung on Android 15) shrink the screen themselves AND get the
+// padding, so the scroll area ended far above the keyboard and Android
+// scrolled the page up to "keep the field in view".
 function ScreenContainer({
   children,
   header,
+  animateKeyboard = true,
+  followFocus = true,
+  keyboardRoom = true,
   footer,
   scroll = false,
   scrollRef,
@@ -39,7 +52,7 @@ function ScreenContainer({
 }) {
   const insets = useSafeAreaInsets();
   const iosKeyboardOpen = useKeyboardVisible();
-  const androidKeyboard = useKeyboardInset();
+  const androidKeyboard = useKeyboardInset({ animate: animateKeyboard });
   const keyboardOpen = IOS ? iosKeyboardOpen : androidKeyboard.open;
   const bodyStyle = [padded && styles.padded, contentStyle];
   const topInset = safeTop ? insets.top : 0;
@@ -88,16 +101,16 @@ function ScreenContainer({
   // Keyboard opened (or grew): once the content has moved up, show the field.
   const keyboardSpace = IOS ? 0 : androidKeyboard.bottom;
   useEffect(() => {
-    if (!scroll || !keyboardOpen) {
+    if (!scroll || !followFocus || !keyboardOpen) {
       return undefined;
     }
     const timer = setTimeout(showFocusedField, SCROLL_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [scroll, keyboardOpen, keyboardSpace, showFocusedField]);
+  }, [scroll, followFocus, keyboardOpen, keyboardSpace, showFocusedField]);
 
   // Moving to another field with the keyboard up: show that one too.
   useEffect(() => {
-    if (!scroll || !keyboardOpen) {
+    if (!scroll || !followFocus || !keyboardOpen) {
       return undefined;
     }
     let last = TextInput.State.currentlyFocusedInput();
@@ -109,7 +122,7 @@ function ScreenContainer({
       last = now;
     }, FOCUS_CHECK_MS);
     return () => clearInterval(timer);
-  }, [scroll, keyboardOpen, showFocusedField]);
+  }, [scroll, followFocus, keyboardOpen, showFocusedField]);
 
   const frame = (
     <View style={styles.frame}>
@@ -150,7 +163,9 @@ function ScreenContainer({
       style={[styles.flex, { backgroundColor, paddingTop: topInset }]}
       onLayout={IOS ? undefined : androidKeyboard.onLayout}
     >
-      {IOS ? (
+      {!keyboardRoom ? (
+        frame
+      ) : IOS ? (
         <KeyboardAvoidingView style={styles.flex} behavior="padding">
           {frame}
         </KeyboardAvoidingView>

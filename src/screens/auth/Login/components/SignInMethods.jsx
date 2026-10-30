@@ -3,6 +3,7 @@ import { AppText, Button, GoogleMark, Icon, WhatsAppMark } from '../../../../com
 import { colors, spacing } from '../../../../theme';
 import { ms } from '../../../../utils/responsive';
 import { useT } from '../../../../i18n';
+import KeyboardFade from './KeyboardFade';
 
 const MARK = ms(26);
 
@@ -18,8 +19,8 @@ function MarkCircle({ children }) {
 //   server picks); ready: the 18+ box is ticked (the code buttons look
 //   inactive until then, and say why when tapped); sending: the channel whose
 //   code is on its way; google: { show, busy, error, onPress }.
-// compact: the keyboard is open - only the main button (the "OR" choices come
-// back once it closes, so the logo and the number stay on screen).
+// compact: the keyboard is open - the "OR" choices fade away (staying in place,
+// so nothing moves) and come back once it closes.
 function SignInMethods({ channels, ready, sending, onCode, google, compact = false, style }) {
   const t = useT();
   const primary = channels.includes('whatsapp') ? 'whatsapp' : channels[0] ?? null;
@@ -44,8 +45,8 @@ function SignInMethods({ channels, ready, sending, onCode, google, compact = fal
         style={[styles.primary, !ready && styles.waiting]}
       />
 
-      {!compact && (sms || google.show) ? (
-        <>
+      {sms || google.show ? (
+        <KeyboardFade hidden={compact}>
           <View style={styles.orRow}>
             <View style={styles.line} />
             <AppText variant="caption" color={colors.white} style={styles.or}>
@@ -89,7 +90,7 @@ function SignInMethods({ channels, ready, sending, onCode, google, compact = fal
               {google.error}
             </AppText>
           ) : null}
-        </>
+        </KeyboardFade>
       ) : null}
     </View>
   );
