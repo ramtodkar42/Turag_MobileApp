@@ -3,6 +3,7 @@
  */
 
 import React from 'react';
+import { StyleSheet } from 'react-native';
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Login from '../src/screens/auth/Login/Login';
@@ -139,11 +140,67 @@ test('Login blocks an invalid mobile number', async () => {
   expect(navigation.navigate).not.toHaveBeenCalled();
 });
 
+// "I confirm I am 18 years of age or older." (as the web's sign-in).
+const tickAge = async root => {
+  await act(async () => root.findAll(n => n.props.accessibilityRole === 'checkbox' && n.props.onPress)[0].props.onPress());
+};
+
+test('Login waits for the 18+ box and says so', async () => {
+  const navigation = makeNavigation();
+  const root = await render(<Login navigation={navigation} />);
+  await type(root, 'placeholder', 'Enter your number', '98765 43210');
+  await press(root, 'Get OTP');
+  expect(authApi.sendLoginOtp).not.toHaveBeenCalled();
+  expect(root.findAll(n => n.props.children === 'Please confirm you are 18 or older to continue.').length).toBeGreaterThan(0);
+
+  await tickAge(root);
+  expect(root.findAll(n => n.props.children === 'Please confirm you are 18 or older to continue.')).toHaveLength(0);
+  await press(root, 'Get OTP');
+  expect(authApi.sendLoginOtp).toHaveBeenCalledTimes(1);
+});
+
+test('Login (as the web): Continue with WhatsApp first, SMS beside Google under "or"', async () => {
+  authApi.getOtpChannels.mockResolvedValueOnce(['whatsapp', 'sms']);
+  const navigation = makeNavigation();
+  const root = await render(<Login navigation={navigation} />);
+  expect(byProp(root, 'title', 'Continue with WhatsApp')).toBeDefined();
+  expect(byProp(root, 'title', 'SMS')).toBeDefined();
+
+  await type(root, 'placeholder', 'Enter your number', '98765 43210');
+  await tickAge(root);
+  await press(root, 'SMS');
+  expect(authApi.sendLoginOtp).toHaveBeenCalledWith({ phone: '9876543210', channel: 'sms' });
+  expect(navigation.navigate).toHaveBeenCalledWith(ROUTES.VERIFY_OTP, expect.objectContaining({ via: 'sms' }));
+});
+
+test('Login: the content stays put when the keyboard opens (no re-centring jump)', async () => {
+  const root = await render(<Login navigation={makeNavigation()} />);
+  const layout = height => ({ nativeEvent: { layout: { x: 0, y: 0, width: 375, height } } });
+  const area = () => root.findAll(n => n.props.testID === 'login-area' && n.props.onLayout)[0];
+  const block = () => root.findAll(n => n.props.testID === 'login-block' && n.props.onLayout)[0];
+  const topOf = () => StyleSheet.flatten(area().props.style).paddingTop;
+
+  // Measured with the keyboard closed: placed a little above the middle.
+  await act(async () => area().props.onLayout(layout(800)));
+  await act(async () => block().props.onLayout(layout(600)));
+  const placed = topOf();
+  expect(placed).toBe(80); // (800 - 600) x 0.4
+  expect(StyleSheet.flatten(area().props.style).opacity).toBeUndefined(); // shown once measured
+
+  // Number box tapped, keyboard up: the area shrinks and the block gets
+  // shorter (the extra choices step aside) - the content doesn't move.
+  await act(async () => byProp(root, 'placeholder', 'Enter your number').props.onFocus());
+  await act(async () => area().props.onLayout(layout(450)));
+  await act(async () => block().props.onLayout(layout(380)));
+  expect(topOf()).toBe(placed);
+});
+
 test('Login sends the OTP and opens Verify', async () => {
   const navigation = makeNavigation();
   const root = await render(<Login navigation={navigation} />);
 
   await type(root, 'placeholder', 'Enter your number', '98765 43210');
+  await tickAge(root);
   await press(root, 'Get OTP');
 
   expect(authApi.sendLoginOtp).toHaveBeenCalledWith({ phone: '9876543210' });
@@ -154,6 +211,20 @@ test('Login sends the OTP and opens Verify', async () => {
     resendAfter: 30,
     devHint: '123456',
   });
+});
+
+test('Login: the keyboard Done key and the button together send one code', async () => {
+  const navigation = makeNavigation();
+  const root = await render(<Login navigation={navigation} />);
+  await type(root, 'placeholder', 'Enter your number', '98765 43210');
+  await tickAge(root);
+  const field = byProp(root, 'placeholder', 'Enter your number');
+  await act(async () => {
+    field.props.onSubmitEditing();
+    byProp(root, 'title', 'Get OTP').props.onPress();
+  });
+  expect(authApi.sendLoginOtp).toHaveBeenCalledTimes(1);
+  expect(navigation.navigate).toHaveBeenCalledTimes(1);
 });
 
 test('Mobile OTP: an existing user signs in, is remembered, and sees Login Successful', async () => {

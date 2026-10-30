@@ -76,6 +76,8 @@ export const setAuthHandler = handler => {
 };
 
 const RETRY_WITH_NEW_TOKEN = new Set([ERROR_CODES.AUTH_TOKEN_EXPIRED, ERROR_CODES.AUTH_TOKEN_INVALID]);
+// The session's own calls (endpoints.js REFRESH / LOGOUT): never retried with the login.
+const SESSION_PATHS = new Set(['/auth/refresh', '/auth/logout']);
 
 export const newIdempotencyKey = () =>
   `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
@@ -195,7 +197,14 @@ export async function request(path, options = {}) {
     // A call sent without the login that the server now wants signed in (it
     // tightens public routes over time, e.g. "Yes, it's mine"): when there is a
     // session, send it once more with the login instead of failing.
-    if (!auth && e instanceof ApiError && e.status === 401 && e.code === ERROR_CODES.AUTH_REQUIRED) {
+    // (Never for the session's own refresh / logout calls: they'd wait on themselves.)
+    if (
+      !auth &&
+      !SESSION_PATHS.has(path) &&
+      e instanceof ApiError &&
+      e.status === 401 &&
+      e.code === ERROR_CODES.AUTH_REQUIRED
+    ) {
       const signedIn = await Promise.resolve(authHandler?.getAccessToken()).catch(() => null);
       if (!signedIn) {
         throw e;

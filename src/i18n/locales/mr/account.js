@@ -13,7 +13,7 @@ export default {
   'account.booking.pay.button': 'आता पेमेंट करा · {amount}',
   'account.booking.pay.paying': 'पेमेंट होत आहे…',
   'account.booking.pay.retry': 'पुन्हा पेमेंट करा',
-  'account.booking.pay.awaiting': 'पेमेंट मिळाले. आम्ही बँकेकडून त्याची खात्री करत आहोत. थोड्या वेळाने रिफ्रेश करण्यासाठी खाली ओढा.',
+  'account.booking.pay.awaiting': 'तुम्ही पेमेंट पूर्ण केले असल्यास, काही मिनिटांत इथे त्याची खात्री होईल, त्यामुळे कृपया पुन्हा पैसे भरू नका. पेमेंट पूर्ण झाले नसल्यास, आत्ता पैसे भरा वर टॅप करा: ते तेच पेमेंट पुढे चालू ठेवते, त्यामुळे तुमच्याकडून दोनदा पैसे कापले जाणार नाहीत.',
   'account.booking.notFound.title': 'बुकिंग सापडली नाही',
   'account.booking.notFound.message': 'ही बुकिंग अस्तित्वात नाही किंवा तुमची नाही.',
   'account.booking.error.title': 'बुकिंग लोड होऊ शकली नाही',

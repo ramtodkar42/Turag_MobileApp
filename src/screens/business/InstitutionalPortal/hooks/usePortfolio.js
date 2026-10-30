@@ -29,9 +29,13 @@ export default function usePortfolio(orgId) {
     }
     setLoadingMore(true);
     setMoreError('');
+    const cursor = data.nextCursor;
     try {
-      const next = await getPortfolio(orgId, { ...filters, cursor: data.nextCursor });
-      setData(prev => ({ items: [...(prev?.items ?? []), ...next.items], nextCursor: next.nextCursor }));
+      const next = await getPortfolio(orgId, { ...filters, cursor });
+      // Only onto the same list (not one a filter change / refresh replaced meanwhile).
+      setData(prev =>
+        prev?.nextCursor === cursor ? { items: [...prev.items, ...next.items], nextCursor: next.nextCursor } : prev,
+      );
     } catch (e) {
       setMoreError(e.message);
     } finally {

@@ -100,10 +100,11 @@ describe('Razorpay checkout errors are never shown raw', () => {
     const { PAYMENT_CANCELLED, paymentProblem } = require('../src/api/razorpay');
     expect(
       paymentProblem(new ApiError({ code: PAYMENT_CANCELLED, message: 'declined text', details: { kind: 'declined' } })),
-    ).toEqual({ kind: 'declined', message: 'declined text' });
+    ).toEqual({ kind: 'declined', message: 'declined text', messageKey: undefined });
     expect(paymentProblem(new ApiError({ status: 502 }))).toEqual({
       kind: 'failed',
       message: 'Payment didn’t go through. Tap Pay again to retry.',
+      messageKey: 'booking.summary.payError', // translated when shown
     });
   });
 });

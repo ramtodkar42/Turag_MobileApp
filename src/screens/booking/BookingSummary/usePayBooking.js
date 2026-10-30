@@ -16,6 +16,14 @@ import { comingSoonPlace } from '../comingSoonPlace';
 // booking (no duplicate).
 // The verification status is read as soon as this screen opens, so tapping
 // Pay doesn't wait for it.
+// The last unpaid booking made from the summary: { details, booking }.
+let lastUnpaid = null;
+
+// Paid (or it can't be paid any more): the next Pay makes a new booking.
+export const forgetUnpaidBooking = () => {
+  lastUnpaid = null;
+};
+
 export default function usePayBooking({ navigation, route }) {
   const t = useT();
   const {
@@ -28,7 +36,17 @@ export default function usePayBooking({ navigation, route }) {
     valuation,
     payError,
   } = route.params;
-  const created = useRef(null);
+  // The same details as an unpaid booking made a moment ago (e.g. back to the
+  // form and Pay again): that booking is paid, not a second one made.
+  const details = JSON.stringify([
+    category,
+    slot.slotAt,
+    address,
+    preparation,
+    vehicle?.vehicleId ?? null,
+    valuation?.valuationId ?? null,
+  ]);
+  const created = useRef(lastUnpaid?.details === details ? lastUnpaid.booking : null);
   const sending = useRef(false);
   const verification = useRef(null);
   const [busy, setBusy] = useState(false);
@@ -47,15 +65,18 @@ export default function usePayBooking({ navigation, route }) {
     setError('');
     navigation.setParams({ payError: null });
     try {
-      created.current ??= await createInspectionBooking({
-        category,
-        address,
-        slotAt: slot.slotAt,
-        preparation,
-        whatsappUpdates,
-        vehicleId: vehicle?.vehicleId ?? null,
-        valuationId: valuation?.valuationId ?? null,
-      });
+      if (!created.current) {
+        created.current = await createInspectionBooking({
+          category,
+          address,
+          slotAt: slot.slotAt,
+          preparation,
+          whatsappUpdates,
+          vehicleId: vehicle?.vehicleId ?? null,
+          valuationId: valuation?.valuationId ?? null,
+        });
+        lastUnpaid = { details, booking: created.current };
+      }
       // Read again each time (a submitted ID is PENDING_REVIEW from then on).
       // DigiLocker mode skips the ID step here (as the web): verify from Profile.
       const current = await (verification.current ??
@@ -74,6 +95,8 @@ export default function usePayBooking({ navigation, route }) {
           category,
           vehicleId: vehicle?.vehicleId ?? null,
           slotAt: slot.slotAt,
+          // Back to the form (to change the address), not this summary.
+          backTo: ROUTES.BOOK_APPOINTMENT,
         });
         return;
       }

@@ -14,8 +14,10 @@ import { useT } from '../../../i18n';
 // must match what the SMS actually sends.)
 const OTP_LENGTH = 6;
 const DEFAULT_RESEND_SECONDS = 59;
-// Enable only for internal testing builds; this exposes the test OTP on screen.
-const SHOW_TEST_OTP = true;
+// The test server's code (`devHint`) is shown and filled in only in
+// development builds - never in a release build, where it would let anyone
+// sign in to any number if a server ever sent it.
+const SHOW_TEST_OTP = __DEV__;
 // Dev autofill waits a moment, like an SMS arriving, so the screen is seen first.
 const DEV_AUTOFILL_DELAY = 600;
 
@@ -131,15 +133,14 @@ function VerifyOtp({ navigation, route }) {
     setResending(true);
     setOtp('');
     setError('');
-    restart();
     try {
       const updates = await otpChannel.resend(params);
+      // The wait starts again only once a new code is on its way - a failed
+      // resend can be tried again straight away.
       if (updates) {
         setParams(prev => ({ ...prev, ...updates }));
-        if (updates.resendAfter != null) {
-          restart(updates.resendAfter);
-        }
       }
+      restart(updates?.resendAfter ?? undefined);
     } catch (e) {
       setError(e.message || t('auth.verify.resendError'));
     } finally {

@@ -79,7 +79,7 @@ export default {
   'offers.pay.paying': 'Confirming payment…',
   'offers.pay.retry': 'Retry payment',
   'offers.pay.confirming': 'Confirming your payment…',
-  'offers.pay.awaiting': 'Payment received. We’re waiting for the bank to confirm it.',
+  'offers.pay.awaiting': 'If you completed the payment, it will be confirmed here in a few minutes, so please don’t pay again. If you didn’t finish it, tap Pay token: it continues the same payment, so you can’t be charged twice.',
   'offers.pay.checkAgain': 'Check again',
   'offers.pay.failed': 'The payment didn’t go through. Please try again.',
   'offers.pay.unavailable': 'Paying the token isn’t available right now. We’ll let you know when it is.',

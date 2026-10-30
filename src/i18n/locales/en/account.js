@@ -13,7 +13,7 @@ export default {
   'account.booking.pay.button': 'Pay now · {amount}',
   'account.booking.pay.paying': 'Paying…',
   'account.booking.pay.retry': 'Retry payment',
-  'account.booking.pay.awaiting': 'Payment received. We’re confirming it with the bank. Pull down to refresh in a moment.',
+  'account.booking.pay.awaiting': 'If you completed the payment, it will be confirmed here in a few minutes, so please don’t pay again. If you didn’t finish it, tap Pay now: it continues the same payment, so you can’t be charged twice.',
   'account.booking.notFound.title': 'Booking not found',
   'account.booking.notFound.message': 'This booking doesn’t exist or isn’t yours.',
   'account.booking.error.title': 'Couldn’t load the booking',

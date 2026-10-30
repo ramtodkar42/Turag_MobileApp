@@ -120,6 +120,8 @@ const hasText = (root, text) =>
 beforeEach(() => {
   jest.useFakeTimers();
   bookingApi.resetMockBookings();
+  // Each test starts without an unpaid booking remembered from another.
+  require('../src/screens/booking/BookingSummary/usePayBooking').forgetUnpaidBooking();
 });
 afterEach(() => {
   act(() => tree?.unmount());
@@ -578,6 +580,8 @@ describe('Coming soon to a city Turag doesn’t serve yet', () => {
       category: 'PASSENGER',
       vehicleId: 'veh_1',
       slotAt: params.slotAt,
+      // From the summary, "Back to booking" goes to the form (to change the address).
+      backTo: ROUTES.BOOK_APPOINTMENT,
     });
   });
 });
@@ -699,7 +703,13 @@ describe('Booking summary and confirmation', () => {
     await advance(200);
     expect(navigation.popTo).toHaveBeenCalledWith(
       ROUTES.BOOKING_SUMMARY,
-      { payError: { kind: 'failed', message: 'Payment didn’t go through. Tap Pay again to retry.' } },
+      {
+        payError: {
+          kind: 'failed',
+          message: 'Payment didn’t go through. Tap Pay again to retry.',
+          messageKey: 'booking.summary.payError',
+        },
+      },
       { merge: true },
     );
     expect(navigation.reset).not.toHaveBeenCalled();

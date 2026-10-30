@@ -20,9 +20,13 @@ export default function useImportJob(orgId, importId) {
     }
     setLoadingMore(true);
     setMoreError('');
+    const cursor = data.nextCursor;
     try {
-      const page = await getIntakeImportRows(orgId, importId, { cursor: data.nextCursor });
-      setData(prev => ({ ...prev, rows: [...prev.rows, ...page.rows], nextCursor: page.nextCursor }));
+      const page = await getIntakeImportRows(orgId, importId, { cursor });
+      // Only onto the same list (a pull-to-refresh meanwhile started it over).
+      setData(prev =>
+        prev?.nextCursor === cursor ? { ...prev, rows: [...prev.rows, ...page.rows], nextCursor: page.nextCursor } : prev,
+      );
     } catch (e) {
       setMoreError(e.message);
     } finally {

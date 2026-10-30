@@ -25,6 +25,9 @@ export default function useRemoteData(loader, deps = []) {
   const mounted = useRef(true);
   const hasData = useRef(false);
   const firstFocus = useRef(true);
+  // Bumped by every load and every setData: only the newest answer may land,
+  // so a slow earlier load never overwrites newer data (e.g. after an action).
+  const latest = useRef(0);
 
   useEffect(
     () => () => {
@@ -34,6 +37,8 @@ export default function useRemoteData(loader, deps = []) {
   );
 
   const run = useCallback(async ({ pull = false } = {}) => {
+    const id = ++latest.current;
+    const current = () => mounted.current && id === latest.current;
     if (pull) {
       setRefreshing(true);
     }
@@ -44,7 +49,7 @@ export default function useRemoteData(loader, deps = []) {
     }
     try {
       const result = await loaderRef.current();
-      if (mounted.current) {
+      if (current()) {
         hasData.current = true;
         setData(result);
         setError('');
@@ -52,12 +57,12 @@ export default function useRemoteData(loader, deps = []) {
       }
     } catch (e) {
       // A refresh that fails keeps what's on screen.
-      if (mounted.current && !hasData.current) {
+      if (current() && !hasData.current) {
         setError(e.message || tNow('errors.generic'));
         setErrorCode(e.code ?? null);
       }
     } finally {
-      if (mounted.current) {
+      if (current()) {
         setLoading(false);
         setRefreshing(false);
       }
@@ -95,8 +100,11 @@ export default function useRemoteData(loader, deps = []) {
   );
 
   const update = useCallback(next => {
+    latest.current += 1; // a load already on its way is now older than this
     hasData.current = true;
     setData(next);
+    setLoading(false);
+    setRefreshing(false);
   }, []);
 
   return {

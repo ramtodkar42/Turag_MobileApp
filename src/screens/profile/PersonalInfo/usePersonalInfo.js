@@ -25,11 +25,16 @@ export default function usePersonalInfo() {
     };
   }, []);
 
+  // Bumped by every change made here (a switch, the email): a reload that
+  // started before it would put the old value back, so its answer is skipped.
+  const changes = useRef(0);
+
   // First load shows its error; later quiet reloads keep what's on screen.
   const load = useCallback(() => {
+    const startedAt = changes.current;
     getProfile()
       .then(data => {
-        if (!mounted.current) return;
+        if (!mounted.current || startedAt !== changes.current) return;
         setProfile(data);
         setError(null);
       })
@@ -37,14 +42,21 @@ export default function usePersonalInfo() {
   }, []);
   useFocusEffect(load);
 
-  const setEmail = address =>
+  const setEmail = address => {
+    changes.current += 1;
     setProfile(prev => (prev ? { ...prev, email: address, emailVerified: false } : prev));
+  };
 
-  const setConsents = consents => setProfile(prev => (prev ? { ...prev, consents } : prev));
-  const mark = (key, on) =>
+  const setConsents = consents => {
+    changes.current += 1;
+    setProfile(prev => (prev ? { ...prev, consents } : prev));
+  };
+  const mark = (key, on) => {
+    changes.current += 1;
     setProfile(prev =>
       prev ? { ...prev, consents: prev.consents.map(c => (c.key === key ? { ...c, verified: on } : c)) } : prev,
     );
+  };
 
   const setConsent = async (key, on) => {
     if (saving) {

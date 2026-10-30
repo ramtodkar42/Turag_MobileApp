@@ -7,7 +7,7 @@ import {
 } from '../api/services/saved.api';
 import { getVehicleDetails } from '../api/services/vehicle.api';
 import { persistStore, readCache, removeCache } from '../utils/persistentCache';
-import { clearQueue, enqueueSaved, hydrateQueue, resolveSaved } from './offlineQueue';
+import { clearQueue, enqueueSaved, hydrateQueue, queuedSaved, resolveSaved } from './offlineQueue';
 import { tNow } from '../i18n';
 
 // Saved vehicles, newest first. Shared by the hearts (Home, vehicle page) and
@@ -95,8 +95,9 @@ export const loadSaved = () => {
   }
   const run = generation;
   store.set(s => ({ ...s, loading: !s.loaded, error: '' }));
-  pending = getSavedVehicles()
-    .then(list => {
+  // The offline queue is read first, so its changes are known when the list lands.
+  pending = Promise.all([getSavedVehicles(), hydrateQueue().catch(() => undefined)])
+    .then(([list]) => {
       if (run !== generation) {
         return;
       }
@@ -104,12 +105,17 @@ export const loadSaved = () => {
       // blank the images we already filled in (a visible blink) until they
       // re-fetch. Keep the photo we already have for each vehicle.
       const prevImage = new Map(store.get().items.map(v => [v.id, v.image]));
-      // Apply hearts that are still on their way to the server.
+      // Hearts the server doesn't know yet win over its list: still on their
+      // way (inFlight), or changed offline and waiting to sync (the queue).
+      const local = new Map(
+        Object.entries(queuedSaved()).map(([id, { action, vehicle }]) => [id, { saved: action === 'save', vehicle }]),
+      );
+      inFlight.forEach((entry, id) => local.set(id, entry));
       let items = list
-        .filter(v => !inFlight.has(v.id))
+        .filter(v => !local.has(v.id))
         .map(v => (v.image?.uri ? v : { ...v, image: prevImage.get(v.id) ?? v.image }));
-      inFlight.forEach(({ saved, vehicle }) => {
-        if (saved) {
+      local.forEach(({ saved, vehicle }) => {
+        if (saved && vehicle) {
           items = [vehicle, ...items];
         }
       });
@@ -131,30 +137,45 @@ export const loadSaved = () => {
   return pending;
 };
 
+// Each vehicle's requests, chained so the server sees save / un-save in tap order.
+const chains = new Map();
+
 export const toggleSaved = async vehicle => {
-  const wasSaved = isSaved(vehicle.id);
+  const { id } = vehicle;
+  const wasSaved = isSaved(id);
   if (wasSaved) {
-    remove(vehicle.id);
+    remove(id);
   } else {
     add(vehicle);
   }
-  inFlight.set(vehicle.id, { saved: !wasSaved, vehicle });
+  inFlight.set(id, { saved: !wasSaved, vehicle });
+  // The latest tap on this heart (a quicker second tap takes over).
+  const latest = () => inFlight.get(id)?.saved === !wasSaved;
+  const run = (chains.get(id) ?? Promise.resolve())
+    .catch(() => undefined)
+    .then(() => (wasSaved ? removeSavedVehicle(id) : saveVehicle(vehicle)));
+  chains.set(id, run);
   try {
-    await (wasSaved ? removeSavedVehicle(vehicle.id) : saveVehicle(vehicle));
+    await run;
     // Synced: drop any earlier queued change for this vehicle.
-    resolveSaved(vehicle.id);
+    if (latest()) resolveSaved(id);
   } catch (e) {
-    if (e?.isNetworkError) {
+    if (!latest()) {
+      // A newer tap already decided this heart; its own request follows.
+    } else if (e?.isNetworkError) {
       // Offline: keep the heart as the user left it and sync when back online.
-      enqueueSaved(vehicle.id, wasSaved ? 'unsave' : 'save', vehicle);
+      enqueueSaved(id, wasSaved ? 'unsave' : 'save', vehicle);
     } else if (wasSaved) {
       add(vehicle);
     } else {
-      remove(vehicle.id);
+      remove(id);
     }
   } finally {
-    if (inFlight.get(vehicle.id)?.saved === !wasSaved) {
-      inFlight.delete(vehicle.id);
+    if (latest()) {
+      inFlight.delete(id);
+    }
+    if (chains.get(id) === run) {
+      chains.delete(id);
     }
   }
 };

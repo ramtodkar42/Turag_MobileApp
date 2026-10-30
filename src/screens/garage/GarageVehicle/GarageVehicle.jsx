@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import {
@@ -48,7 +48,8 @@ function GarageVehicle({ navigation, route }) {
   const t = useT();
   const garage = useGarage();
   const vehicle = garage.find(v => v.id === route.params.vehicle.id) ?? route.params.vehicle;
-  const name = `${vehicle.make} ${vehicle.model} ${vehicle.year}`;
+  // Missing parts (e.g. no year) are left out, never shown as "null".
+  const name = [vehicle.make, vehicle.model, vehicle.year].filter(Boolean).join(' ');
   useFocusEffect(
     useCallback(() => {
       loadGarage();
@@ -76,20 +77,28 @@ function GarageVehicle({ navigation, route }) {
   const bookInspector = () =>
     navigation.navigate(ROUTES.BOOK_APPOINTMENT, { vehicle, valuation: valuationParam });
 
+  // The self-inspection started from this page (until the Garage shows it):
+  // coming back and tapping again continues it - never a second one.
+  const startedId = useRef(null);
+
   // Self-inspection (M1) is cars-only; otherwise fall back to booking.
   const selfInspect = async () => {
     if (!canSelfInspect) {
       bookInspector();
       return;
     }
+    if (starting) return;
     setStarting(true);
     setError('');
     try {
-      const { inspectionId } = await startSelfInspection({
-        vehicleId: vehicle.vehicleId,
-        category: vehicle.category,
-        consent,
-      });
+      startedId.current ??= (
+        await startSelfInspection({
+          vehicleId: vehicle.vehicleId,
+          category: vehicle.category,
+          consent,
+        })
+      ).inspectionId;
+      const inspectionId = startedId.current;
       navigation.navigate(ROUTES.SELF_INSPECTION, {
         inspectionId,
         vehicle,

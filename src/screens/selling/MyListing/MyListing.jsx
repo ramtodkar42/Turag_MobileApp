@@ -364,9 +364,16 @@ function MyListing({ navigation, route }) {
         submitLabel={t('selling.priceSave')}
         onClose={() => setEditingPrice(false)}
         onSubmit={async amount => {
-          const updated = await updateListingPrice(listing.id, amount, listing.version);
-          setEditingPrice(false);
-          setData(prev => ({ ...prev, listing: updated }));
+          try {
+            const updated = await updateListingPrice(listing.id, amount, listing.version);
+            setEditingPrice(false);
+            setData(prev => ({ ...prev, listing: updated }));
+          } catch (e) {
+            // Refused (e.g. the listing changed meanwhile): reload, so the next
+            // try uses the latest version; the sheet shows the message.
+            reload();
+            throw e;
+          }
         }}
       />
       <CounterSheet

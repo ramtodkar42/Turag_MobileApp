@@ -61,6 +61,13 @@ const DOCUMENT_MAX_BYTES = 20 * 1024 * 1024;
 export const blankAnswer = () => ({ note: '', cost: '', num: '', naReason: '' });
 export const slotKey = (itemCode, shotCode) => `${itemCode}:${shotCode}`;
 
+// A typed answer saves this long after the last key.
+const TYPED_SAVE_DELAY_MS = 800;
+
+// A file the server's photo check failed (the web's explainIntegrityFailure
+// rule: risk score above 70) - it has to be taken again.
+const failedIntegrity = mv => (mv.integrity?.risk_score ?? 0) > 70;
+
 // O2 counts owners; every other number reads km-like units (as the web).
 export const numericParserFor = itemCode => (itemCode === 'O2' ? parseOwnerCount : parseOdometerKm);
 
@@ -129,6 +136,8 @@ export default function useSelfInspection(inspectionId) {
   const aiInflight = useRef(new Set());
   const [identity, setIdentity] = useState({ rc: null, vin: null, engine: null });
   const [integrityItems, setIntegrityItems] = useState([]);
+  // Photos the photo check flagged, still to retake: { [slotKey]: { code, shotCode } }.
+  const [retake, setRetake] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [reopening, setReopening] = useState(false);
   const [submitError, setSubmitError] = useState('');
@@ -201,23 +210,36 @@ export default function useSelfInspection(inspectionId) {
       seenDhash.current = [];
       // Oldest first, so an angle's last file is its newest photo.
       const media = [...data.media].sort((a, b) => String(a.created_at ?? '').localeCompare(String(b.created_at ?? '')));
+      const toRetake = {};
       for (const mv of media) {
         if (!USABLE_MEDIA.has(mv.status)) continue;
         liveMedia.current.add(mv.id);
+        fileMap[mv.item_code] = [...(fileMap[mv.item_code] ?? []), { id: mv.id, shotCode: mv.shot_code, status: mv.status }];
+        // Failed the photo check (after "Retake photos"): not done until it's
+        // taken again - it stays listed above so the retake removes it.
+        if (failedIntegrity(mv)) {
+          toRetake[slotKey(mv.item_code, mv.shot_code)] = { code: mv.item_code, shotCode: mv.shot_code };
+          continue;
+        }
         counts[mv.item_code] = (counts[mv.item_code] ?? 0) + 1;
         const list = shots[mv.item_code] ?? [];
         if (!list.includes(mv.shot_code)) list.push(mv.shot_code);
         shots[mv.item_code] = list;
-        fileMap[mv.item_code] = [...(fileMap[mv.item_code] ?? []), { id: mv.id, shotCode: mv.shot_code, status: mv.status }];
         // Persisted findings rehydrate the estimate without calling the AI again.
         if (mv.item_code === 'B1' && mv.ai_finding) {
           found[mv.shot_code] = { finding: mv.ai_finding, mediaId: mv.id };
           states[mv.shot_code] = 'saved';
         }
       }
+      // A newer photo for the same angle already replaced a flagged one.
+      Object.keys(toRetake).forEach(key => {
+        const { code, shotCode } = toRetake[key];
+        if ((shots[code] ?? []).includes(shotCode)) delete toRetake[key];
+      });
       setMediaCount(counts);
       setMediaShots(shots);
       setMediaFiles(fileMap);
+      setRetake(toRetake);
       setPersisted(found);
       setAnalysis(states);
       // An angle holds one photo: older ones left by a retake the server
@@ -349,6 +371,33 @@ export default function useSelfInspection(inspectionId) {
     },
     [allItems, aiVerdictSaved, inspectionId, persisted, updateLocal],
   );
+
+  // Typed answers (a note, a repair cost, a number) save by themselves a moment
+  // after typing stops - not only when the box loses focus, which a tap on
+  // "Next" with the keyboard open never does. flushTyped() saves any still
+  // waiting (before submit).
+  const typedTimers = useRef({});
+  const typeAnswer = useCallback(
+    (code, patch) => {
+      updateLocal(code, c => ({ ...c, ...patch, ...('num' in patch ? { error: undefined } : null) }));
+      clearTimeout(typedTimers.current[code]);
+      typedTimers.current[code] = setTimeout(() => {
+        delete typedTimers.current[code];
+        record(code, {});
+      }, TYPED_SAVE_DELAY_MS);
+    },
+    [record, updateLocal],
+  );
+  const flushTyped = useCallback(async () => {
+    const codes = Object.keys(typedTimers.current);
+    codes.forEach(code => clearTimeout(typedTimers.current[code]));
+    typedTimers.current = {};
+    await Promise.all(codes.map(code => record(code, {})));
+  }, [record]);
+  // Leaving the screen with an answer still waiting: save it on the way out.
+  const flushRef = useRef(flushTyped);
+  flushRef.current = flushTyped;
+  useEffect(() => () => flushRef.current(), []);
 
   // --- AI damage pass (B1 walkaround photos) ------------------------------------------
 
@@ -498,14 +547,16 @@ export default function useSelfInspection(inspectionId) {
     [mediaFiles, removeAssets, setMsg],
   );
 
-  // Uploads one file for an (item, shot). replace = Retake: the old photo is
-  // removed first so every angle holds one photo. If the server is still
-  // checking it, the new photo goes up anyway and the old one is removed in
-  // the background as soon as it's allowed (a retake never gets stuck).
+  // Uploads one file for an (item, shot). replace = Retake (and always for a
+  // photo the photo check flagged): the new photo goes up FIRST and only then
+  // is the old one removed, so a failed retake never loses the good photo.
+  // If the server is still checking the old one, it's removed in the
+  // background as soon as it's allowed (a retake never gets stuck).
   const addEvidence = useCallback(
-    async (code, file, kind, shotCode, replace = false) => {
+    async (code, file, kind, shotCode, replaceAsked = false) => {
       if (!file) return;
       const key = slotKey(code, shotCode);
+      const replace = replaceAsked || !!retake[key];
       setMsg(key, undefined);
       if (kind === 'DOCUMENT') {
         const type = String(file.type ?? '').toLowerCase();
@@ -521,27 +572,30 @@ export default function useSelfInspection(inspectionId) {
       const gpsPromise = getPhotoLocation();
       const isPhoto = kind === 'PHOTO' && String(file.type ?? 'image/jpeg').startsWith('image/');
       const dhashPromise = isPhoto ? photoDhash(file) : Promise.resolve(null);
-      try {
-        if (replace) {
-          const oldIds = (mediaFiles[code] ?? [])
+      // The photo(s) this one replaces - removed only after it's safely up.
+      const oldIds = replace
+        ? (mediaFiles[code] ?? [])
             .filter(f => f.shotCode === shotCode && !pendingRemoval.current.has(f.id))
-            .map(f => f.id);
-          for (const id of oldIds) {
-            try {
-              await deleteSelfMedia(id);
-              forgetAsset(code, shotCode, id);
-            } catch (err) {
-              if (!isStillProcessing(err)) {
-                setMsg(key, { kind: 'error', text: deleteErrorText(err) });
-                return;
-              }
-              later.push(id);
-            }
-          }
-        }
+            .map(f => f.id)
+        : [];
+      try {
         const gps = await gpsPromise;
         const mv = await uploadSelfEvidence({ inspectionId, itemCode: code, shotCode, kind, file, gps });
         liveMedia.current.add(mv.mediaId);
+        for (const id of oldIds) {
+          try {
+            await deleteSelfMedia(id);
+            forgetAsset(code, shotCode, id);
+          } catch {
+            // Still being checked, or a blip: removed in the background.
+            later.push(id);
+          }
+        }
+        setRetake(prev => {
+          if (!prev[key]) return prev;
+          const { [key]: _done, ...rest } = prev;
+          return rest;
+        });
         // "Looks like your other photo": advisory only, never blocks (adjacent
         // angles of a car can look alike) - the web's near-duplicate hint.
         const hash = await dhashPromise;
@@ -580,7 +634,7 @@ export default function useSelfInspection(inspectionId) {
         setUploading(u => ({ ...u, [key]: false }));
       }
     },
-    [inspectionId, mediaFiles, forgetAsset, removeInBackground, setMsg, suggestDamage],
+    [inspectionId, mediaFiles, retake, forgetAsset, removeInBackground, setMsg, suggestDamage],
   );
 
   // --- Identity (RC / VIN cards): the confirmed values feed the live estimate --------
@@ -641,10 +695,16 @@ export default function useSelfInspection(inspectionId) {
     setScreen('submitted');
   }, [allItems, inspectionId]);
 
+  const submitting$ = useRef(false);
   const submit = useCallback(async () => {
+    // A fast double tap sends it (and opens the payment) only once.
+    if (submitting$.current) return;
+    submitting$.current = true;
     setSubmitting(true);
     setSubmitError('');
     setPayProblem(null);
+    // Answers still being typed are saved before the server checks them.
+    await flushTyped();
     const labels = buildItemLabelMap(allItems);
     const errorText = e =>
       e?.message ? humanizeSubmitError(e.message, labels) : tNow('selfInspection.error.submitFailed');
@@ -672,17 +732,18 @@ export default function useSelfInspection(inspectionId) {
       // Not paid (yet): stay on review, with a PaymentNotice card; Submit
       // again once it's confirmed.
       if (paid.result === 'awaiting') {
-        setPayProblem({ kind: 'awaiting', message: tNow('selfInspection.pay.awaiting') });
+        setPayProblem({ kind: 'awaiting', messageKey: 'selfInspection.pay.awaiting' });
       } else if (paid.result === 'unavailable') {
-        setPayProblem({ kind: 'unavailable', message: tNow('selfInspection.pay.unavailable') });
+        setPayProblem({ kind: 'unavailable', messageKey: 'selfInspection.pay.unavailable' });
       } else {
         setPayProblem({ kind: paid.kind ?? 'failed', message: paid.error || tNow('selfInspection.pay.failed') });
       }
     } finally {
       setPayPhase(null);
       setSubmitting(false);
+      submitting$.current = false;
     }
-  }, [allItems, inspectionId, runSubmit]);
+  }, [allItems, inspectionId, runSubmit, flushTyped]);
 
   // Integrity failed: reopen (INTEGRITY_FAILED -> IN_PROGRESS) and load the
   // capture again so the flagged photos can be retaken.
@@ -804,6 +865,7 @@ export default function useSelfInspection(inspectionId) {
     local,
     updateLocal,
     record,
+    typeAnswer,
     mediaFiles,
     mediaShots,
     thumbs,
@@ -827,6 +889,8 @@ export default function useSelfInspection(inspectionId) {
     fixPhotos,
     finalStatus,
     integrityItems,
+    // Photos the photo check flagged that still need taking again ([{ code, shotCode }]).
+    retakeShots: Object.values(retake),
     final,
     ...derived,
   };

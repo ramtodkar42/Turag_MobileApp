@@ -52,7 +52,7 @@ function BookingDetails({ navigation, route }) {
     useRemoteData(load, [bookingId]);
   const { confirm, dialog } = useConfirmDialog();
   const [actionError, setActionError] = useState('');
-  const payment = usePayAgain({ booking, onPaid: reload });
+  const payment = usePayAgain({ booking, onPaid: reload, pending: !!route.params.paymentPending });
 
   const header = <Header onBack={navigation.goBack} title={t('account.booking.title')} />;
 
@@ -161,16 +161,6 @@ function BookingDetails({ navigation, route }) {
             }}
             style={styles.card}
           >
-            {payment.note ? (
-              <AppText
-                variant="caption"
-                color={colors.body}
-                style={styles.payNote}
-                accessibilityLiveRegion="polite"
-              >
-                {payment.note.text}
-              </AppText>
-            ) : null}
             <PaymentNotice problem={payment.problem} style={styles.payNote} />
           </ActionPanel>
         ) : null}

@@ -57,16 +57,17 @@ const KIND_MESSAGES = {
 export const checkoutErrorMessage = e => tNow(KIND_MESSAGES[checkoutErrorKind(e)]);
 
 // Any failed payment as the PaymentNotice card shows it: { kind ('cancelled' |
-// 'declined' | 'network' | 'unavailable' | 'failed'), message }. Errors
-// that aren't from the payment window get the general "didn't go through".
+// 'declined' | 'network' | 'unavailable' | 'failed'), message, messageKey? }
+// (the key lets the card follow a language switch). Errors that aren't from
+// the payment window get the general "didn't go through".
 export const paymentProblem = e => {
   if (e?.code === PAYMENT_CANCELLED) {
-    return { kind: e.details?.kind ?? 'cancelled', message: e.message };
+    return { kind: e.details?.kind ?? 'cancelled', message: e.message, messageKey: e.details?.messageKey };
   }
   if (e?.code === PAYMENT_UNAVAILABLE || e?.code === 'PAYMENTS_UNAVAILABLE') {
     return { kind: 'unavailable', message: e.message };
   }
-  return { kind: 'failed', message: tNow('booking.summary.payError') };
+  return { kind: 'failed', message: tNow('booking.summary.payError'), messageKey: 'booking.summary.payError' };
 };
 
 // Opens the checkout for a server-made order. The native SDK is loaded on first
@@ -106,7 +107,7 @@ export const openRazorpayCheckout = async ({
     throw new ApiError({
       code: PAYMENT_CANCELLED,
       message: checkoutErrorMessage(e),
-      details: { kind: checkoutErrorKind(e) },
+      details: { kind: checkoutErrorKind(e), messageKey: KIND_MESSAGES[checkoutErrorKind(e)] },
     });
   }
 };

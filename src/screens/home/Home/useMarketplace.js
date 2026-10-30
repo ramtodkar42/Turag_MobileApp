@@ -107,14 +107,19 @@ export default function useMarketplace() {
     const [q, cat, chosen, dropped] = JSON.parse(key);
     let understood = null;
     if (q) {
+      let result = parsed.current.get(q);
       if (!parsed.current.has(q)) {
-        const result = await parseSearchQuery(q);
-        parsed.current.set(q, result);
-        if (parsed.current.size > PARSE_CACHE_LIMIT) {
-          parsed.current.delete(parsed.current.keys().next().value);
+        result = await parseSearchQuery(q);
+        // Remembered only when the server answered (undefined = couldn't ask:
+        // the next search of this text asks again).
+        if (result !== undefined) {
+          parsed.current.set(q, result);
+          if (parsed.current.size > PARSE_CACHE_LIMIT) {
+            parsed.current.delete(parsed.current.keys().next().value);
+          }
         }
       }
-      understood = withoutChips(parsed.current.get(q), dropped);
+      understood = withoutChips(result ?? null, dropped);
     }
     const page = await getMarketplaceVehicles({
       query: q,
@@ -167,6 +172,7 @@ export default function useMarketplace() {
       return;
     }
 
+    const hadCards = shownCount.current > 0;
     // Only treat it as a hit if it actually carries items; a malformed/partial
     // entry is a miss (and never crashes on `cached.items.length`).
     const stored = force ? null : cache.current.get(searchKey);
@@ -227,8 +233,9 @@ export default function useMarketplace() {
         setError(null);
       })
       .catch(e => {
-        // With cached results on screen, a failed quiet check stays quiet.
-        if (id === requestId.current && !cached) {
+        // With results on screen - cached, or a pull-to-refresh / reload of
+        // the same search - a failed check stays quiet and keeps the cars.
+        if (id === requestId.current && !cached && !(force && hadCards)) {
           // The previous search's cards don't belong to this one.
           setVehicles([]);
           setNextCursor(null);

@@ -113,7 +113,8 @@ describe('real backend', () => {
     expect(smart.filters.fuel).toBe('DIESEL');
 
     fetch.mockRejectedValueOnce(new Error('offline'));
-    await expect(parseSearchQuery('swift')).resolves.toBeNull();
+    // Couldn't ask (undefined): plain text this time, asked again next time.
+    await expect(parseSearchQuery('swift')).resolves.toBeUndefined();
   });
 
   test('searches the understood filters instead of the text; filters picked on screen win', async () => {

@@ -13,7 +13,7 @@ export default {
   'account.booking.pay.button': 'अभी भुगतान करें · {amount}',
   'account.booking.pay.paying': 'भुगतान हो रहा है…',
   'account.booking.pay.retry': 'फिर से भुगतान करें',
-  'account.booking.pay.awaiting': 'भुगतान मिल गया। हम बैंक से इसकी पुष्टि कर रहे हैं। थोड़ी देर में रिफ़्रेश करने के लिए नीचे खींचें।',
+  'account.booking.pay.awaiting': 'अगर आपने भुगतान पूरा कर दिया है, तो कुछ ही मिनटों में यहाँ इसकी पुष्टि हो जाएगी, इसलिए कृपया दोबारा भुगतान न करें। अगर भुगतान पूरा नहीं हुआ, तो अभी भुगतान करें पर टैप करें: यह वही भुगतान जारी रखता है, इसलिए आपसे दो बार पैसे नहीं कटेंगे।',
   'account.booking.notFound.title': 'बुकिंग नहीं मिली',
   'account.booking.notFound.message': 'यह बुकिंग मौजूद नहीं है या आपकी नहीं है।',
   'account.booking.error.title': 'बुकिंग लोड नहीं हो सकी',

@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { StatusBar, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppText, Button } from '../../../components';
@@ -17,18 +18,28 @@ function VehicleCamera({ navigation, route }) {
   const { shot, returnTo } = route.params;
   const insets = useSafeAreaInsets();
 
-  const onCaptured = file =>
-    setTimeout(
+  // Closing the camera during the short "Perfect angle" pause cancels the
+  // photo (it's never sent back), and leaving the screen clears the timer.
+  const returning = useRef(null);
+  useEffect(() => () => clearTimeout(returning.current), []);
+  const onCaptured = file => {
+    clearTimeout(returning.current);
+    returning.current = setTimeout(
       () => navigation.popTo(returnTo, { captured: { key: shot.key, file } }, { merge: true }),
       RETURN_DELAY,
     );
+  };
+  const close = () => {
+    clearTimeout(returning.current);
+    navigation.goBack();
+  };
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <StatusBar barStyle="light-content" />
       <View style={styles.frame}>
         {isCameraAvailable ? (
-          <LiveCamera shot={shot} onCaptured={onCaptured} onClose={navigation.goBack} />
+          <LiveCamera shot={shot} onCaptured={onCaptured} onClose={close} />
         ) : (
           <View style={styles.unavailable}>
             <AppText variant="h3" align="center" color={colors.white}>

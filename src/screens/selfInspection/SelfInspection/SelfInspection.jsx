@@ -28,6 +28,7 @@ import useSelfInspection, { slotKey } from './useSelfInspection';
 import { STEPS } from './constants';
 import ProgressRing from './components/ProgressRing';
 import StepTabs from './components/StepTabs';
+import RetakeBanner from './components/RetakeBanner';
 import { InspectorModeContext } from './inspectorMode';
 import PhotosStep from './steps/PhotosStep';
 import DocumentsStep from './steps/DocumentsStep';
@@ -388,6 +389,8 @@ function SelfInspection({ navigation, route }) {
         </View>
       </Card>
 
+      <RetakeBanner shots={si.retakeShots} items={si.allItems} style={styles.retake} />
+
       <StepTabs current={step} progress={progress} estimateLabel={estimateText} onSelect={selectStep} />
 
       <View style={styles.body}>
@@ -457,6 +460,9 @@ const styles = StyleSheet.create({
   body: {
     paddingTop: spacing.md,
     paddingBottom: spacing.lg,
+  },
+  retake: {
+    marginTop: spacing.md,
   },
   bar: {
     gap: spacing.sm,

@@ -16,6 +16,8 @@ export default {
   'selfInspection.confirm': 'Confirm',
   'selfInspection.edit': 'Edit',
   'selfInspection.retake': 'Retake',
+  'selfInspection.retake.title_one': 'Take this photo again',
+  'selfInspection.retake.title_other': 'Take these {count} photos again',
   'selfInspection.save': 'Save',
   'selfInspection.uploaded': 'Uploaded',
   'selfInspection.uploading': 'Uploading…',

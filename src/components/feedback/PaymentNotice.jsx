@@ -18,13 +18,15 @@ const KINDS = {
 };
 
 // A payment that didn't finish (from api/razorpay paymentProblem): an icon, a
-// short title and what to do next. problem: { kind, message } | null.
+// short title and what to do next. problem: { kind, message, messageKey? } | null.
 function PaymentNotice({ problem, style }) {
   const t = useT();
   if (!problem) {
     return null;
   }
   const look = KINDS[problem.kind] ?? KINDS.failed;
+  // Translated here when its key is known, so it follows a language switch.
+  const message = problem.messageKey ? t(problem.messageKey) : problem.message;
   return (
     <FadeIn offset={0} style={[styles.card, { backgroundColor: look.bg }, style]}>
       <View style={styles.icon}>
@@ -34,9 +36,9 @@ function PaymentNotice({ problem, style }) {
         <AppText variant="label" color={colors.heading}>
           {t(look.titleKey)}
         </AppText>
-        {problem.message ? (
+        {message ? (
           <AppText variant="caption" color={colors.body} style={styles.message}>
-            {problem.message}
+            {message}
           </AppText>
         ) : null}
       </View>

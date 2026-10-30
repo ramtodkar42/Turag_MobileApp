@@ -22,10 +22,12 @@ const TEXT_WIDTH = ms(340);
 // never names the cities it does serve). Instead of booking, the user can opt
 // in to be told when Turag launches there; "Back to booking" returns to the
 // form as it was, to try another address.
-// params: { place: { city, locality?, state?, pincode? }, category, vehicleId?, slotAt? }
+// params: { place: { city, locality?, state?, pincode? }, category, vehicleId?, slotAt?,
+// backTo? (opened from the summary: back goes to the booking form itself) }
 function BookingComingSoon({ navigation, route }) {
   const t = useT();
-  const { place, category, vehicleId, slotAt } = route.params;
+  const { place, category, vehicleId, slotAt, backTo } = route.params;
+  const back = () => (backTo ? navigation.popTo(backTo) : navigation.goBack());
   const city = place.city;
   const [status, setStatus] = useState('idle'); // 'idle' | 'saving' | 'done' | 'error'
   const done = status === 'done';
@@ -46,13 +48,13 @@ function BookingComingSoon({ navigation, route }) {
   return (
     <ScreenContainer
       scroll
-      header={<Header onBack={navigation.goBack} />}
+      header={<Header onBack={back} />}
       footer={
         done ? (
           <Button
             title={t('booking.comingSoon.back')}
             variant="outline"
-            onPress={navigation.goBack}
+            onPress={back}
           />
         ) : (
           <View>
@@ -72,7 +74,7 @@ function BookingComingSoon({ navigation, route }) {
             <Button
               title={t('booking.comingSoon.back')}
               variant="ghost"
-              onPress={navigation.goBack}
+              onPress={back}
               style={styles.back}
             />
           </View>

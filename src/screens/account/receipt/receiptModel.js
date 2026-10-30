@@ -24,7 +24,8 @@ export const buildReceipt = ({ booking, paymentRef, language, t }) => ({
   where: locationText(booking),
   type: t('account.receipt.typeValue'),
   reference: paymentRef || null,
-  paidOn: formatDateTime(booking.feePaidAt ?? Date.now(), language),
+  // The server's own payment time - never "now", which changed on each open.
+  paidOn: booking.feePaidAt ? formatDateTime(booking.feePaidAt, language) : '—',
   amount: booking.price != null ? formatINR(booking.price) : '—',
 });
 

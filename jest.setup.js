@@ -128,6 +128,16 @@ jest.mock('react-native-inappbrowser-reborn', () => {
   return { __esModule: true, default: InAppBrowser, InAppBrowser };
 });
 
+// Splash screen (native): nothing to hide in tests.
+jest.mock('react-native-bootsplash', () => {
+  const BootSplash = {
+    hide: jest.fn(() => Promise.resolve()),
+    isVisible: jest.fn(() => Promise.resolve(false)),
+    useHideAnimation: jest.fn(() => ({ container: {}, logo: {}, brand: {} })),
+  };
+  return { __esModule: true, default: BootSplash, ...BootSplash };
+});
+
 // FastImage (native, ships TypeScript source): a plain Image in tests.
 jest.mock('@d11/react-native-fast-image', () => {
   const { Image } = require('react-native');

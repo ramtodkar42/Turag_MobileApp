@@ -13,6 +13,7 @@ import { ENDPOINTS } from '../endpoints';
 import { toMoney, toRupees } from '../mappers/money';
 import { mapOffer, mapOrder } from '../mappers/offer';
 import { isTestGateway, openRazorpayCheckout } from '../razorpay';
+import { openHostedCheckout } from '../hostedCheckout';
 import { sampleBuyerOffers, sampleListingOffers, sampleOrders } from '../mock/account';
 import { tNow } from '../../i18n';
 
@@ -171,7 +172,11 @@ export const payOrderToken = async (orderId, { prefill } = {}) => {
     throw e;
   }
   const amount = toRupees(payment.amount);
-  if (isTestGateway(payment)) {
+  if (payment.redirect_url) {
+    // PhonePe (hosted checkout): its page in a secure tab, then the server's
+    // confirmation below (as the booking fee).
+    await openHostedCheckout(payment.redirect_url);
+  } else if (isTestGateway(payment)) {
     try {
       await request(ENDPOINTS.orderTokenPaymentSimulate(orderId), { method: 'POST', body: {} });
     } catch {

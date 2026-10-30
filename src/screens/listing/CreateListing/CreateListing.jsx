@@ -44,7 +44,8 @@ function CreateListing({ navigation, route }) {
   // Where the vehicle is: city + state are required by the backend.
   const location = useListingLocation();
   const [showLocationErrors, setShowLocationErrors] = useState(false);
-  // One key per listing attempt: a retry after a network error can't create two.
+  // One key per listing attempt ({ attempt, value }): a retry after a network
+  // error can't create two.
   const key = useRef(null);
   const name = [vehicle.make, vehicle.model, vehicle.year].filter(Boolean).join(' ');
 
@@ -52,7 +53,6 @@ function CreateListing({ navigation, route }) {
     setPriceDigits(text.replace(/\D/g, '').replace(/^0+/, '').slice(0, MAX_PRICE_DIGITS));
     setTouched(true);
     setError('');
-    key.current = null; // a different price is a different listing
   };
 
   // Mirror the web's create-time gate (ADR-0038): a vehicle is listable only
@@ -72,7 +72,13 @@ function CreateListing({ navigation, route }) {
       setShowLocationErrors(true);
       return;
     }
-    key.current = key.current ?? newIdempotencyKey();
+    // The same key only for a retry of exactly the same listing; after any
+    // change (price, note, location) it's a new attempt with a new key.
+    const payload = location.toPayload();
+    const attempt = JSON.stringify([Number(price), note, payload]);
+    if (key.current?.attempt !== attempt) {
+      key.current = { attempt, value: newIdempotencyKey() };
+    }
     setCreating(true);
     setError('');
     try {
@@ -82,8 +88,8 @@ function CreateListing({ navigation, route }) {
         inspectionId: vehicle.inspectionId ?? null,
         askPrice: Number(price),
         sellerNote: note,
-        location: location.toPayload(),
-        idempotencyKey: key.current,
+        location: payload,
+        idempotencyKey: key.current.value,
         vehicle,
       });
       loadGarage();

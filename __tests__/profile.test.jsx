@@ -158,8 +158,11 @@ test('Delete account (as the web): type DELETE to confirm, then deleted, signed 
   expect(field()).toBeDefined();
   expect(button('Delete permanently').props.disabled).toBe(true);
 
+  await act(async () => field().props.onChangeText('DELET'));
+  expect(button('Delete permanently').props.disabled).toBe(true); // the whole word
+  // Any capitals (some keyboards don't capitalise).
   await act(async () => field().props.onChangeText('delete'));
-  expect(button('Delete permanently').props.disabled).toBe(true); // exactly DELETE
+  expect(button('Delete permanently').props.disabled).toBe(false);
   await act(async () => field().props.onChangeText('DELETE'));
   expect(button('Delete permanently').props.disabled).toBe(false);
 

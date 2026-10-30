@@ -102,7 +102,11 @@ function OfferDetails({ navigation, route }) {
   const tokenStep = offer.status === 'ACCEPTED' && order?.status === 'CREATED';
   const handedOver = order?.status === 'HANDED_OVER' || order?.status === 'COMPLETED';
   const payBusy = pay?.phase === 'paying';
-  const canPay = !pay || pay.phase === 'failed' || payBusy;
+  // Waiting for the bank's confirmation is checked automatically; paying again
+  // stays possible (it continues the same payment order - never a second charge).
+  // ("paid" but the order not moved on yet is the same wait.)
+  const awaiting = pay?.phase === 'awaiting' || (pay?.phase === 'paid' && tokenStep);
+  const canPay = !pay || pay.phase === 'failed' || awaiting || payBusy;
   const chips = listing
     ? [
         listing.fuelCode ? codeLabel(t, 'marketplace.fuel', listing.fuelCode, listing.fuel) : null,
@@ -301,12 +305,18 @@ function OfferDetails({ navigation, route }) {
               {pay?.phase === 'paying' ? (
                 <Badge label={t('offers.pay.confirming')} tone="warning" size="sm" style={styles.selfStart} />
               ) : null}
-              {pay?.phase === 'awaiting' ? (
+              {awaiting ? (
                 <View style={styles.awaiting}>
-                  <AppText variant="caption" color={colors.warning}>
-                    {t('offers.pay.awaiting')}
-                  </AppText>
-                  <Button title={t('offers.pay.checkAgain')} size="sm" variant="outline" fullWidth={false} onPress={d.checkAgain} />
+                  <PaymentNotice problem={{ kind: 'awaiting', message: t('offers.pay.awaiting') }} />
+                  <Button
+                    title={t('offers.pay.checkAgain')}
+                    size="sm"
+                    variant="outline"
+                    fullWidth={false}
+                    onPress={d.checkAgain}
+                    loading={d.checking}
+                    style={styles.selfStart}
+                  />
                 </View>
               ) : null}
               {pay?.phase === 'unavailable' || pay?.phase === 'failed' ? <PaymentNotice problem={pay} /> : null}
@@ -339,7 +349,7 @@ function OfferDetails({ navigation, route }) {
                   variant="outline"
                   onPress={onCancelOrder}
                   loading={d.busy === 'cancel'}
-                  disabled={!!d.busy || payBusy}
+                  disabled={!!d.busy || payBusy || awaiting}
                   style={styles.flex}
                 />
                 <Button
@@ -534,8 +544,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   awaiting: {
-    gap: spacing.xs,
-    alignItems: 'flex-start',
+    gap: spacing.sm,
   },
   orderRow: {
     flexDirection: 'row',

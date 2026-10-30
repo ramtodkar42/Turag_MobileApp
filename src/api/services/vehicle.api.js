@@ -49,8 +49,9 @@ const SEARCH_PARSE_TIMEOUT_MS = 6000;
 // Smart search (as the web's parseQueryWithAi): what a typed / spoken search
 // means, e.g. "diesel SUV under 10 lakh in Pune" -> fuel, body type, price and
 // city. The server's own parser (/api/ai/search-parse, no sign-in). Returns
-// mapSearchParse's { filters, chips }, or null when nothing was understood or
-// it couldn't be asked (the search then goes as plain text).
+// mapSearchParse's { filters, chips }, null when nothing was understood, or
+// undefined when it couldn't be asked (offline / timeout). Either way the
+// search then goes as plain text.
 export const parseSearchQuery = async query => {
   const text = query.trim();
   if (!text || !real()) {
@@ -64,10 +65,13 @@ export const parseSearchQuery = async query => {
       credentials: 'omit',
       signal: controller.signal,
     });
-    const data = res.ok ? await res.json() : null;
+    if (!res.ok) {
+      return undefined;
+    }
+    const data = await res.json();
     return data?.success ? mapSearchParse(data.parsed) : null;
   } catch {
-    return null;
+    return undefined;
   } finally {
     clearTimeout(timer);
   }

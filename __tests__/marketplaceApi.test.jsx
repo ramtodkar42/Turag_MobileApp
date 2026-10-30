@@ -209,9 +209,9 @@ describe('Vehicle page photo tabs', () => {
     fetch.mockResolvedValueOnce(reply(200, { listing: categorised }));
     const vehicle = await getVehicleDetails('lst_1');
     expect(vehicle.photoGroups).toEqual([
-      { category: 'EXTERIOR', images: [{ uri: 'https://cdn.example/e1.jpg' }, { uri: 'https://cdn.example/e2.jpg' }] },
-      { category: 'ENGINE', images: [{ uri: 'https://cdn.example/g1.jpg' }] },
-      { category: 'TYRE', images: [{ uri: 'https://cdn.example/t1.jpg' }] },
+      { category: 'EXTERIOR', images: [{ uri: 'https://cdn.example/e1.jpg', label: null, shotCode: null }, { uri: 'https://cdn.example/e2.jpg', label: null, shotCode: null }] },
+      { category: 'ENGINE', images: [{ uri: 'https://cdn.example/g1.jpg', label: null, shotCode: null }] },
+      { category: 'TYRE', images: [{ uri: 'https://cdn.example/t1.jpg', label: null, shotCode: null }] },
     ]);
   });
 
@@ -232,7 +232,7 @@ describe('Vehicle page photo tabs', () => {
 
     await act(async () => tabs[2].props.onPress());
     expect(root.findAllByType(Chip)[2].props.selected).toBe(true);
-    expect(root.findByType(ImageCarousel).props.images).toEqual([{ uri: 'https://cdn.example/t1.jpg' }]);
+    expect(root.findByType(ImageCarousel).props.images).toEqual([{ uri: 'https://cdn.example/t1.jpg', label: null, shotCode: null }]);
     fetch.mockReset();
   });
 });
@@ -311,7 +311,7 @@ describe('vehicle page', () => {
 });
 
 describe('saved', () => {
-  test('heart saves and un-saves with the listing id; a failed save is undone', async () => {
+  test('heart saves and un-saves with the listing id; offline keeps it (synced later), a refusal is undone', async () => {
     await signIn();
     const vehicle = { id: 'lst_1', name: 'Hyundai Creta' };
     fetch.mockResolvedValueOnce(reply(201, { saved: {} }));
@@ -326,9 +326,18 @@ describe('saved', () => {
     expect(del[1].method).toBe('DELETE');
     expect(isSaved('lst_1')).toBe(false);
 
+    // Offline: the heart stays as the user left it; the save waits in the queue.
     fetch.mockRejectedValueOnce(new TypeError('Network request failed'));
     await act(async () => toggleSaved(vehicle));
-    expect(isSaved('lst_1')).toBe(false);
+    expect(isSaved('lst_1')).toBe(true);
+    expect(require('../src/store/offlineQueue').queuedSaved()).toEqual({
+      lst_1: { action: 'save', vehicle },
+    });
+
+    // The server refusing (not offline): the heart goes back.
+    fetch.mockResolvedValueOnce(reply(500, { error: { code: 'INTERNAL' } }));
+    await act(async () => toggleSaved(vehicle));
+    expect(isSaved('lst_1')).toBe(true);
   });
 });
 

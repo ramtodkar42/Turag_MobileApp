@@ -49,7 +49,10 @@ export default function useAddAccountForm(onAdded) {
     [],
   );
 
+  // A fast double tap adds the account once.
+  const sending = useRef(false);
   const submit = async () => {
+    if (sending.current) return;
     const digits = cleanNumber(number);
     const code = ifsc.trim().toUpperCase();
     const fail = key => setError(tNow(key));
@@ -61,6 +64,7 @@ export default function useAddAccountForm(onAdded) {
     if (!file) return fail('payouts.form.noProof');
     if ((file.fileSize ?? 0) > PAYOUT_PROOF_MAX_BYTES) return fail('payouts.form.tooLarge');
 
+    sending.current = true;
     setBusy(true);
     setError('');
     let created = null;
@@ -92,6 +96,7 @@ export default function useAddAccountForm(onAdded) {
         );
       }
     } finally {
+      sending.current = false;
       if (mounted.current) setBusy(false);
     }
   };

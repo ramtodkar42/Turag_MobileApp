@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import useRemoteData from '../../../hooks/useRemoteData';
 import {
   PAYMENTS_UNAVAILABLE,
@@ -16,6 +16,10 @@ import { ApiError } from '../../../api/client';
 import { refreshNotifications } from '../../../store/notificationStore';
 import { tNow } from '../../../i18n';
 import { paymentPrefill } from '../../booking/paymentPrefill';
+
+// A token payment waiting for the bank is checked again this often, this long.
+const AWAIT_CHECK_EVERY_MS = 5000;
+const AWAIT_CHECK_FOR_MS = 120000;
 
 // One of the buyer's offers (as the web's /buy/offers/{id}): there's no
 // single-offer endpoint, so it's picked from the buyer's offers (with its
@@ -96,7 +100,7 @@ export default function useOfferDetails(offerId) {
         refreshNotifications();
         await reload();
       } else if (result === 'failed') {
-        setPay({ phase: 'failed', amount, kind: 'declined', message: tNow('offers.pay.failed') });
+        setPay({ phase: 'failed', amount, kind: 'declined', message: tNow('offers.pay.failed'), messageKey: 'offers.pay.failed' });
       } else {
         setPay({ phase: 'awaiting', amount });
       }
@@ -115,7 +119,34 @@ export default function useOfferDetails(offerId) {
 
   // "Waiting for confirmation": check again (pull to refresh does the same).
   // Once the server has it, the order moves on and the token panel goes.
-  const checkAgain = () => reload();
+  const [checking, setChecking] = useState(false);
+  const checkAgain = async () => {
+    setChecking(true);
+    try {
+      await reload();
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  // ...and quietly by itself every few seconds for a couple of minutes, so
+  // the buyer never has to guess. Stops once the token is paid.
+  const orderOpen = offer?.order?.status === 'CREATED';
+  const awaiting = pay?.phase === 'awaiting' || (pay?.phase === 'paid' && orderOpen);
+  useEffect(() => {
+    if (!awaiting || !orderOpen) {
+      return undefined;
+    }
+    const startedAt = Date.now();
+    const timer = setInterval(() => {
+      if (Date.now() - startedAt > AWAIT_CHECK_FOR_MS) {
+        clearInterval(timer);
+        return;
+      }
+      reload();
+    }, AWAIT_CHECK_EVERY_MS);
+    return () => clearInterval(timer);
+  }, [awaiting, orderOpen, reload]);
 
   return {
     ...remote,
@@ -131,5 +162,6 @@ export default function useOfferDetails(offerId) {
     pay,
     payToken,
     checkAgain,
+    checking,
   };
 }

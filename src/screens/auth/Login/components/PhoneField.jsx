@@ -21,7 +21,8 @@ const SELECTION = Platform.select({
 });
 
 // "+91 | Enter your number" on the red login screen. Digits only, max 10.
-function PhoneField({ value, onChangeText, error, onSubmitEditing, style }) {
+// onFocus: the box was tapped (the screen can tighten before the keyboard rises).
+function PhoneField({ value, onChangeText, error, onSubmitEditing, onFocus, style }) {
   const t = useT();
   return (
     <View style={style}>
@@ -41,6 +42,7 @@ function PhoneField({ value, onChangeText, error, onSubmitEditing, style }) {
           maxLength={10}
           returnKeyType="done"
           onSubmitEditing={onSubmitEditing}
+          onFocus={onFocus}
           maxFontSizeMultiplier={1.3}
           {...SELECTION}
           accessibilityLabel={t('auth.phoneLabel')}

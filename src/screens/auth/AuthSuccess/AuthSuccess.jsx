@@ -44,8 +44,9 @@ function AuthSuccess({ navigation, route }) {
   const proceed = useCallback(() => {
     if (left.current) return;
     left.current = true;
-    if (goBack && navigation.canGoBack()) navigation.goBack();
-    else if (thenOpen) navigation.reset({ index: 1, routes: [{ name: next }, { name: thenOpen }] });
+    // A dealer's Business section comes first, even after signing in from a guest screen.
+    if (thenOpen) navigation.reset({ index: 1, routes: [{ name: next }, { name: thenOpen }] });
+    else if (goBack && navigation.canGoBack()) navigation.goBack();
     else navigation.replace(next);
   }, [navigation, next, goBack, thenOpen]);
 

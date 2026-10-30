@@ -33,7 +33,8 @@ export default function useDeleteAccount(navigation) {
     if (error) setError('');
   };
 
-  const canDelete = typed.trim() === CONFIRM_WORD && !deleting;
+  // Any capitals: some keyboards (Hindi / Marathi layouts) don't capitalise.
+  const canDelete = typed.trim().toUpperCase() === CONFIRM_WORD && !deleting;
 
   const remove = async () => {
     if (!canDelete) return;

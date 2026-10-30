@@ -34,17 +34,23 @@ let generation = 0;
 
 const applySeen = item => (item.unread && seen.has(item.id) ? { ...item, unread: false } : item);
 
+// A refresh asked for while a request was running (e.g. a push arrived): one
+// more fetch once it ends, since that request started before the news.
+let again = false;
+
 // Loads or refreshes the list. Calls while a request is running share it.
-// userRefresh: pull-to-refresh (shows the spinner, always fetches).
-export const loadNotifications = ({ userRefresh = false } = {}) => {
+// userRefresh: pull-to-refresh / a push arrived (always fetches).
+// force: fetch now, quietly (no spinner).
+export const loadNotifications = ({ userRefresh = false, force = false } = {}) => {
   if (pending) {
     if (userRefresh) {
       store.set(s => ({ ...s, refreshing: true }));
+      again = true;
     }
     return pending;
   }
   const { loaded, fetchedAt } = store.get();
-  if (loaded && !userRefresh && Date.now() - fetchedAt < STALE_AFTER_MS) {
+  if (loaded && !userRefresh && !force && Date.now() - fetchedAt < STALE_AFTER_MS) {
     return Promise.resolve();
   }
 
@@ -85,6 +91,10 @@ export const loadNotifications = ({ userRefresh = false } = {}) => {
       }
       pending = null;
       store.set(s => ({ ...s, loading: false, refreshing: false }));
+      if (again) {
+        again = false;
+        loadNotifications({ force: true });
+      }
     });
   return pending;
 };
@@ -119,5 +129,6 @@ export const clearNotifications = () => {
   generation += 1;
   seen = new Set();
   pending = null;
+  again = false;
   store.set(INITIAL);
 };

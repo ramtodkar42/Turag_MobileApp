@@ -9,23 +9,23 @@ import { readCache, removeCache, writeCache } from '../utils/persistentCache';
 // action survives the app being closed before it syncs.
 const KEY = 'offline-saved-queue';
 let queue = {}; // id -> { action: 'save' | 'unsave', vehicle }
-let hydrated = false;
+let hydrating = null;
 let flushing = false;
 
 const persist = () => writeCache(KEY, queue);
 
-export const hydrateQueue = async () => {
-  if (hydrated) {
-    return;
-  }
-  hydrated = true;
-  const saved = await readCache(KEY);
-  if (saved && typeof saved === 'object') {
-    queue = saved;
-  }
-  if (getOnline()) {
-    flushQueue();
-  }
+// Reads the queue from disk once; every caller waits for that same read.
+export const hydrateQueue = () => {
+  hydrating ??= (async () => {
+    const saved = await readCache(KEY);
+    if (saved && typeof saved === 'object') {
+      queue = { ...saved, ...queue };
+    }
+    if (getOnline()) {
+      flushQueue();
+    }
+  })();
+  return hydrating;
 };
 
 export const enqueueSaved = (id, action, vehicle) => {
@@ -74,6 +74,10 @@ export const flushQueue = async () => {
     flushing = false;
   }
 };
+
+// The changes still waiting to sync ({ id: { action, vehicle } }), so a list
+// loaded from the server can show them until they're sent.
+export const queuedSaved = () => ({ ...queue });
 
 export const clearQueue = () => {
   queue = {};

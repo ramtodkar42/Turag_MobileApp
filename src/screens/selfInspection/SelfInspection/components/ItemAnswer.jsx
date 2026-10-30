@@ -35,10 +35,11 @@ function ItemAnswer({ si, item }) {
         });
       }}
       onNaReason={reason => si.record(code, { naReason: reason })}
-      onNumChange={value => si.updateLocal(code, c => ({ ...c, num: value, error: undefined }))}
+      // Typed values save by themselves a moment after typing stops (and on blur).
+      onNumChange={value => si.typeAnswer(code, { num: value })}
       onNumCommit={() => si.record(code, {})}
-      onCostChange={value => si.updateLocal(code, c => ({ ...c, cost: value }))}
-      onNoteChange={value => si.updateLocal(code, c => ({ ...c, note: value }))}
+      onCostChange={value => si.typeAnswer(code, { cost: value })}
+      onNoteChange={value => si.typeAnswer(code, { note: value })}
       onCommit={() => si.record(code, {})}
     />
   );

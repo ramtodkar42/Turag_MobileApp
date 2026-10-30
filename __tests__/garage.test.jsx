@@ -146,13 +146,13 @@ test('Valuation result without an inspection or estimate: no success sheet, "Not
   expect(root.findAllByType(KeyValueRow)).toHaveLength(0);
 });
 
-test('Garage vehicle page: details, Create Listing and Book an Inspector', async () => {
+test('Garage vehicle page: details; not inspected yet - self-inspect (after consent) or book an inspector', async () => {
   const saved = {
     ...vehicle,
     valuationId: 'val_mock_1',
     estimatedValue: 831300,
     savedOn: '2026-09-20',
-    status: 'in_review',
+    phase: 'fresh',
   };
   const navigation = { navigate: jest.fn(), goBack: jest.fn() };
   const root = await render(<GarageVehicle navigation={navigation} route={{ params: { vehicle: saved } }} />);
@@ -165,22 +165,32 @@ test('Garage vehicle page: details, Create Listing and Book an Inspector', async
     ['Saved on', '20 Sep 2026'],
   ]);
 
+  // ADR-0038: not listable before a finished inspection.
+  expect(button(root, 'Create Listing')).toBeUndefined();
+  expect(button(root, 'Self-inspect now').props.disabled).toBe(true); // consent first
   await act(async () => button(root, 'Book an Inspector').props.onPress());
   expect(navigation.navigate).toHaveBeenCalledWith(
     ROUTES.BOOK_APPOINTMENT,
     expect.objectContaining({ vehicle: expect.objectContaining({ vehicleId: expect.any(String) }) }),
   );
-  await act(async () => button(root, 'Create Listing').props.onPress());
-  expect(navigation.navigate).toHaveBeenCalledWith(ROUTES.CREATE_LISTING, { vehicle: saved });
 });
 
-test('Garage vehicle page: no estimate yet - can’t list; listed - View listing', async () => {
+test('Garage vehicle page: inspected + valued - Create Listing; listed - View listing; no value - Book', async () => {
   const navigation = { navigate: jest.fn(), goBack: jest.fn() };
-  let root = await render(<GarageVehicle navigation={navigation} route={{ params: { vehicle } }} />);
-  expect(button(root, 'Create Listing').props.disabled).toBe(true);
+  const ready = { ...vehicle, valuationId: 'val_1', phase: 'can_list', inspectionEligible: true };
+  let root = await render(<GarageVehicle navigation={navigation} route={{ params: { vehicle: ready } }} />);
+  await act(async () => button(root, 'Create Listing').props.onPress());
+  expect(navigation.navigate).toHaveBeenCalledWith(ROUTES.CREATE_LISTING, { vehicle: ready });
   act(() => tree.unmount());
 
-  const listed = { ...vehicle, valuationId: 'val_1', listingId: 'lst_1', listingStatus: 'LIVE' };
+  // Inspected but no estimate yet: can't list - book an inspector.
+  const noValue = { ...vehicle, valuationId: null, phase: 'can_list', inspectionEligible: true };
+  root = await render(<GarageVehicle navigation={navigation} route={{ params: { vehicle: noValue } }} />);
+  expect(button(root, 'Create Listing')).toBeUndefined();
+  expect(button(root, 'Book an Inspector')).toBeDefined();
+  act(() => tree.unmount());
+
+  const listed = { ...vehicle, valuationId: 'val_1', listingId: 'lst_1', listingStatus: 'LIVE', phase: 'listed' };
   root = await render(<GarageVehicle navigation={navigation} route={{ params: { vehicle: listed } }} />);
   await act(async () => button(root, 'View listing').props.onPress());
   expect(navigation.navigate).toHaveBeenCalledWith(ROUTES.MY_LISTING, { listingId: 'lst_1' });
@@ -219,34 +229,34 @@ test('Garage tab: placeholders, empty state, then saved vehicles with their stat
   );
 });
 
-test('Garage card actions (as the web): List this vehicle / View listing / Book an inspection', async () => {
-  await act(async () => {
-    saveToGarage({ vehicle: { ...vehicle, registrationNumber: 'MH14AB1111', vehicleId: 'veh_2' }, valuation: null });
-    saveToGarage({ vehicle, valuation });
-  });
-  await advance(700);
-  const navigation = { navigate: jest.fn() };
-  const root = await render(<Garage navigation={navigation} />);
-  await advance(400);
-  const card = vehicleId =>
-    root.findAll(n => n.props.vehicle?.vehicleId === vehicleId && n.props.onAction && n.type !== GarageCard)[0];
-  const action = vehicleId => card(vehicleId).findAllByType(Button)[0];
+test('Garage card actions (as the web): one next step per stage', async () => {
+  const onAction = jest.fn();
+  const actionOf = async v => {
+    const root = await render(<GarageCard vehicle={v} width={180} onPress={jest.fn()} onAction={onAction} />);
+    const b = root.findAllByType(Button)[0];
+    const title = b.props.title;
+    await act(async () => b.props.onPress());
+    act(() => tree.unmount());
+    return [title, onAction.mock.calls.at(-1)[0]];
+  };
 
-  // Valued: list it.
-  expect(action('veh_mock_1').props.title).toBe('List this vehicle');
-  await act(async () => action('veh_mock_1').props.onPress());
-  expect(navigation.navigate).toHaveBeenCalledWith(
-    ROUTES.CREATE_LISTING,
-    expect.objectContaining({ vehicle: expect.objectContaining({ valuationId: 'val_mock_1' }) }),
-  );
-
-  // No estimate yet: book an inspection.
-  expect(action('veh_2').props.title).toBe('Book an inspection');
-  await act(async () => action('veh_2').props.onPress());
-  expect(navigation.navigate).toHaveBeenCalledWith(
-    ROUTES.BOOK_APPOINTMENT,
-    expect.objectContaining({ vehicle: expect.objectContaining({ vehicleId: 'veh_2' }) }),
-  );
+  // Not inspected yet (valued or not): inspect first (ADR-0038).
+  expect(await actionOf({ ...vehicle, valuationId: 'val_1', phase: 'fresh' })).toEqual(['Inspect to list', 'inspect']);
+  // Inspected and valued: list it.
+  expect(await actionOf({ ...vehicle, valuationId: 'val_1', phase: 'can_list', inspectionEligible: true })).toEqual([
+    'List this vehicle',
+    'list',
+  ]);
+  // Inspected, no estimate yet: book an inspection.
+  expect(await actionOf({ ...vehicle, valuationId: null, phase: 'can_list', inspectionEligible: true })).toEqual([
+    'Book an inspection',
+    'book',
+  ]);
+  // Listed: open it.
+  expect(await actionOf({ ...vehicle, listingId: 'lst_1', listingStatus: 'LIVE', phase: 'listed' })).toEqual([
+    'View listing',
+    'view',
+  ]);
 });
 
 test('Camera loader: a missing native library gives "not available" instead of a crash', () => {

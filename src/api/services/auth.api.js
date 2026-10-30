@@ -68,7 +68,7 @@ export const verifyLoginOtp = async ({ phone, otpToken, otp }) => {
   });
   const refreshToken = refreshTokenFrom(res);
   if (!refreshToken) {
-    throw new Error('Could not sign you in. Please try again.');
+    throw new Error(tNow('auth.emailLogin.error'));
   }
   return {
     accessToken: res.data.access_token,

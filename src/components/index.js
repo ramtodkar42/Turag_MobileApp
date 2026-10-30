@@ -78,6 +78,7 @@ export { default as EyeIcon } from './icons/EyeIcon';
 export { default as NoImageIcon } from './icons/NoImageIcon';
 export { default as Icon } from './icons/Icon';
 export { default as GoogleMark } from './icons/GoogleMark';
+export { default as WhatsAppMark } from './icons/WhatsAppMark';
 
 // map
 export { default as InspectorMarker } from './map/InspectorMarker';

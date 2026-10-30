@@ -16,6 +16,8 @@ export default {
   'selfInspection.confirm': 'पुष्टी करा',
   'selfInspection.edit': 'संपादित करा',
   'selfInspection.retake': 'पुन्हा घ्या',
+  'selfInspection.retake.title_one': 'हा फोटो पुन्हा घ्या',
+  'selfInspection.retake.title_other': 'हे {count} फोटो पुन्हा घ्या',
   'selfInspection.save': 'सेव्ह करा',
   'selfInspection.uploaded': 'अपलोड झाले',
   'selfInspection.uploading': 'अपलोड होत आहे…',

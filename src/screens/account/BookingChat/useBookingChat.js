@@ -27,13 +27,17 @@ export default function useBookingChat(bookingId) {
   const [retrying, setRetrying] = useState(false);
   const active = useRef(true);
   const failing = useRef(false);
+  // Messages sent from here: kept on screen until the server's list has them
+  // (a check that started before the send would otherwise drop them for a moment).
+  const sent = useRef(new Map());
 
   const load = useCallback(async () => {
     try {
       const list = await getBookingMessages(bookingId);
       if (active.current) {
         failing.current = false;
-        setServer(list);
+        list.forEach(m => sent.current.delete(m.id));
+        setServer([...list, ...sent.current.values()]);
         setError('');
       }
     } catch (e) {
@@ -84,6 +88,7 @@ export default function useBookingChat(bookingId) {
         if (!active.current) {
           return;
         }
+        sent.current.set(saved.id, saved);
         setServer(prev => (prev.some(m => m.id === saved.id) ? prev : [...prev, saved]));
         setOutbox(prev => prev.filter(m => m.id !== draft.id));
       } catch {
