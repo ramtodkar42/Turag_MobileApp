@@ -37,6 +37,19 @@ export default function useEvaluateChat({ navigation }) {
   const data = useRef({});
   // Bumped on Start over / leaving: a reply still on its way is dropped.
   const session = useRef(0);
+  // One answer per question: a double tap on a quick reply (or Send) runs it
+  // once. Set when an answer starts; cleared when the next question shows.
+  const answering = useRef(false);
+  const startingSelf = useRef(false);
+  useEffect(() => {
+    if (step != null) answering.current = false;
+  }, [step]);
+  // Wraps an answer so only the first tap on a question counts.
+  const once = fn => (...args) => {
+    if (answering.current) return;
+    answering.current = true;
+    fn(...args);
+  };
 
   const push = useCallback(list => setMessages(prev => [...prev, ...list.map(m => ({ id: nextId(), ...m }))]), []);
   const bot = useCallback((...list) => push(list.map(m => ({ role: 'bot', kind: 'text', ...m }))), [push]);
@@ -88,7 +101,7 @@ export default function useEvaluateChat({ navigation }) {
   }, [start]);
 
   // 1. The registration number -> the registry's vehicle.
-  const submitReg = plate => {
+  const submitReg = once(plate => {
     user(formatRegNumber(plate));
     turn(
       () => proposeVehicle(plate),
@@ -102,10 +115,10 @@ export default function useEvaluateChat({ navigation }) {
         setStep(STEPS.REG);
       },
     );
-  };
+  });
 
   // 2. "Is this your vehicle?" Yes saves it and shows the instant estimate.
-  const confirm = yes => {
+  const confirm = once(yes => {
     user(tNow(yes ? 'valuation.confirm.yes' : 'valuation.confirm.no'));
     if (!yes) {
       turn(
@@ -145,10 +158,10 @@ export default function useEvaluateChat({ navigation }) {
         setStep(STEPS.CONFIRM);
       },
     );
-  };
+  });
 
   // 3. Km driven, number of owners, accident history.
-  const submitKm = km => {
+  const submitKm = once(km => {
     data.current.odometerKm = km;
     user(tNow('valuation.chat.kmAnswer', { km: formatNumber(String(km)) }));
     turn(
@@ -158,9 +171,9 @@ export default function useEvaluateChat({ navigation }) {
         setStep(STEPS.OWNERS);
       },
     );
-  };
+  });
 
-  const submitOwners = count => {
+  const submitOwners = once(count => {
     data.current.ownerCount = count;
     user(tNow('valuation.chat.ownersAnswer', { count }));
     turn(
@@ -170,11 +183,11 @@ export default function useEvaluateChat({ navigation }) {
         setStep(STEPS.ACCIDENT);
       },
     );
-  };
+  });
 
   // 4. The accident answer -> the updated (declared) estimate. When the
   // backend has none yet, the instant one is kept (as the web does).
-  const pickAccident = value => {
+  const pickAccident = once(value => {
     const option = ACCIDENT_OPTIONS.find(o => o.value === value);
     user(tNow(option.labelKey));
     const { vehicle, odometerKm, ownerCount } = data.current;
@@ -221,10 +234,10 @@ export default function useEvaluateChat({ navigation }) {
         setStep(STEPS.ACCIDENT);
       },
     );
-  };
+  });
 
   // 5. Inspect Vehicle -> self-inspection or an inspector.
-  const inspect = () => {
+  const inspect = once(() => {
     user(tNow('valuation.estimate.inspect'));
     turn(
       async () => null,
@@ -234,9 +247,9 @@ export default function useEvaluateChat({ navigation }) {
         setStep(STEPS.MODE);
       },
     );
-  };
+  });
 
-  const chooseSelf = () => {
+  const chooseSelf = once(() => {
     user(tNow('valuation.mode.self'));
     turn(
       async () => null,
@@ -248,10 +261,10 @@ export default function useEvaluateChat({ navigation }) {
         setStep(STEPS.SELF);
       },
     );
-  };
+  });
 
   // Appoint an inspector: the booking form (time + address), as the web.
-  const chooseInspector = () => {
+  const chooseInspector = once(() => {
     user(tNow('valuation.mode.inspector'));
     const { vehicle, valuation } = data.current;
     turn(
@@ -262,11 +275,13 @@ export default function useEvaluateChat({ navigation }) {
         navigation.navigate(ROUTES.BOOK_APPOINTMENT, { vehicle, valuation });
       },
     );
-  };
+  });
 
   // Start self-inspection: creates it once, then the step-by-step checklist.
   // consent: the inspection-consent box under the button (ticked to get here).
   const startSelf = async consent => {
+    if (startingSelf.current) return;
+    startingSelf.current = true;
     const id = session.current;
     const { vehicle, valuation } = data.current;
     setStarting(true);
@@ -291,6 +306,7 @@ export default function useEvaluateChat({ navigation }) {
         bot({ text: e.message || tNow('valuation.self.startError') });
       }
     } finally {
+      startingSelf.current = false;
       if (id === session.current) {
         setStarting(false);
       }

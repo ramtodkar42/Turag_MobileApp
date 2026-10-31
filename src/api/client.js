@@ -1,6 +1,6 @@
 import { tNow } from '../i18n';
 import { API_BASE_URL, REQUEST_TIMEOUT_MS } from './config';
-import { getOnline, reportOffline, reportOnline } from '../store/networkStore';
+import { getOnline, reportOffline, reportOnline, markSlow } from '../store/networkStore';
 
 // The one place that talks to the Turag backend. Services call `request()`;
 // screens never use fetch directly.
@@ -114,6 +114,10 @@ const toApiError = (status, data) => {
   });
 };
 
+// An ordinary request still waiting after this long: the top bar says the
+// connection is slow (store/networkStore markSlow).
+const SLOW_AFTER_MS = 8000;
+
 async function send(path, { method, body, headers, token, timeoutMs }) {
   // Known offline: fail straight away instead of waiting out the full timeout.
   if (!getOnline()) {
@@ -127,6 +131,15 @@ async function send(path, { method, body, headers, token, timeoutMs }) {
   const isForm =
     (typeof FormData !== 'undefined' && body instanceof FormData) ||
     (typeof Blob !== 'undefined' && body instanceof Blob);
+  // Not for file uploads or the calls that are slow by nature (AI estimates):
+  // those have their own longer timeout and progress on screen.
+  let slowDone = null;
+  const slowTimer =
+    !isForm && timeoutMs <= REQUEST_TIMEOUT_MS
+      ? setTimeout(() => {
+          slowDone = markSlow();
+        }, SLOW_AFTER_MS)
+      : null;
   let res;
   try {
     res = await fetch(`${API_BASE_URL}${path}`, {
@@ -153,6 +166,8 @@ async function send(path, { method, body, headers, token, timeoutMs }) {
     });
   } finally {
     clearTimeout(timer);
+    clearTimeout(slowTimer);
+    slowDone?.();
   }
 
   // Got a response from the server: we're online.

@@ -9,8 +9,8 @@ import Saved from '../src/screens/saved/Saved/Saved';
 import { FavoriteButton, SearchBar, VehicleGridCard } from '../src/components';
 import { clearSaved, toggleSaved } from '../src/store/savedStore';
 import { addRecentSearch, clearRecentSearches } from '../src/store/recentSearchStore';
+import { filterSaved, parseSavedQuery } from '../src/screens/saved/Saved/savedSearch';
 import { clearUser, setUser } from '../src/store/userStore';
-import { ROUTES } from '../src/navigation/routes';
 
 // These tests render Saved on its own (no navigator); tab focus is covered in tabs.test.jsx.
 jest.mock('@react-navigation/native', () => ({
@@ -25,6 +25,12 @@ const metrics = {
 
 const swift = { id: 'v2', name: 'Maruti Suzuki Swift', year: 2019, fuel: 'Petrol', price: 228000 };
 const i20 = { id: 'v4', name: 'Hyundai i20', year: 2021, fuel: 'Petrol', price: 365000 };
+const more = [
+  { id: 'v5', name: 'Tata Nexon', year: 2022, fuel: 'Diesel', city: 'Pune', price: 820000 },
+  { id: 'v6', name: 'Honda City', year: 2018, fuel: 'Petrol', city: 'Mumbai', price: 540000 },
+  { id: 'v7', name: 'Kia Seltos', year: 2020, fuel: 'Diesel', city: 'Mumbai', price: 1050000 },
+  { id: 'v8', name: 'Maruti Suzuki Baleno', year: 2021, fuel: 'Petrol', city: 'Pune', price: 610000 },
+];
 
 let tree;
 
@@ -38,17 +44,6 @@ const render = async () => {
     );
   });
   return { root: tree.root, navigation };
-};
-
-// RecentSearchItem is memo()-wrapped, so match on its `item` prop.
-const recentItems = root => {
-  const seen = new Map();
-  root.findAll(n => n.props.item?.query && n.props.onPress).forEach(n => {
-    if (!seen.has(n.props.item.query)) {
-      seen.set(n.props.item.query, n);
-    }
-  });
-  return [...seen.values()];
 };
 
 // VehicleGridCard is memo()-wrapped, so match on its `vehicle` prop.
@@ -94,37 +89,41 @@ test('Hearted vehicles appear newest first; un-hearting removes them', async () 
   expect(savedNames(root)).toEqual(['Maruti Suzuki Swift']);
 });
 
-test('Search filters the saved list', async () => {
-  await act(async () => {
-    toggleSaved(swift);
-    toggleSaved(i20);
-  });
+test('Search filters only the saved list, as you type (name, fuel, place, year, price)', async () => {
+  await act(async () => [swift, i20, ...more].forEach(v => toggleSaved(v)));
   const { root } = await render();
-  await act(async () => root.findByType(SearchBar).props.onChangeText('swift'));
+  const bar = () => root.findByType(SearchBar);
+  expect(bar().props.placeholder).toBe('Search your saved vehicles');
+  await act(async () => bar().props.onChangeText('swift'));
   expect(savedNames(root)).toEqual(['Maruti Suzuki Swift']);
+  await act(async () => bar().props.onChangeText('diesel mumbai'));
+  expect(savedNames(root)).toEqual(['Kia Seltos']);
+  await act(async () => bar().props.onChangeText('maruti under 5 lakh'));
+  expect(savedNames(root)).toEqual(['Maruti Suzuki Swift']);
+  await act(async () => bar().props.onChangeText('ferrari'));
+  expect(savedNames(root)).toEqual([]);
+  expect(root.findAll(n => n.props.message === 'No saved vehicles match “ferrari”.').length).toBeGreaterThan(0);
+  // The cross clears it.
+  const clear = root.find(n => n.props.accessibilityLabel === 'Clear the search' && n.props.onPress);
+  await act(async () => clear.props.onPress());
+  expect(savedNames(root)).toHaveLength(6);
 });
 
-test('Recent searches show, open Home with the search, and clear', async () => {
-  act(() => {
-    addRecentSearch({ query: 'Honda CRV' });
-    addRecentSearch({ query: 'Superb' });
-  });
-  const { root, navigation } = await render();
+test('A short saved list has no search box, and no recent searches (those are on Home)', async () => {
+  act(() => addRecentSearch({ query: 'Honda CRV' }));
+  await act(async () => [swift, i20].forEach(v => toggleSaved(v)));
+  const { root } = await render();
+  expect(root.findAllByType(SearchBar)).toHaveLength(0);
+  expect(root.findAll(n => n.props.children === 'Honda CRV')).toHaveLength(0);
+  expect(root.findAll(n => n.props.actionLabel === 'Clear all')).toHaveLength(0);
+});
 
-  const items = recentItems(root).map(i => i.props.item.query);
-  expect(items).toEqual(['Superb', 'Honda CRV']);
-
-  await act(async () => recentItems(root)[1].props.onPress({ query: 'Honda CRV' }));
-  expect(navigation.navigate).toHaveBeenCalledWith(ROUTES.MARKET, { query: 'Honda CRV' });
-  // A brand picked on the search screen re-applies as the Make filter.
-  await act(async () =>
-    recentItems(root)[1].props.onPress({ query: 'Tata', filter: { id: 'make', value: 'Tata' } }),
-  );
-  expect(navigation.navigate).toHaveBeenLastCalledWith(ROUTES.MARKET, { filter: { id: 'make', value: 'Tata' } });
-
-  const clear = root.find(n => n.props.actionLabel === 'Clear all');
-  await act(async () => clear.props.onAction());
-  expect(recentItems(root)).toHaveLength(0);
+test('savedSearch reads prices in lakh', () => {
+  expect(parseSavedQuery('under 5 lakh swift')).toEqual({ words: ['swift'], maxPrice: 500000 });
+  expect(parseSavedQuery('5.5L')).toEqual({ words: [], maxPrice: 550000 });
+  expect(parseSavedQuery('2019')).toEqual({ words: ['2019'], maxPrice: null });
+  expect(filterSaved([swift, i20], '')).toEqual([swift, i20]);
+  expect(filterSaved([swift, i20], '2021')).toEqual([i20]);
 });
 
 test('VehicleGridCard heart is shared with the saved list', async () => {

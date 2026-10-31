@@ -1,5 +1,6 @@
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import { ensureCameraPermission } from './pickVideo';
+import { pickerPermissionOff } from './permissions';
 
 // Opens the system gallery and returns the chosen photo
 // ({ uri, type, fileName, fileSize, width, height }), or null if cancelled.
@@ -15,6 +16,9 @@ export const pickImageFromGallery = async () => {
 
   if (result.didCancel) {
     return null;
+  }
+  if (pickerPermissionOff(result, 'photos')) {
+    throw new Error('camera_permission');
   }
   if (result.errorCode) {
     throw new Error(result.errorMessage || 'Could not open the gallery.');
@@ -46,6 +50,9 @@ export const pickProfilePhoto = async source => {
   if (result.didCancel) {
     return null;
   }
+  if (pickerPermissionOff(result, source === 'camera' ? 'camera' : 'photos')) {
+    throw new Error('camera_permission');
+  }
   if (result.errorCode) {
     throw new Error(result.errorMessage || 'Could not open the photo.');
   }
@@ -70,6 +77,9 @@ export const takePhoto = async ({ front = false } = {}) => {
   });
   if (result.didCancel) {
     return null;
+  }
+  if (pickerPermissionOff(result, 'camera')) {
+    throw new Error('camera_permission');
   }
   if (result.errorCode) {
     throw new Error(result.errorMessage || 'Could not open the camera.');

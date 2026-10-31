@@ -1,22 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { PermissionsAndroid, Platform } from 'react-native';
+import { PermissionsAndroid } from 'react-native';
 import { createSound, isAudioAvailable, meterToLevel } from '../utils/audio';
 import { tNow } from '../i18n';
+import { askAndroidPermission } from '../utils/permissions';
 
 const MAX_BARS = 28;
 
-const askMicrophone = async () => {
-  if (Platform.OS !== 'android') {
-    return true; // iOS asks on first record (Info.plist text)
-  }
-  const result = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO, {
+// iOS asks on first record (Info.plist text).
+const askMicrophone = () =>
+  askAndroidPermission(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO, 'microphone', {
     title: tNow('common.audio.permTitle'),
     message: tNow('common.audio.permMessage'),
     buttonPositive: tNow('common.allow'),
     buttonNegative: tNow('common.notNow'),
   });
-  return result === PermissionsAndroid.RESULTS.GRANTED;
-};
 
 // WhatsApp-style voice note: record (auto-stops at maxMs), play/pause, delete.
 // status: 'idle' | 'recording' | 'recorded' | 'playing'

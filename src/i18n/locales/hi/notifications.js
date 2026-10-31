@@ -1,6 +1,9 @@
 // hi - Notifications.
 export default {
   'notifications.title': 'सूचनाएँ',
+  'notifications.off.title': 'नोटिफ़िकेशन बंद हैं',
+  'notifications.off.message': 'बुकिंग, ऑफ़र और रिपोर्ट की अपडेट पाने के लिए इन्हें चालू करें।',
+  'notifications.off.turnOn': 'चालू करें',
   'notifications.bannerHint': 'नोटिफ़िकेशन खोलता है',
   'notifications.filter.all': 'सभी',
   'notifications.filter.offers': 'ऑफ़र',

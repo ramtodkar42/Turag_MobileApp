@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { deleteMyAccount } from '../../../api/services/profile.api';
 import { endSession } from '../../../api/session';
 import { stopPush } from '../../../push/pushNotifications';
@@ -18,6 +18,7 @@ export default function useDeleteAccount(navigation) {
   const [open, setOpen] = useState(false);
   const [typed, setTypedText] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const sending = useRef(false);
   const [error, setError] = useState('');
 
   const show = useCallback(() => {
@@ -36,8 +37,10 @@ export default function useDeleteAccount(navigation) {
   // Any capitals: some keyboards (Hindi / Marathi layouts) don't capitalise.
   const canDelete = typed.trim().toUpperCase() === CONFIRM_WORD && !deleting;
 
+  // Keyboard "done" and the button in the same moment: sent once.
   const remove = async () => {
-    if (!canDelete) return;
+    if (!canDelete || sending.current) return;
+    sending.current = true;
     setDeleting(true);
     setError('');
     try {
@@ -45,6 +48,7 @@ export default function useDeleteAccount(navigation) {
     } catch (e) {
       setError(e?.message || tNow('profile.delete.failed'));
       setDeleting(false);
+      sending.current = false;
       return;
     }
     // Deleted: forget everything on this phone.

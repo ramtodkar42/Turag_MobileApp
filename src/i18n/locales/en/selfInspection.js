@@ -232,6 +232,7 @@ export default {
   'selfInspection.error.duplicate': 'This {noun} is already uploaded. Please use a different {noun}.',
   'selfInspection.warn.nearDuplicate': 'This looks a lot like your {label} photo. Is it the right angle?',
   'selfInspection.error.uploadFailed': 'Upload failed for the {noun}. Please try again.',
+  'selfInspection.error.pickFailed': "Couldn't open that. Please try again.",
   'selfInspection.error.submitFailed': 'Could not submit. Please retry.',
   // The self-inspection fee, taken at submit when it's switched on (as the web).
   'selfInspection.pay.description': 'Self-inspection fee',

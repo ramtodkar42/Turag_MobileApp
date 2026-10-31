@@ -20,7 +20,7 @@ const GarageTab = accountScreen(Garage, {
 
 const SavedTab = accountScreen(Saved, {
   titleKey: 'nav.saved',
-  icon: 'heart',
+  icon: 'bookmark',
   headingKey: 'guest.saved.title',
   messageKey: 'guest.saved.message',
 });

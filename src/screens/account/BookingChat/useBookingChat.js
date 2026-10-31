@@ -31,9 +31,16 @@ export default function useBookingChat(bookingId) {
   // (a check that started before the send would otherwise drop them for a moment).
   const sent = useRef(new Map());
 
+  // Checks can overlap (the poll, coming back to the app, Try again): only the
+  // newest one's answer is used, so a late older answer never hides a message.
+  const latest = useRef(0);
+
   const load = useCallback(async () => {
+    latest.current += 1;
+    const mine = latest.current;
     try {
       const list = await getBookingMessages(bookingId);
+      if (mine !== latest.current) return;
       if (active.current) {
         failing.current = false;
         list.forEach(m => sent.current.delete(m.id));
@@ -41,12 +48,13 @@ export default function useBookingChat(bookingId) {
         setError('');
       }
     } catch (e) {
+      if (mine !== latest.current) return;
       if (active.current) {
         failing.current = true;
         setError(e.message || tNow('account.chat.loadError'));
       }
     } finally {
-      if (active.current) {
+      if (active.current && mine === latest.current) {
         setLoading(false);
       }
     }

@@ -9,6 +9,7 @@ import { NavigationContainer, createNavigationContainerRef } from '@react-naviga
 import RootNavigator from '../src/navigation/RootNavigator';
 import { Icon, SearchBar } from '../src/components';
 import { clearUser, setUser } from '../src/store/userStore';
+import { clearSaved, toggleSaved } from '../src/store/savedStore';
 import { ROUTES } from '../src/navigation/routes';
 
 const metrics = {
@@ -63,6 +64,11 @@ test('Only the selected tab icon is solid', async () => {
 });
 
 test('Saved search is cleared after leaving and returning to the tab', async () => {
+  // The search box shows from 6 saved vehicles.
+  await act(async () => {
+    for (let i = 1; i <= 6; i += 1) toggleSaved({ id: `s${i}`, name: `Car ${i}`, price: 100000 * i });
+    jest.advanceTimersByTime(1000);
+  });
   const root = await renderApp();
   await act(async () => tab(root, 'Saved').props.onPress());
 
@@ -77,4 +83,5 @@ test('Saved search is cleared after leaving and returning to the tab', async () 
   await act(async () => tab(root, 'Saved').props.onPress());
 
   expect(savedSearch().props.value).toBe('');
+  act(() => clearSaved());
 });

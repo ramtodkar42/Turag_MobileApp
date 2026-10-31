@@ -1,16 +1,20 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
-import { AppText, Button, FadeIn, ScreenContainer, Spinner, StatusView } from '../../../components';
-import { colors, spacing } from '../../../theme';
-import { ms } from '../../../utils/responsive';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import useKeyboardVisible from '../../../hooks/useKeyboardVisible';
+import { Button, ScreenContainer, StatusView } from '../../../components';
+import { spacing } from '../../../theme';
 import { SUPPORT_CHAT_ORIGIN } from '../../../api/config';
 import { useT } from '../../../i18n';
 import SupportHeader from './components/SupportHeader';
+import ChatLoader from './components/ChatLoader';
 import { HIDE_PAGE_HEADER, PRESS_NEW_CHAT, WATCH_NEW_CHAT, readPageMessage } from './supportPage';
 import useSupportChat from './useSupportChat';
 
 // How long the loader waits for the chat page to report in after loading.
 const PAGE_REPORT_WAIT_MS = 1500;
+// The longest the loader covers a conversation that's still loading.
+const PAGE_LOADING_MAX_MS = 12000;
 
 // The web viewer is a native module: loaded on first use (see WebPage), so a
 // build without it shows the error screen instead of crashing.
@@ -31,9 +35,22 @@ try {
 // message box stays above the keyboard (ScreenContainer). No route params.
 function Chat({ navigation }) {
   const t = useT();
+  const insets = useSafeAreaInsets();
+  const keyboardOpen = useKeyboardVisible();
   const chat = useSupportChat();
   const page = useRef(null);
   const [newChat, setNewChat] = useState(false);
+  // The page is loading the conversation (its own grey spinner is hidden; the
+  // app's red one stays up in the same place until it's ready).
+  const [pageLoading, setPageLoading] = useState(false);
+  // A conversation that can't load (e.g. an old chat the server dropped):
+  // the loader steps aside after a while, so the message box is never blocked.
+  useEffect(() => {
+    if (!pageLoading) return undefined;
+    const timer = setTimeout(() => setPageLoading(false), PAGE_LOADING_MAX_MS);
+    return () => clearTimeout(timer);
+  }, [pageLoading]);
+  const showLoader = chat.loading || pageLoading;
   const header = (
     <SupportHeader
       onBack={navigation.goBack}
@@ -48,6 +65,7 @@ function Chat({ navigation }) {
     const message = readPageMessage(event.nativeEvent.data);
     if (!message) return;
     setNewChat(message.newChatAvailable);
+    setPageLoading(message.pageLoading);
     chat.onLoaded();
   };
   // Loaded but the page never reported (it changed): show it anyway, shortly.
@@ -76,7 +94,9 @@ function Chat({ navigation }) {
 
   return (
     <ScreenContainer padded={false} header={header}>
-      <View style={styles.flex}>
+      {/* Clear of the phone's navigation bar (the message box sat behind it);
+          with the keyboard up, the screen already ends at the keyboard. */}
+      <View style={[styles.flex, keyboardOpen ? null : { paddingBottom: insets.bottom }]}>
         {chat.url ? (
           <WebView
             ref={page}
@@ -92,23 +112,19 @@ function Chat({ navigation }) {
             setSupportMultipleWindows={false}
             javaScriptEnabled
             domStorageEnabled
-            // The chat sizes itself to the screen; no pinch-zoom on the message box.
+            // The chat sizes itself to the screen and never zooms (the page's
+            // viewport is fixed too, see supportPage.js keepScale).
             scalesPageToFit={false}
+            setBuiltInZoomControls={false}
+            setDisplayZoomControls={false}
             textZoom={100}
             keyboardDisplayRequiresUserAction={false}
             style={styles.flex}
           />
         ) : null}
-        {chat.loading ? (
-          <View style={styles.overlay} pointerEvents="none">
-            <FadeIn offset={0} style={styles.center}>
-              <Spinner size={ms(52)} />
-              <AppText variant="subtitle" align="center" style={styles.wait}>
-                {t('chat.support.connecting')}
-              </AppText>
-            </FadeIn>
-          </View>
-        ) : null}
+        {/* One loader, always the same: the app's red spinner, centred, from
+            opening until the conversation is on screen; it fades out. */}
+        <ChatLoader visible={showLoader} />
       </View>
     </ScreenContainer>
   );
@@ -117,23 +133,6 @@ function Chat({ navigation }) {
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
-  },
-  overlay: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.white,
-  },
-  center: {
-    alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-  },
-  wait: {
-    marginTop: spacing.lg,
   },
   retry: {
     alignSelf: 'stretch',

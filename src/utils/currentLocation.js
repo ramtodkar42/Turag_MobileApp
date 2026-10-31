@@ -1,5 +1,6 @@
 import Geolocation from '@react-native-community/geolocation';
 import { tNow } from '../i18n';
+import { showPermissionOff } from '../store/permissionStore';
 
 // Asks once for "while using the app" location (the library shows the
 // Android / iOS permission prompt itself). On Android it uses Google Play's
@@ -36,7 +37,11 @@ const locate = options =>
     );
   });
 
-const readable = error => new Error(tNow(MESSAGES[error?.code] ?? 'booking.address.locationError'));
+const readable = error => {
+  // Location permission off: also offer the phone's Settings (PermissionDialog).
+  if (error?.code === PERMISSION_DENIED) showPermissionOff('location');
+  return new Error(tNow(MESSAGES[error?.code] ?? 'booking.address.locationError'));
+};
 
 // The phone's current position: { lat, lng }. Tries the quick way first, then
 // GPS. Throws an Error with a message saying what to do (allow permission /

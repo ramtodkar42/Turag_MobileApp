@@ -22,6 +22,7 @@ export default function useProfilePhoto() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
   const busy = useRef(false);
+  const picking = useRef(false);
   const lastFile = useRef(null);
   const savedTimer = useRef(null);
   const mounted = useRef(true);
@@ -69,10 +70,13 @@ export default function useProfilePhoto() {
     }
   };
 
+  // A quick second tap (or Camera then Gallery) while a picker is opening or
+  // open is ignored - one photo, one upload.
   const change = source => {
-    if (busy.current) {
+    if (busy.current || picking.current) {
       return;
     }
+    picking.current = true;
     setTimeout(async () => {
       let file;
       try {
@@ -80,6 +84,8 @@ export default function useProfilePhoto() {
       } catch (e) {
         setError(e?.message === 'camera_permission' ? tNow('verify.error.camera') : tNow('profile.photo.pickError'));
         return;
+      } finally {
+        picking.current = false;
       }
       if (file) {
         await save(file);

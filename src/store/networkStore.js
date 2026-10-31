@@ -17,7 +17,8 @@ try {
 }
 const hasNetInfo = !!NetInfo;
 
-const store = createStore({ online: true });
+// slow: how many ordinary requests have been waiting longer than usual.
+const store = createStore({ online: true, slow: 0 });
 const reconnectListeners = new Set();
 let unsubscribe = null;
 
@@ -82,3 +83,24 @@ export const onReconnect = cb => {
 };
 
 export const useOnline = () => store.use(s => s.online);
+
+// A request that's taking longer than usual (the API client calls this once
+// it has waited a while; the returned function when it's done). While any is
+// waiting the top bar says the connection is slow, so a long loader never
+// looks like a frozen app.
+export const markSlow = () => {
+  store.set(s => ({ ...s, slow: s.slow + 1 }));
+  let done = false;
+  return () => {
+    if (done) return;
+    done = true;
+    store.set(s => ({ ...s, slow: Math.max(0, s.slow - 1) }));
+  };
+};
+
+// What the top bar shows: 'offline', 'slow' or null (nothing).
+export const useNetworkNotice = () =>
+  store.use(s => {
+    if (!s.online) return 'offline';
+    return s.slow > 0 ? 'slow' : null;
+  });

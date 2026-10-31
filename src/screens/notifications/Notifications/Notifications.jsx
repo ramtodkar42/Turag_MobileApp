@@ -17,7 +17,12 @@ import NotificationSkeleton from './components/NotificationSkeleton';
 import { FILTERS } from './constants';
 import useNotifications from './useNotifications';
 import notificationTarget from '../notificationTarget';
+import usePushPermission from '../../../hooks/usePushPermission';
+import NotificationsOffCard from './components/NotificationsOffCard';
 import { useT } from '../../../i18n';
+
+// A row counts as seen once at least half of it has been on screen.
+const VIEWABILITY = { itemVisiblePercentThreshold: 50 };
 
 // Notifications (bell on Home), from GET /notifications: filter chips, then
 // Today / This week / Earlier.
@@ -25,6 +30,7 @@ import { useT } from '../../../i18n';
 // refreshed quietly; new ones fade in at the top. Pull down to refresh.
 function Notifications({ navigation }) {
   const t = useT();
+  const pushOff = usePushPermission();
   const list = useNotifications();
   const insets = useSafeAreaInsets();
   // Fade the list in only when it replaces the placeholders, not on every visit.
@@ -86,6 +92,9 @@ function Notifications({ navigation }) {
         showsVerticalScrollIndicator={false}
         initialNumToRender={10}
         windowSize={7}
+        // What's been on screen is marked read on leaving (useNotifications).
+        onViewableItemsChanged={list.onViewableItemsChanged}
+        viewabilityConfig={VIEWABILITY}
       />
     );
     return showedSkeleton.current ? (
@@ -115,6 +124,8 @@ function Notifications({ navigation }) {
         ))}
       </ScrollView>
 
+      {pushOff ? <NotificationsOffCard style={styles.offCard} /> : null}
+
       {renderBody()}
     </ScreenContainer>
   );
@@ -130,6 +141,9 @@ const styles = StyleSheet.create({
   },
   chips: {
     gap: spacing.sm,
+  },
+  offCard: {
+    marginTop: spacing.md,
   },
   sectionTitle: {
     marginTop: spacing.xl,

@@ -1,6 +1,9 @@
 // en - Notifications.
 export default {
   'notifications.title': 'Notifications',
+  'notifications.off.title': 'Notifications are off',
+  'notifications.off.message': 'Turn them on to get booking, offer and report updates.',
+  'notifications.off.turnOn': 'Turn on',
   'notifications.bannerHint': 'Opens the notification',
   'notifications.filter.all': 'All',
   'notifications.filter.offers': 'Offers',

@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { FlatList, StyleSheet, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   AppRefreshControl,
@@ -15,25 +15,25 @@ import {
   VehicleGridSkeleton,
 } from '../../../components';
 import { colors, shadows, spacing } from '../../../theme';
+import { HIT_SLOP } from '../../../constants/layout';
 import useVehicleGrid from '../../../hooks/useVehicleGrid';
-import { fs } from '../../../utils/responsive';
+import { fs, ms } from '../../../utils/responsive';
 import { loadSaved, useSavedStatus, useSavedVehicles } from '../../../store/savedStore';
-import {
-  addRecentSearch,
-  clearRecentSearches,
-  useRecentSearches,
-} from '../../../store/recentSearchStore';
 import { ROUTES } from '../../../navigation/routes';
 import { useT } from '../../../i18n';
-import RecentSearches from './components/RecentSearches';
+import { filterSaved } from './savedSearch';
 
-// Saved tab: search, recent searches, and the vehicles hearted on Home
-// (GET /saved-listings; refreshed quietly each time the tab opens).
+// The search box shows from this many saved vehicles (a short list needs none).
+const SEARCH_FROM = 6;
+
+// Saved tab: the vehicles hearted on Home (GET /saved-listings; refreshed
+// quietly each time the tab opens), with a search over just those - it filters
+// as you type (savedSearch.js). Home's search is the one for the marketplace
+// (with its recent searches).
 function Saved({ navigation }) {
   const t = useT();
   const saved = useSavedVehicles();
   const status = useSavedStatus();
-  const recent = useRecentSearches();
   const [query, setQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const tabBarSpace = useTabBarSpace();
@@ -54,21 +54,9 @@ function Saved({ navigation }) {
     setRefreshing(false);
   };
 
-  const search = query.trim().toLowerCase();
-  const vehicles = useMemo(
-    () => (search ? saved.filter(v => v.name.toLowerCase().includes(search)) : saved),
-    [saved, search],
-  );
-
-  const onSubmitSearch = () => addRecentSearch({ query, image: vehicles[0]?.image });
-
-  // A recent search runs on the marketplace (Home), where all vehicles are: the
-  // text again, or the brand / price filter it was.
-  const openRecent = useCallback(
-    item =>
-      navigation.navigate(ROUTES.MARKET, item.filter ? { filter: item.filter } : { query: item.query }),
-    [navigation],
-  );
+  const vehicles = useMemo(() => filterSaved(saved, query), [saved, query]);
+  // Still shown while something is typed, so it can always be cleared.
+  const showSearch = saved.length >= SEARCH_FROM || query !== '';
 
   const renderItem = useCallback(
     ({ item }) => (
@@ -86,15 +74,30 @@ function Saved({ navigation }) {
       <AppText variant="h2" style={[styles.padded, styles.title]}>
         {t('saved.title')}
       </AppText>
-      <SearchBar
-        value={query}
-        onChangeText={setQuery}
-        onSubmitEditing={onSubmitSearch}
-        placeholder={t('saved.searchPlaceholder')}
-        left={<Icon name="search" color={colors.body} />}
-        style={[styles.padded, styles.search]}
-      />
-      <RecentSearches items={recent} onSelect={openRecent} onClear={clearRecentSearches} />
+      {showSearch ? (
+        <SearchBar
+          value={query}
+          onChangeText={setQuery}
+          placeholder={t('saved.searchPlaceholder')}
+          accessibilityLabel={t('saved.searchPlaceholder')}
+          returnKeyType="done"
+          autoCorrect={false}
+          left={<Icon name="search" color={colors.body} />}
+          right={
+            query ? (
+              <Pressable
+                onPress={() => setQuery('')}
+                hitSlop={HIT_SLOP}
+                accessibilityRole="button"
+                accessibilityLabel={t('common.filter.clearSearch')}
+              >
+                <Icon name="close" size={ms(18)} color={colors.body} />
+              </Pressable>
+            ) : null
+          }
+          style={[styles.padded, styles.search]}
+        />
+      ) : null}
       {saved.length > 0 ? (
         <SectionHeader
           title={t('saved.vehicles')}

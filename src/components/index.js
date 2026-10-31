@@ -61,6 +61,7 @@ export { default as FadeIn } from './feedback/FadeIn';
 export { default as InAppBanner } from './feedback/InAppBanner';
 export { default as BottomSheet } from './feedback/BottomSheet';
 export { default as ConfirmDialog } from './feedback/ConfirmDialog';
+export { default as PermissionDialog } from './feedback/PermissionDialog';
 export { default as DatePickerSheet } from './feedback/DatePickerSheet';
 export { default as PopIn } from './feedback/PopIn';
 export { default as OptionSheet } from './feedback/OptionSheet';

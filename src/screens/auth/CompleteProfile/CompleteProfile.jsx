@@ -13,6 +13,7 @@ import { getHomeRoute } from '../../../navigation/homeRoute';
 import { resetAfterSignIn } from '../../../navigation/authRoutes';
 import { ROUTES } from '../../../navigation/routes';
 import { clearUser } from '../../../store/userStore';
+import { hasChosenGuest } from '../../../utils/appPrefs';
 import completeSignUp from './completeSignUp';
 import ConsentList from './components/ConsentList';
 import PurposePicker from './components/PurposePicker';
@@ -26,7 +27,9 @@ import { useT } from '../../../i18n';
 // whenever the user likes (the success screen says so).
 // Only the steps the user still owes are shown: an inspector (or anyone with a
 // name) who hasn't accepted the terms sees just the Terms & Conditions.
-// Back = "use a different number": signs out and returns to Login.
+// Back = "use a different number": signs out and returns to Login (for
+// someone who was browsing as a guest: Login over the marketplace, so its
+// close button takes them back to browsing).
 // params: { phone, needsProfile?, needsConsent?, prefill?: { fullName, email } (from Google) }
 function CompleteProfile({ navigation, route }) {
   const { needsProfile = true, needsConsent = true, prefill } = route.params ?? {};
@@ -59,10 +62,17 @@ function CompleteProfile({ navigation, route }) {
   });
   const { values, errors } = form;
 
-  const changeNumber = () => {
+  const changeNumber = async () => {
     endSession({ remote: true });
     clearUser();
-    navigation.reset({ index: 0, routes: [{ name: ROUTES.LOGIN }] });
+    if (await hasChosenGuest()) {
+      navigation.reset({
+        index: 1,
+        routes: [{ name: ROUTES.MAIN_TABS }, { name: ROUTES.LOGIN, params: { fromGuest: true } }],
+      });
+    } else {
+      navigation.reset({ index: 0, routes: [{ name: ROUTES.LOGIN }] });
+    }
   };
 
   // Terms / Privacy Policy: the website's page, inside the app.

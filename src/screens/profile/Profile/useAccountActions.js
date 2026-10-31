@@ -3,6 +3,11 @@ import { endSession } from '../../../api/session';
 import { stopPush } from '../../../push/pushNotifications';
 import { signOutLocally } from '../../../store/signOut';
 import { ROUTES } from '../../../navigation/routes';
+
+// Log out never waits longer than this for the push sign-off (a slow network
+// would otherwise make the tap look dead); by then its request is on its way.
+const PUSH_STOP_WAIT_MS = 1500;
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 import { tNow } from '../../../i18n';
 
 // Log out (behind an app-styled confirmation dialog) and delete account (opens
@@ -13,7 +18,7 @@ export default function useAccountActions(navigation, confirm, onDelete) {
   const signOut = useCallback(async () => {
     try {
       // While still signed in: stop pushes to this phone.
-      await stopPush();
+      await Promise.race([stopPush(), wait(PUSH_STOP_WAIT_MS)]);
       await endSession({ remote: true });
     } finally {
       signOutLocally();

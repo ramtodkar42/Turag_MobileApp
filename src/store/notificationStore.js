@@ -2,6 +2,7 @@ import createStore from './createStore';
 import { getNotifications, markAllNotificationsRead } from '../api/services/notification.api';
 import { showBanner } from '../push/bannerStore';
 import { tNow } from '../i18n';
+import { readCache, removeCache, writeCache } from '../utils/persistentCache';
 
 // Notifications, kept for the whole session (like Instagram): the first open
 // loads them, later opens show the kept list at once and refresh quietly.
@@ -27,7 +28,18 @@ const store = createStore(INITIAL);
 
 // Ids already marked read on this device, applied on top of every refresh so an
 // answer that left before "mark read" reached the server can't bring dots back.
+// Also the ones seen while others are still unseen (the server can only mark
+// everything read, so those wait on the phone): kept on disk so a restart
+// doesn't bring their dots back (forgotten on sign-out, clearNotifications).
 let seen = new Set();
+const SEEN_KEY = 'notifications-seen';
+const MAX_SEEN = 300;
+readCache(SEEN_KEY).then(ids => {
+  if (!Array.isArray(ids) || ids.length === 0) return;
+  ids.forEach(id => seen.add(id));
+  store.set(s => ({ ...s, items: s.items.map(applySeen) }));
+});
+const saveSeen = () => writeCache(SEEN_KEY, [...seen].slice(-MAX_SEEN));
 let pending = null;
 // Bumped on clear (log out) so a request still running can't refill the list.
 let generation = 0;
@@ -102,18 +114,24 @@ export const loadNotifications = ({ userRefresh = false, force = false } = {}) =
 // Pull-to-refresh.
 export const refreshNotifications = () => loadNotifications({ userRefresh: true });
 
-// Leaving the page: everything shown has been seen. Clears the dots (and the
-// bell dot) at once, and tells the backend in the background.
-export const markNotificationsSeen = () => {
-  const unread = store.get().items.filter(i => i.unread);
-  if (unread.length === 0) {
+// Leaving the page: the notifications it showed (ids; all of them when not
+// given) have been seen - their dots (and the bell's count) clear at once.
+// Ones hidden by the chosen chip stay unread. The server can only mark
+// everything read, so it's told once nothing unread is left unseen.
+export const markNotificationsSeen = ids => {
+  const shown = ids ? new Set(ids) : null;
+  const read = store.get().items.filter(i => i.unread && (!shown || shown.has(i.id)));
+  if (read.length === 0) {
     return;
   }
-  unread.forEach(i => seen.add(i.id));
-  store.set(s => ({ ...s, items: s.items.map(i => (i.unread ? { ...i, unread: false } : i)) }));
+  read.forEach(i => seen.add(i.id));
+  saveSeen();
+  store.set(s => ({ ...s, items: s.items.map(applySeen) }));
+  if (store.get().items.some(i => i.unread)) {
+    return; // some still unseen: the server keeps them all unread for now
+  }
   markAllNotificationsRead().catch(() => {
-    // Offline: the next visit marks them read on the server again.
-    unread.forEach(i => seen.delete(i.id));
+    // Offline: they stay read here (seen), and the next visit tells the server.
   });
 };
 
@@ -128,6 +146,7 @@ export const getUnreadForTest = () => store.get().items.filter(i => i.unread).le
 export const clearNotifications = () => {
   generation += 1;
   seen = new Set();
+  removeCache(SEEN_KEY);
   pending = null;
   again = false;
   store.set(INITIAL);

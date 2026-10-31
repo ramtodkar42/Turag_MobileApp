@@ -6,14 +6,20 @@ export const formatINR = (amount, { symbol = true } = {}) => {
   return symbol ? `₹${value}` : value;
 };
 
+// An amount that may be missing (not sent by the server): "—" instead of "₹0".
+export const formatINROrDash = amount =>
+  amount == null || amount === '' ? '—' : formatINR(amount);
+
 // Short Indian price: 880000 -> "₹8.8L", 228000 -> "₹2.28L", 15000000 -> "₹1.5Cr"
+// (Just under a crore rounds up to "₹1Cr", never "₹100L".)
 export const formatPriceShort = amount => {
-  const trim = value => String(Number(value.toFixed(2)));
-  if (amount >= 10000000) {
-    return `₹${trim(amount / 10000000)}Cr`;
+  const round = value => Number(value.toFixed(2));
+  const lakh = round(amount / 100000);
+  if (lakh >= 100) {
+    return `₹${String(round(amount / 10000000))}Cr`;
   }
   if (amount >= 100000) {
-    return `₹${trim(amount / 100000)}L`;
+    return `₹${String(lakh)}L`;
   }
   return formatINR(amount);
 };

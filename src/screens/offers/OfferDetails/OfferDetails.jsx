@@ -20,7 +20,7 @@ import {
 } from '../../../components';
 import { colors, radius, spacing } from '../../../theme';
 import { fs, ms } from '../../../utils/responsive';
-import { formatINR } from '../../../utils/format';
+import { formatINROrDash } from '../../../utils/format';
 import { openWebPage } from '../../../utils/linking';
 import useConfirmDialog from '../../../hooks/useConfirmDialog';
 import { codeLabel } from '../../../i18n/vehicleLabels';
@@ -43,7 +43,7 @@ function AmountRow({ label, amount, strong }) {
         {label}
       </AppText>
       <AppText variant={strong ? 'title' : 'caption'} color={strong ? colors.heading : colors.body}>
-        {formatINR(amount)}
+        {formatINROrDash(amount)}
       </AppText>
     </View>
   );
@@ -120,7 +120,7 @@ function OfferDetails({ navigation, route }) {
   const onAccept = () =>
     confirm({
       title: t('offers.confirmAccept.title'),
-      message: t('offers.confirmAccept.message', { amount: formatINR(offer.amount), name }),
+      message: t('offers.confirmAccept.message', { amount: formatINROrDash(offer.amount), name }),
       confirmLabel: t('offers.acceptCounter'),
       onConfirm: d.accept,
     });
@@ -240,11 +240,11 @@ function OfferDetails({ navigation, route }) {
             <View style={styles.amountBlock}>
               <AppText variant="caption">{t('offers.yourOffer')}</AppText>
               <AppText variant="h3" style={styles.amount}>
-                {yourAmount != null ? formatINR(yourAmount) : '—'}
+                {formatINROrDash(yourAmount)}
               </AppText>
               {countered ? (
                 <AppText variant="caption" color={colors.warning}>
-                  {t('offers.counteredTo', { amount: formatINR(offer.amount) })}
+                  {t('offers.counteredTo', { amount: formatINROrDash(offer.amount) })}
                 </AppText>
               ) : null}
             </View>
@@ -276,7 +276,7 @@ function OfferDetails({ navigation, route }) {
               <AppText variant="title" color={colors.success}>
                 {t('offers.order.HANDED_OVER')}
               </AppText>
-              <AppText variant="caption">{t('offers.agreedAt', { amount: formatINR(acceptedAmount) })}</AppText>
+              <AppText variant="caption">{t('offers.agreedAt', { amount: formatINROrDash(acceptedAmount) })}</AppText>
             </View>
           </View>
         ) : null}
@@ -373,7 +373,7 @@ function OfferDetails({ navigation, route }) {
                 label={t((ORDER_STATUS[order.status] ?? ORDER_STATUS.CREATED).labelKey)}
                 tone={(ORDER_STATUS[order.status] ?? ORDER_STATUS.CREATED).tone}
               />
-              <AppText variant="subtitle">{t('offers.agreedAt', { amount: formatINR(acceptedAmount) })}</AppText>
+              <AppText variant="subtitle">{t('offers.agreedAt', { amount: formatINROrDash(acceptedAmount) })}</AppText>
             </View>
             {refundOutcome ? (
               <AppText variant="caption" color={colors.body} style={styles.orderNote}>

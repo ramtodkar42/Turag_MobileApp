@@ -232,6 +232,7 @@ export default {
   'selfInspection.error.duplicate': 'यह {noun} पहले से अपलोड है। कृपया दूसरा {noun} लगाएँ।',
   'selfInspection.warn.nearDuplicate': 'यह आपकी {label} फ़ोटो जैसी ही दिखती है। क्या यह सही एंगल है?',
   'selfInspection.error.uploadFailed': '{noun} अपलोड नहीं हुआ। फिर से कोशिश करें।',
+  'selfInspection.error.pickFailed': 'इसे खोला नहीं जा सका। कृपया फिर से कोशिश करें।',
   'selfInspection.error.submitFailed': 'सबमिट नहीं हो सका। फिर से कोशिश करें।',
   'selfInspection.pay.description': 'सेल्फ़-इंस्पेक्शन शुल्क',
   'selfInspection.pay.phase.starting': 'भुगतान खुल रहा है…',

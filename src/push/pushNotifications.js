@@ -12,9 +12,11 @@
 import { PermissionsAndroid, Platform } from 'react-native';
 import {
   AuthorizationStatus,
+  deleteToken,
   getInitialNotification,
   getMessaging,
   getToken,
+  hasPermission,
   onMessage,
   onNotificationOpenedApp,
   onTokenRefresh,
@@ -94,6 +96,34 @@ const register = async next => {
   }
 };
 
+// Are notifications turned off for Turag on this phone? (Android 13+ / iOS;
+// older Android has no permission to check: false.) Never throws.
+export const pushPermissionOff = async () => {
+  try {
+    if (Platform.OS === 'android') {
+      if (Platform.Version < 33) {
+        return false;
+      }
+      return !(await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS));
+    }
+    return (await hasPermission(getMessaging())) === AuthorizationStatus.DENIED;
+  } catch {
+    return false;
+  }
+};
+
+// Turned back on (in Settings): register this phone now, not on the next start.
+export const registerPushIfAllowed = async () => {
+  if (token || !hasSession() || (await pushPermissionOff())) {
+    return;
+  }
+  try {
+    await register(await getToken(getMessaging()));
+  } catch {
+    // Firebase not set up on this build.
+  }
+};
+
 // Signed in: register this phone and listen. Safe to call more than once.
 export const startPush = async () => {
   if (listeners.length) {
@@ -116,16 +146,27 @@ export const startPush = async () => {
   }
 };
 
-// Log out: stop pushes to this phone (needs the session, so call it before
-// ending it).
-export const stopPush = async () => {
+// Log out: stop pushes to this phone (the backend's unregister needs the
+// session, so call it before ending it). The phone's push token is also
+// thrown away, so nothing sent to it reaches the next person on this phone -
+// even when the server can't be told (the session already expired:
+// { expired: true }). The next sign-in gets a fresh token.
+export const stopPush = async ({ expired = false } = {}) => {
   listeners.forEach(unsubscribe => unsubscribe());
   listeners = [];
   waitingTarget = null;
   hideBanner();
   const last = token;
   token = null;
-  if (last) {
+  if (!last) {
+    return;
+  }
+  if (!expired) {
     await unregisterPushDevice(last).catch(() => {});
+  }
+  try {
+    await deleteToken(getMessaging());
+  } catch {
+    // Firebase not set up on this build / offline: nothing more to do.
   }
 };

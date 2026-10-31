@@ -7,9 +7,13 @@
 export const BOOKING_START_GRACE_MS = 60 * 60 * 1000;
 
 // Expired: still ASSIGNED (never started) and more than the grace past its
-// slot. An ON_SITE visit is underway, so never expired. No slot: can't tell.
+// slot. An ON_SITE visit, or one whose inspection has started (the server may
+// not have moved it on yet), is underway, so never expired. No slot: can't tell.
 export const isJobExpired = (job, now = Date.now()) =>
-  job?.status === 'ASSIGNED' && job.slotAt != null && now >= job.slotAt + BOOKING_START_GRACE_MS;
+  job?.status === 'ASSIGNED' &&
+  !job.inspectionId &&
+  job.slotAt != null &&
+  now >= job.slotAt + BOOKING_START_GRACE_MS;
 
 // The manual-identify fuel choices (backend codes, as the web's select).
 export const FUELS = ['PETROL', 'DIESEL', 'CNG', 'ELECTRIC', 'HYBRID'];

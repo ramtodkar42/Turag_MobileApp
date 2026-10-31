@@ -232,6 +232,7 @@ export default {
   'selfInspection.error.duplicate': 'हे {noun} आधीच अपलोड आहे. कृपया दुसरे {noun} वापरा.',
   'selfInspection.warn.nearDuplicate': 'हा फोटो तुमच्या {label} फोटोसारखाच दिसतो. हा योग्य अँगल आहे का?',
   'selfInspection.error.uploadFailed': '{noun} अपलोड झाले नाही. पुन्हा प्रयत्न करा.',
+  'selfInspection.error.pickFailed': 'हे उघडता आले नाही. कृपया पुन्हा प्रयत्न करा.',
   'selfInspection.error.submitFailed': 'सबमिट झाले नाही. पुन्हा प्रयत्न करा.',
   'selfInspection.pay.description': 'सेल्फ-इन्स्पेक्शन शुल्क',
   'selfInspection.pay.phase.starting': 'पेमेंट उघडत आहे…',

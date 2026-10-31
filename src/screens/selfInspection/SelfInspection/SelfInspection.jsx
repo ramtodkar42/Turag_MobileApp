@@ -167,6 +167,14 @@ function SelfInspection({ navigation, route }) {
     openCamera(itemCode, shotCode, label, 'PHOTO', replace);
   };
 
+  // The gallery / PDF picker / camera couldn't give a file: say so under that
+  // item (a camera turned off for good also opens the Settings dialog).
+  const pickFailed = (itemCode, shotCode, e) =>
+    si.showMsg(slotKey(itemCode, shotCode), {
+      kind: 'error',
+      text: t(e?.message === 'camera_permission' ? 'verify.error.camera' : 'selfInspection.error.pickFailed'),
+    });
+
   // A document (or a single photo) from the camera, the gallery or a PDF.
   const onAddDocument = (item, shotCode, kind, source) => {
     warmPhotoLocation();
@@ -178,8 +186,9 @@ function SelfInspection({ navigation, route }) {
       try {
         const file = source === 'pdf' ? await pickPdf() : await pickImageFromGallery();
         if (file) si.addEvidence(item.item_code, file, kind, shotCode, false);
-      } catch {
-        // cancelled / no access: nothing to upload
+      } catch (e) {
+        // (Cancelling isn't an error: the picker returns nothing.)
+        pickFailed(item.item_code, shotCode, e);
       }
     }, AFTER_SHEET_MS);
   };
@@ -190,8 +199,8 @@ function SelfInspection({ navigation, route }) {
       try {
         const file = source === 'record' ? await recordVideo() : await pickVideoFromGallery();
         if (file) si.addEvidence(item.item_code, file, 'VIDEO', shotCode, have);
-      } catch {
-        // cancelled / no camera access: nothing to upload
+      } catch (e) {
+        pickFailed(item.item_code, shotCode, e);
       }
     }, AFTER_SHEET_MS);
   };

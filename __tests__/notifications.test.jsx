@@ -4,6 +4,7 @@
 
 import React from 'react';
 import ReactTestRenderer, { act } from 'react-test-renderer';
+import { SectionList } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Notifications from '../src/screens/notifications/Notifications/Notifications';
 import { AppRefreshControl, Chip, SkeletonPulse } from '../src/components';
@@ -64,6 +65,14 @@ const pullToRefresh = async root => {
   await act(async () => root.findByType(AppRefreshControl).props.onRefresh());
 };
 const unmount = () => act(() => tree?.unmount());
+// The test renderer doesn't scroll: report the rows now listed as on screen
+// (as the real list does when they scroll into view).
+const seeListed = root =>
+  act(() =>
+    root.findByType(SectionList).props.onViewableItemsChanged({
+      viewableItems: items(root).map(n => ({ item: n.props.item })),
+    }),
+  );
 
 beforeEach(() => {
   notificationApi.getNotifications.mockImplementation(() => Promise.resolve(response(raw())));
@@ -158,11 +167,38 @@ describe('Notifications page', () => {
   test('unread items show a dot until the page is left; then the backend is told', async () => {
     const root = await render(<Notifications navigation={nav()} />);
     expect(items(root).filter(n => n.props.item.unread)).toHaveLength(2);
+    seeListed(root);
     expect(notificationApi.markAllNotificationsRead).not.toHaveBeenCalled();
 
     unmount();
     expect(getUnreadForTest()).toBe(0);
     expect(notificationApi.markAllNotificationsRead).toHaveBeenCalledTimes(1);
+  });
+
+  test("only what was on screen is marked read: other chips' unread keep their dots", async () => {
+    const root = await render(<Notifications navigation={nav()} />);
+    await act(async () => chip(root, 'Offers').props.onPress());
+    seeListed(root); // only the offers were on screen
+    unmount();
+    // The offer (n1) is read; the unseen alert (n2) still has its dot, and the
+    // server (which can only mark everything) isn't told yet.
+    expect(getUnreadForTest()).toBe(1);
+    expect(notificationApi.markAllNotificationsRead).not.toHaveBeenCalled();
+
+    // Next visit: the alert is seen too -> nothing unseen left -> server told.
+    const again = await render(<Notifications navigation={nav()} />);
+    await act(async () => chip(again, 'Alerts').props.onPress());
+    seeListed(again);
+    unmount();
+    expect(getUnreadForTest()).toBe(0);
+    expect(notificationApi.markAllNotificationsRead).toHaveBeenCalledTimes(1);
+  });
+
+  test('opened and left before anything showed: nothing is marked read', async () => {
+    await render(<Notifications navigation={nav()} />);
+    unmount();
+    expect(getUnreadForTest()).toBe(2);
+    expect(notificationApi.markAllNotificationsRead).not.toHaveBeenCalled();
   });
 
   test('nothing unread: leaving does not call the backend', async () => {
@@ -175,7 +211,7 @@ describe('Notifications page', () => {
   });
 
   test('a refresh that still says "unread" does not bring the dots back', async () => {
-    await render(<Notifications navigation={nav()} />);
+    seeListed(await render(<Notifications navigation={nav()} />));
     unmount(); // marks n1, n2 read
 
     const root = await render(<Notifications navigation={nav()} />);

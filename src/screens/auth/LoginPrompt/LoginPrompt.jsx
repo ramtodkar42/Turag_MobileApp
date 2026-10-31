@@ -9,7 +9,7 @@ import { useT } from '../../../i18n';
 
 // What the guest was trying to do: the sheet's icon and message.
 const LOGIN_REASONS = {
-  save: { icon: 'heart', messageKey: 'guest.prompt.save' },
+  save: { icon: 'bookmark', messageKey: 'guest.prompt.save' },
   offer: { icon: 'tag', messageKey: 'guest.prompt.offer' },
   notifications: { icon: 'bell', messageKey: 'guest.prompt.notifications' },
   evaluate: { icon: 'document', messageKey: 'guest.prompt.evaluate' },

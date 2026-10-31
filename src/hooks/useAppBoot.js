@@ -66,9 +66,12 @@ export default function useAppBoot() {
   useEffect(
     () =>
       onSessionExpired(() => {
-        stopPush();
+        // The session is gone, so the server can't be told: the phone's push
+        // token is dropped instead (no more pushes for that account here).
+        stopPush({ expired: true });
         signOutLocally();
-        resetTo(ROUTES.LOGIN);
+        // Login says why (not a random sign-out).
+        resetTo(ROUTES.LOGIN, { sessionExpired: true });
       }),
     [],
   );

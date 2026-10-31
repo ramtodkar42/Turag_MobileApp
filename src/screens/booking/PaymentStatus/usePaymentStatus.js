@@ -37,9 +37,10 @@ export default function usePaymentStatus({ navigation, booking }) {
       } catch (e) {
         // Back to the summary with what happened ({ kind, message }), shown
         // there as a calm PaymentNotice card. Paying again reuses this booking -
-        // unless the server refused it (not the payer's cancel / bank decline),
-        // then the next Pay makes a fresh one.
-        if (e?.code !== PAYMENT_CANCELLED) forgetUnpaidBooking();
+        // unless the server refused it (not the payer's cancel / bank decline,
+        // nor a network blip - that booking is still fine), then the next Pay
+        // makes a fresh one.
+        if (e?.code !== PAYMENT_CANCELLED && !e?.isNetworkError) forgetUnpaidBooking();
         navigation.popTo(ROUTES.BOOKING_SUMMARY, { payError: paymentProblem(e) }, { merge: true });
         return;
       }

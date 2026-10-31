@@ -48,7 +48,7 @@ function Home({ navigation, route }) {
     }
   }, [signedIn]);
 
-  // A recent search tapped on the Saved tab opens Home with that search.
+  // A search (typed or recent) from the search screen opens Home with it.
   const incomingQuery = route?.params?.query;
   useEffect(() => {
     if (incomingQuery) {

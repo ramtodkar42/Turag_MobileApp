@@ -8,6 +8,7 @@ import { navigationRef } from './navigation/navigationRef';
 import useAppBoot from './hooks/useAppBoot';
 import PushBanner from './push/PushBanner';
 import OfflineBanner from './components/feedback/OfflineBanner';
+import PermissionDialog from './components/feedback/PermissionDialog';
 import SplashScreen from './screens/common/SplashScreen';
 import LoginPrompt from './screens/auth/LoginPrompt/LoginPrompt';
 
@@ -37,8 +38,10 @@ function App() {
           <LoginPrompt />
           {/* On top of every screen: a push that arrives while the app is open. */}
           <PushBanner />
-          {/* A slim bar when the device loses its connection. */}
+          {/* A slim bar when the device loses its connection (or it's slow). */}
           <OfflineBanner />
+          {/* "Camera access is off" + Open Settings, from any screen. */}
+          <PermissionDialog />
         </>
       ) : (
         // Branded launch screen (TURAG logo) while the saved session is read.

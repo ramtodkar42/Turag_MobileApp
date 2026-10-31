@@ -7,6 +7,7 @@ export default {
   'auth.getOtp': 'OTP मिळवा',
   'auth.sendOtpError': 'OTP पाठवता आला नाही. कृपया पुन्हा प्रयत्न करा.',
   'auth.accountDeleted': 'तुमचे अकाउंट डिलीट झाले आहे.',
+  'auth.sessionExpired': 'तुमचे सेशन संपले आहे. कृपया पुन्हा लॉग इन करा.',
   // Email + password (accounts Turag created, as the web's /login).
   'auth.emailLogin.short': 'ईमेलने साइन इन',
   'auth.emailLogin.title': 'ईमेलने साइन इन करा',

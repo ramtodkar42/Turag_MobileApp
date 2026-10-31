@@ -5,7 +5,7 @@ const MAX_RECENT = 10;
 
 // Recent searches, newest first: [{ query, image, filter?, labelKey? }]
 //   query    - the text shown (a typed search, or a brand's name)
-//   image    - the first matching vehicle's photo (the Saved tab's circle)
+//   image    - the first matching vehicle's photo
 //   filter   - set when it was a brand / price picked on the search screen:
 //              { id: 'make' | 'price', value } - re-applied as that filter
 //   labelKey - a price range's label (shown in the app's language)

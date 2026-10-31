@@ -65,6 +65,11 @@ export default function usePayBooking({ navigation, route }) {
     setError('');
     navigation.setParams({ payError: null });
     try {
+      // The server refused paying for it (usePaymentStatus forgot it): this
+      // screen makes a fresh booking, instead of retrying the refused one.
+      if (created.current && lastUnpaid?.booking !== created.current) {
+        created.current = null;
+      }
       if (!created.current) {
         created.current = await createInspectionBooking({
           category,

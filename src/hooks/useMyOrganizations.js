@@ -9,10 +9,14 @@ import { getMyOrganizations } from '../api/services/business.api';
 // business-only shows by mistake.
 const store = createStore({ orgs: [], loading: false, loaded: false });
 let pending = null;
+// Bumped on sign-out: a load still on its way then belongs to the last user
+// and is dropped (the next user loads their own).
+let generation = 0;
 
 // Loads (again) from the backend. Returns the orgs.
 export const reloadMyOrganizations = () => {
   pending ??= (async () => {
+    const mine = generation;
     store.set(s => ({ ...s, loading: true }));
     let orgs = [];
     try {
@@ -20,8 +24,10 @@ export const reloadMyOrganizations = () => {
     } catch {
       orgs = [];
     }
-    store.set({ orgs, loading: false, loaded: true });
-    pending = null;
+    if (mine === generation) {
+      store.set({ orgs, loading: false, loaded: true });
+      pending = null;
+    }
     return orgs;
   })();
   return pending;
@@ -31,7 +37,11 @@ export const reloadMyOrganizations = () => {
 export const setMyOrganizations = orgs => store.set({ orgs, loading: false, loaded: true });
 
 // Sign-out: forget them.
-export const clearMyOrganizations = () => store.set({ orgs: [], loading: false, loaded: false });
+export const clearMyOrganizations = () => {
+  generation += 1;
+  pending = null;
+  store.set({ orgs: [], loading: false, loaded: false });
+};
 
 // { orgs: [{ id, name, type, status, role, active, portal }], loading }
 export default function useMyOrganizations() {

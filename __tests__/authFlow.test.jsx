@@ -126,6 +126,11 @@ afterEach(async () => {
   await endSession();
 });
 
+test('Login says why after the session ran out (not a random sign-out)', async () => {
+  const root = await render(<Login navigation={makeNavigation()} route={{ params: { sessionExpired: true } }} />);
+  expect(root.findAll(n => n.props.children === 'Your session has expired. Please log in again.').length).toBeGreaterThan(0);
+});
+
 test('Login blocks an invalid mobile number', async () => {
   const navigation = makeNavigation();
   const root = await render(<Login navigation={navigation} />);

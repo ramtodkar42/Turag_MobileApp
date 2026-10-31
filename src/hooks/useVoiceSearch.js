@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { NativeEventEmitter, NativeModules, PermissionsAndroid, Platform } from 'react-native';
+import { NativeEventEmitter, NativeModules, PermissionsAndroid } from 'react-native';
 import { useLanguage } from '../i18n';
+import { askAndroidPermission } from '../utils/permissions';
 
 // The phone's own speech recognition (android/.../voice/VoiceSearchModule.kt),
 // like the web's mic: speech becomes text on the phone - no backend, no key.
@@ -21,13 +22,8 @@ const ERROR_KEYS = {
 };
 const HINT_MS = 3500;
 
-const askMicPermission = async () => {
-  if (Platform.OS !== 'android') {
-    return true;
-  }
-  const result = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);
-  return result === PermissionsAndroid.RESULTS.GRANTED;
-};
+const askMicPermission = () =>
+  askAndroidPermission(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO, 'microphone');
 
 // Voice search. onPartial(text): words so far (fill the box live);
 // onResult(text): the final text (run the search).

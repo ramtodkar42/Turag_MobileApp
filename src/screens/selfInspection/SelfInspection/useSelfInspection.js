@@ -130,6 +130,9 @@ export default function useSelfInspection(inspectionId) {
   // The last finished upload: { key, n } (n counts up, so the same slot twice still changes).
   const [lastUpload, setLastUpload] = useState(null);
   const liveMedia = useRef(new Set());
+  // Photos that failed the photo check: listed (so a retake replaces them) but
+  // not counted towards an item's photos - so removing one takes nothing off.
+  const flaggedMedia = useRef(new Set());
   const [persisted, setPersisted] = useState({});
   const [analysis, setAnalysis] = useState({});
   const [aiVerdictSaved, setAiVerdictSaved] = useState({});
@@ -207,6 +210,7 @@ export default function useSelfInspection(inspectionId) {
       const found = {};
       const states = {};
       liveMedia.current = new Set();
+      flaggedMedia.current = new Set();
       seenDhash.current = [];
       // Oldest first, so an angle's last file is its newest photo.
       const media = [...data.media].sort((a, b) => String(a.created_at ?? '').localeCompare(String(b.created_at ?? '')));
@@ -218,6 +222,7 @@ export default function useSelfInspection(inspectionId) {
         // Failed the photo check (after "Retake photos"): not done until it's
         // taken again - it stays listed above so the retake removes it.
         if (failedIntegrity(mv)) {
+          flaggedMedia.current.add(mv.id);
           toRetake[slotKey(mv.item_code, mv.shot_code)] = { code: mv.item_code, shotCode: mv.shot_code };
           continue;
         }
@@ -458,7 +463,10 @@ export default function useSelfInspection(inspectionId) {
     liveMedia.current.delete(id);
     seenDhash.current = seenDhash.current.filter(d => d.mediaId !== id);
     setMediaFiles(prev => ({ ...prev, [code]: (prev[code] ?? []).filter(f => f.id !== id) }));
-    setMediaCount(c => ({ ...c, [code]: Math.max(0, (c[code] ?? 0) - 1) }));
+    // A flagged photo was never counted (load), so it takes nothing off.
+    if (!flaggedMedia.current.delete(id)) {
+      setMediaCount(c => ({ ...c, [code]: Math.max(0, (c[code] ?? 0) - 1) }));
+    }
     setThumbs(t => {
       if (!t[id]) return t;
       const n = { ...t };
@@ -872,6 +880,8 @@ export default function useSelfInspection(inspectionId) {
     uploading,
     removing,
     slotMsg,
+    // A note under one photo / document (e.g. the picker couldn't open).
+    showMsg: setMsg,
     lastUpload,
     addEvidence,
     deleteShot,

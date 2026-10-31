@@ -254,7 +254,8 @@ export default function useMarketplace() {
   }, [searchKey, comingSoon, reload, listedCount, remember, searchPage]);
 
   const loadMore = useCallback(() => {
-    if (!nextCursor || loading || loadingMore || refreshing) {
+    // Not while a new search is loading: the cursor still belongs to the old one.
+    if (!nextCursor || loading || loadingMore || refreshing || updating) {
       return;
     }
     const id = requestId.current;
@@ -282,7 +283,7 @@ export default function useMarketplace() {
           setLoadingMore(false);
         }
       });
-  }, [nextCursor, loading, loadingMore, refreshing, searchKey, remember, searchPage]);
+  }, [nextCursor, loading, loadingMore, refreshing, updating, searchKey, remember, searchPage]);
 
   // Takes one understood filter off this search (its chip's × ).
   const removeChip = chipKey =>

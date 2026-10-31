@@ -58,6 +58,11 @@ function Login({ navigation, route }) {
   const fromGuest = !!route?.params?.fromGuest;
   // Just deleted their account (Profile > Delete account): say so once.
   const accountDeleted = !!route?.params?.accountDeleted;
+  // Signed out because the session ran out (or was ended on another device).
+  const sessionExpired = !!route?.params?.sessionExpired;
+  let notice = null;
+  if (accountDeleted) notice = { icon: 'check', textKey: 'auth.accountDeleted' };
+  else if (sessionExpired) notice = { icon: 'clock', textKey: 'auth.sessionExpired' };
   // Typing: the extra choices step aside (smoothly, from the moment the number
   // box is tapped) so the logo and the number stay above the keyboard.
   // (No layout animation: nothing is added / removed, only faded - see KeyboardFade.)
@@ -223,10 +228,10 @@ function Login({ navigation, route }) {
           {t('auth.tagline')}
         </AppText>
 
-        {accountDeleted && !google.google ? (
+        {notice && !google.google ? (
           <FadeIn offset={0} style={styles.deletedNote}>
             <Icon
-              name="check"
+              name={notice.icon}
               size={ms(16)}
               color={colors.white}
               strokeWidth={3}
@@ -236,7 +241,7 @@ function Login({ navigation, route }) {
               color={colors.white}
               style={styles.deletedText}
             >
-              {t('auth.accountDeleted')}
+              {t(notice.textKey)}
             </AppText>
           </FadeIn>
         ) : null}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import {
   loadNotifications,
@@ -17,13 +17,23 @@ const CLOCK_MS = 60000;
 // Notifications page data: the kept list (notificationStore) filtered by the
 // chosen chip and grouped into Today / This week / Earlier, with "5 min ago"
 // labels. Opening the page refreshes quietly; placeholders show only if nothing
-// was loaded yet. Leaving the page marks everything read.
+// was loaded yet. Leaving the page marks read only the notifications that
+// actually appeared on screen (any chip) - ones never shown (another chip, or
+// further down than the user scrolled) keep their dots.
 export default function useNotifications() {
   const state = useNotificationState();
   const [filterId, setFilter] = useState(FILTERS[0].id);
   const [now, setNow] = useState(() => Date.now());
+  // Every notification that appeared on screen while the page was open.
+  const shownIds = useRef(new Set());
+  // The list's "now on screen" report (SectionList onViewableItemsChanged;
+  // must keep the same identity, so it never changes).
+  const onViewableItemsChanged = useCallback(({ viewableItems }) => {
+    viewableItems.forEach(({ item }) => item?.id && shownIds.current.add(item.id));
+  }, []);
 
   useEffect(() => {
+    const listed = shownIds.current; // the same Set, filled while the page is open
     loadNotifications();
     const poll = setInterval(loadNotifications, POLL_MS);
     const clock = setInterval(() => setNow(Date.now()), CLOCK_MS);
@@ -37,8 +47,8 @@ export default function useNotifications() {
       clearInterval(poll);
       clearInterval(clock);
       appState.remove();
-      // Unread dots stay while the page is open; leaving marks them read.
-      markNotificationsSeen();
+      // Unread dots stay while the page is open; leaving marks the ones shown read.
+      markNotificationsSeen([...listed]);
     };
   }, []);
 
@@ -75,5 +85,6 @@ export default function useNotifications() {
     setFilter,
     refresh: refreshNotifications,
     retry: loadNotifications,
+    onViewableItemsChanged,
   };
 }

@@ -35,6 +35,8 @@ const advance = async ms => {
     jest.advanceTimersByTime(ms);
   });
 };
+// The loader's fade-out (220 ms) has run.
+const fadeOut = () => act(async () => new Promise(r => setTimeout(r, 300)));
 const hasText = (root, text) => root.findAll(n => n.props.children === text).length > 0;
 
 afterEach(() => {
@@ -82,6 +84,38 @@ describe('support chat', () => {
         nativeEvent: { url: SUPPORT_CHAT_URL, data: JSON.stringify({ type: 'newChat', available: false }) },
       }),
     );
+    await fadeOut(); // the red loader fades away
+    expect(hasText(root, 'Connecting you to Turag support…')).toBe(false);
+  });
+
+  test('one loader only: the red one stays while the page loads the conversation (its own is hidden)', async () => {
+    const { HIDE_PAGE_HEADER } = require('../src/screens/chat/Chat/supportPage');
+    expect(HIDE_PAGE_HEADER).toContain('[role="status"][aria-label^="Loading"] { visibility: hidden !important; }');
+    const root = await render(<Chat navigation={{ goBack: jest.fn() }} />);
+    const view = root.findByType(WebView);
+    const say = data =>
+      act(async () => view.props.onMessage({ nativeEvent: { url: SUPPORT_CHAT_URL, data: JSON.stringify(data) } }));
+    await act(async () => view.props.onLoadEnd());
+    await say({ type: 'newChat', available: false, loading: true }); // page: loading the conversation
+    expect(hasText(root, 'Connecting you to Turag support…')).toBe(true);
+    await say({ type: 'newChat', available: true, loading: false }); // ready
+    await fadeOut(); // the red loader fades away
+    expect(hasText(root, 'Connecting you to Turag support…')).toBe(false);
+  });
+
+  test('a conversation that never loads: the loader steps aside after 12 s (message box not blocked)', async () => {
+    jest.useFakeTimers();
+    const root = await render(<Chat navigation={{ goBack: jest.fn() }} />);
+    const view = root.findByType(WebView);
+    await act(async () =>
+      view.props.onMessage({
+        nativeEvent: { url: SUPPORT_CHAT_URL, data: JSON.stringify({ type: 'newChat', available: true, loading: true }) },
+      }),
+    );
+    await advance(11000);
+    expect(hasText(root, 'Connecting you to Turag support…')).toBe(true);
+    await advance(1300); // 12 s reached: the loader starts fading
+    await advance(300); // ...and has faded
     expect(hasText(root, 'Connecting you to Turag support…')).toBe(false);
   });
 
@@ -92,6 +126,7 @@ describe('support chat', () => {
     await advance(1400);
     expect(hasText(root, 'Connecting you to Turag support…')).toBe(true);
     await advance(200);
+    await advance(300); // the red loader fades away
     expect(hasText(root, 'Connecting you to Turag support…')).toBe(false);
   });
 
@@ -105,6 +140,9 @@ describe('support chat', () => {
     const view = root.findByType(WebView);
     expect(view.props.injectedJavaScriptBeforeContentLoaded).toBe(HIDE_PAGE_HEADER);
     expect(HIDE_PAGE_HEADER).toContain('header { display: none !important; }');
+    // Tapping the message box never zooms the page (messages ran off the edge).
+    expect(HIDE_PAGE_HEADER).toContain('maximum-scale=1, user-scalable=no');
+    expect(WATCH_NEW_CHAT).toContain('keepScale()');
     expect(view.props.injectedJavaScript).toBe(WATCH_NEW_CHAT);
     expect(hasText(root, 'New chat')).toBe(false); // nothing to start over yet
 

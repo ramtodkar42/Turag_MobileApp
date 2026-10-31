@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { AppText, Badge, Button, ButtonRow, Icon } from '../../../../components';
 import { colors, radius, shadows, spacing } from '../../../../theme';
 import { fs, ms } from '../../../../utils/responsive';
-import { formatINR } from '../../../../utils/format';
+import { formatINROrDash } from '../../../../utils/format';
 import { timeAgo } from '../../../../utils/date';
 import { useT } from '../../../../i18n';
 import { OFFER_STATUS, ORDER_STATUS } from '../../../account/statuses';
@@ -44,14 +44,14 @@ function OfferCard({ offer, busy, onOpen, onAccept, onCounter, onWithdraw }) {
             {t(countered ? 'offers.sellerCounter' : 'offers.yourOffer')}
           </AppText>
           <AppText variant="h3" color={countered ? colors.warning : colors.heading} style={styles.amount}>
-            {formatINR(offer.amount)}
+            {formatINROrDash(offer.amount)}
           </AppText>
         </View>
         {countered && offer.lastBuyerAmount != null ? (
           <View style={styles.amountBlock}>
             <AppText variant="caption">{t('offers.yourOffer')}</AppText>
             <AppText variant="title" style={styles.amountSmall}>
-              {formatINR(offer.lastBuyerAmount)}
+              {formatINROrDash(offer.lastBuyerAmount)}
             </AppText>
           </View>
         ) : null}
@@ -109,7 +109,7 @@ function OfferCard({ offer, busy, onOpen, onAccept, onCounter, onWithdraw }) {
                 {t('offers.token.title')}
               </AppText>
               <AppText variant="subtitle" style={styles.orderLine}>
-                {t('offers.token.accepted', { amount: formatINR(order.agreedPrice) })}
+                {t('offers.token.accepted', { amount: formatINROrDash(order.agreedPrice) })}
               </AppText>
               <Button
                 title={t('offers.pay.openToPay')}
@@ -123,7 +123,7 @@ function OfferCard({ offer, busy, onOpen, onAccept, onCounter, onWithdraw }) {
             <View style={styles.orderRow}>
               {orderStatus ? <Badge label={t(orderStatus.labelKey)} tone={orderStatus.tone} /> : null}
               <AppText variant="subtitle">
-                {t('offers.agreedAt', { amount: formatINR(order?.agreedPrice ?? offer.amount) })}
+                {t('offers.agreedAt', { amount: formatINROrDash(order?.agreedPrice ?? offer.amount) })}
               </AppText>
             </View>
           )}

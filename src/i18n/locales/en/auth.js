@@ -7,6 +7,7 @@ export default {
   'auth.getOtp': 'Get OTP',
   'auth.sendOtpError': 'Could not send OTP. Please try again.',
   'auth.accountDeleted': 'Your account has been deleted.',
+  'auth.sessionExpired': 'Your session has expired. Please log in again.',
   // Email + password (accounts Turag created, as the web's /login).
   'auth.emailLogin.short': 'Email sign-in',
   'auth.emailLogin.title': 'Sign in with email',
