@@ -49,11 +49,18 @@ export const buildOfferTimeline = (offer, order) => {
     steps.push({ label: tNow('offers.tl.handover'), caption: tNow('offers.tl.awaitingHandover'), state: 'current' });
     return steps;
   }
+  const handedOver = status === 'HANDED_OVER';
   steps.push({
     label: tNow('offers.order.HANDED_OVER'),
     caption: stamp(order?.handoverAt),
-    state: status === 'HANDED_OVER' ? 'current' : 'done',
+    state: handedOver ? 'current' : 'done',
   });
-  if (status === 'COMPLETED') steps.push({ label: tNow('offers.order.COMPLETED'), state: 'done' });
+  // Handed over: the sale completes once the ownership transfer is done
+  // (every required transfer item verified / waived - the server decides).
+  steps.push({
+    label: tNow('offers.order.COMPLETED'),
+    caption: handedOver ? tNow('offers.tl.awaitingTransfer') : stamp(order?.completedAt),
+    state: handedOver ? 'pending' : 'done',
+  });
   return steps;
 };

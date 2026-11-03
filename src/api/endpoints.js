@@ -5,12 +5,15 @@ export const ENDPOINTS = {
   OTP_CHANNELS: '/auth/otp/channels', // public: how the code can be sent (whatsapp / sms)
   PASSWORD_LOGIN: '/auth/password/login', // email + password (accounts Turag created, e.g. dealers)
   PASSWORD_FORGOT: '/auth/password/forgot', // a reset code by WhatsApp (ADR-0054)
+  PASSWORD_CONFIRM: '/auth/password/confirm', // the code to the account's mobile after a 202 from password login
   PASSWORD_RESET: '/auth/password/reset', // the code + a new password
   GOOGLE_SIGN_IN: '/auth/google', // Google (via Supabase) -> a session, or "verify your phone first"
   GOOGLE_LINK: '/auth/google/link', // attach the Google email after the phone step (one tap next time)
   REFRESH: '/auth/refresh',
   LOGOUT: '/auth/logout',
   ME: '/me',
+  PHONE_VERIFY_START: '/me/phone-verification', // a code to the account's own mobile
+  PHONE_VERIFY_CONFIRM: '/me/phone-verification/confirm',
   EMAIL_START: '/me/email/start',
   MY_AVATAR: '/me/avatar', // the profile photo: POST a JPEG, GET it back (signed in)
   CONSENTS: '/consents',
@@ -100,6 +103,10 @@ export const ENDPOINTS = {
   MY_ORGANIZATIONS: '/me/organizations',
   DEALER_BROWSE: '/dealer/listings',
   dealerListings: orgId => `/dealer/orgs/${encodeURIComponent(orgId)}/listings`,
+  // The dealer's own dashboard (ADR-0060): numbers, offers and sales across the dealership.
+  dealerDashboard: orgId => `/dealer/orgs/${encodeURIComponent(orgId)}/dashboard`,
+  dealerOffers: orgId => `/dealer/orgs/${encodeURIComponent(orgId)}/offers`,
+  dealerSales: orgId => `/dealer/orgs/${encodeURIComponent(orgId)}/sales`,
   dealerListingWithdraw: (orgId, listingId) => `/dealer/orgs/${encodeURIComponent(orgId)}/listings/${encodeURIComponent(listingId)}/withdraw`,
   orgPortfolio: orgId => `/orgs/${encodeURIComponent(orgId)}/portfolio`,
   orgIntake: orgId => `/orgs/${encodeURIComponent(orgId)}/intake`,

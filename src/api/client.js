@@ -24,6 +24,7 @@ export const ERROR_CODES = {
   AUTH_TOKEN_INVALID: 'AUTH_TOKEN_INVALID',
   AUTH_REFRESH_REUSE_DETECTED: 'AUTH_REFRESH_REUSE_DETECTED',
   RATE_LIMITED: 'RATE_LIMITED',
+  CONSENT_REQUIRED: 'CONSENT_REQUIRED',
 };
 
 // App-made messages, in the user's language (read when the error happens).
@@ -42,6 +43,9 @@ const MESSAGES = {
   },
   get signIn() {
     return tNow('errors.signIn');
+  },
+  get consent() {
+    return tNow('errors.consentRequired');
   },
   get generic() {
     return tNow('errors.generic');
@@ -75,6 +79,14 @@ export const setAuthHandler = handler => {
   authHandler = handler;
 };
 
+// Set by the app (useAppBoot): the server refused an action because the user
+// still owes the account Terms + Privacy consent (CONSENT_REQUIRED) - the app
+// then asks for it, as the web's ConsentGuard does.
+let consentHandler = null;
+export const setConsentHandler = handler => {
+  consentHandler = handler;
+};
+
 const RETRY_WITH_NEW_TOKEN = new Set([ERROR_CODES.AUTH_TOKEN_EXPIRED, ERROR_CODES.AUTH_TOKEN_INVALID]);
 // The session's own calls (endpoints.js REFRESH / LOGOUT): never retried with the login.
 const SESSION_PATHS = new Set(['/auth/refresh', '/auth/logout']);
@@ -104,6 +116,8 @@ const toApiError = (status, data) => {
     message = err.message || MESSAGES.rateLimited;
   } else if (status === 401 && !message) {
     message = MESSAGES.signIn;
+  } else if (err.code === ERROR_CODES.CONSENT_REQUIRED) {
+    message = MESSAGES.consent;
   }
   return new ApiError({
     status,
@@ -174,7 +188,11 @@ async function send(path, { method, body, headers, token, timeoutMs }) {
   reportOnline();
   const data = await parseBody(res);
   if (!res.ok) {
-    throw toApiError(res.status, data);
+    const error = toApiError(res.status, data);
+    if (error.code === ERROR_CODES.CONSENT_REQUIRED) {
+      consentHandler?.();
+    }
+    throw error;
   }
   return { data, headers: res.headers, status: res.status };
 }

@@ -39,7 +39,7 @@ const tab = (root, label) =>
 
 // Icons inside the tab buttons: [{ name, filled }]
 const tabIcons = root =>
-  ['Market', 'Evaluate', 'Garage', 'Saved', 'Profile'].map(label => {
+  ['Market', 'AI Evaluate', 'Garage', 'Saved', 'Profile'].map(label => {
     const icon = tab(root, label).findByType(Icon);
     return { name: icon.props.name, filled: icon.props.filled };
   });

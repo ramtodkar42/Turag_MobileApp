@@ -10,6 +10,7 @@ const TYPES = {
   offer_declined: { category: 'offers', icon: 'close' },
   offer_withdrawn: { category: 'offers', icon: 'close' },
   order_handed_over: { category: 'offers', icon: 'car' },
+  order_completed: { category: 'offers', icon: 'check' },
   order_cancelled: { category: 'offers', icon: 'close' },
   booking_confirmed: { category: 'alerts', icon: 'calendar' },
   booking_assigned: { category: 'alerts', icon: 'user' },

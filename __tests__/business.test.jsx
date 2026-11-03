@@ -411,6 +411,7 @@ describe('Dealer portal', () => {
     });
     const navigation = nav();
     const root = await render(<DealerPortal navigation={navigation} route={{ params: { org: dealerOrg } }} />);
+    await press(root.findByType(ChipTabs).props.onChange, 'mine');
     expect(hasText(root, 'Pune Motors Pvt Ltd')).toBe(true);
     expect(badges(root)).toEqual(expect.arrayContaining(['In review', 'Sold']));
     expect(hasText(root, '₹5,50,000')).toBe(true);
@@ -436,6 +437,7 @@ describe('Dealer portal', () => {
       'GET /dealer/listings': url => ({ listings: url.includes('fuel=DIESEL') ? [] : [stock()], request_id: 'r' }),
     });
     const root = await render(<DealerPortal navigation={nav()} route={{ params: { org: dealerOrg } }} />);
+    await press(root.findByType(ChipTabs).props.onChange, 'mine');
     expect(hasText(root, 'No listings yet')).toBe(true);
 
     await press(root.findByType(ChipTabs).props.onChange, 'browse');
@@ -446,6 +448,176 @@ describe('Dealer portal', () => {
     await press(root.findByType(FilterChips).props.onChange, 'fuel', 'DIESEL');
     expect(calls('GET', '/dealer/listings?fuel=DIESEL')).toHaveLength(1);
     expect(hasText(root, 'No approved dealer listings match your filters.')).toBe(true);
+  });
+
+  const dashboard = (summary = {}) => ({
+    summary: {
+      live_listings: 12,
+      in_review: 2,
+      offers_pending: 5,
+      offers_received_90d: 40,
+      orders_in_progress: 1,
+      awaiting_rc_transfer: 2,
+      sold_90d: 6,
+      sold_value_90d_minor: 360000000,
+      avg_days_to_sell_90d: 18.4,
+      my_offers_to_answer: 3,
+      my_offers_expiring_soon: 1,
+      my_handovers_due: 1,
+      team_offers_to_answer: 2,
+      ...summary,
+    },
+    weeks: Array.from({ length: 12 }, (_, i) => ({
+      week_start: `2026-08-${String(i + 1).padStart(2, '0')}`,
+      offers_received: i,
+      sales_started: 0,
+      sales_completed: i % 3,
+    })),
+    request_id: 'r',
+  });
+
+  test('opens on Overview: what needs your action, the numbers and 12 weeks', async () => {
+    serve({ 'GET /dealer/orgs/org_dealer/dashboard': dashboard() });
+    const root = await render(<DealerPortal navigation={nav()} route={{ params: { org: dealerOrg } }} />);
+    expect(root.findByType(ChipTabs).props.value).toBe('overview');
+    expect(hasText(root, 'Needs your action')).toBe(true);
+    expect(hasText(root, '3 offers are waiting for your answer')).toBe(true);
+    expect(hasText(root, '1 offer expires within 24 hours.')).toBe(true);
+    expect(hasText(root, '1 buyer has paid the token')).toBe(true);
+    expect(hasText(root, '2 cars are awaiting RC transfer')).toBe(true);
+    expect(hasText(root, '2 offers are waiting on your teammates')).toBe(true);
+    expect(hasText(root, 'Live cars')).toBe(true);
+    expect(hasText(root, '2 in review')).toBe(true);
+    expect(hasText(root, '₹36L in sales')).toBe(true);
+    expect(hasText(root, 'Total 66')).toBe(true); // offers over the 12 weeks (0 + 1 + ... + 11)
+    // "Review offers" opens the Offers tab.
+    serve({ 'GET /dealer/orgs/org_dealer/offers': { items: [], next_cursor: null, request_id: 'r' } });
+    await press(button(root, 'Review offers').props.onPress);
+    expect(root.findAllByType(ChipTabs)[0].props.value).toBe('offers');
+
+    // Back and forth: each tab stays loaded (no reload, no placeholders = no blink).
+    await press(root.findAllByType(ChipTabs)[0].props.onChange, 'overview');
+    await press(root.findAllByType(ChipTabs)[0].props.onChange, 'offers');
+    expect(calls('GET', '/dashboard')).toHaveLength(0); // not again (counted since the second serve())
+    expect(calls('GET', '/offers')).toHaveLength(1);
+    expect(root.findAllByType(ChipTabs)[0].props.value).toBe('offers');
+  });
+
+  test('Overview, nothing waiting: "all caught up"', async () => {
+    serve({
+      'GET /dealer/orgs/org_dealer/dashboard': dashboard({
+        my_offers_to_answer: 0,
+        my_offers_expiring_soon: 0,
+        my_handovers_due: 0,
+        awaiting_rc_transfer: 0,
+        team_offers_to_answer: 0,
+        sold_90d: 0,
+        avg_days_to_sell_90d: null,
+      }),
+    });
+    const root = await render(<DealerPortal navigation={nav()} route={{ params: { org: dealerOrg } }} />);
+    expect(hasText(root, "You're all caught up.")).toBe(true);
+    expect(hasText(root, 'No sales yet')).toBe(true);
+  });
+
+  test("Offers: your turn opens the listing to answer; a teammate's is read-only; filters re-query", async () => {
+    const soon = new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString();
+    const later = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
+    const offer = (id, extra) => ({
+      offer_id: id,
+      listing_id: `lst_${id}`,
+      vehicle: { make: 'Hyundai', model: 'Creta', mfg_year: 2021 },
+      status: 'PENDING',
+      amount_minor: 90000000,
+      ask_price_minor: 100000000,
+      last_counter_minor: null,
+      last_counter_by: null,
+      created_at: new Date().toISOString(),
+      expires_at: later,
+      listed_by_me: true,
+      ...extra,
+    });
+    serve({
+      'GET /dealer/orgs/org_dealer/dashboard': dashboard(),
+      'GET /dealer/orgs/org_dealer/offers': url => ({
+        items: url.includes('status=closed')
+          ? []
+          : [
+              offer('o1', { expires_at: soon }),
+              offer('o2', { status: 'COUNTERED', last_counter_minor: 95000000, last_counter_by: 'SELLER', listed_by_me: false }),
+            ],
+        next_cursor: null,
+        request_id: 'r',
+      }),
+    });
+    const navigation = nav();
+    const root = await render(<DealerPortal navigation={navigation} route={{ params: { org: dealerOrg } }} />);
+    await press(root.findAllByType(ChipTabs)[0].props.onChange, 'offers');
+    expect(calls('GET', '/offers?status=open')).toHaveLength(1);
+    expect(cards(root).map(c => c.props.title)).toEqual(['Hyundai Creta · 2021', 'Hyundai Creta · 2021']);
+    expect(badges(root)).toEqual(expect.arrayContaining(['New', 'Waiting for buyer']));
+    expect(hasText(root, '₹9,00,000')).toBe(true);
+    expect(hasText(root, '90% of your ask ₹10,00,000')).toBe(true);
+    expect(hasText(root, 'Your answer is needed.')).toBe(true);
+    expect(hasText(root, 'You countered at ₹9,50,000. Waiting for the buyer to reply.')).toBe(true);
+    expect(hasText(root, 'Listed by a teammate')).toBe(true);
+    // Mine opens that listing's page; the teammate's isn't tappable.
+    expect(cards(root)[1].props.onPress).toBeUndefined();
+    await press(cards(root)[0].props.onPress);
+    expect(navigation.navigate).toHaveBeenCalledWith('MyListing', { listingId: 'lst_o1' });
+
+    await press(root.findAllByType(ChipTabs)[1].props.onChange, 'closed');
+    expect(calls('GET', '/offers?status=closed')).toHaveLength(1);
+    expect(hasText(root, 'Nothing here yet')).toBe(true);
+  });
+
+  test('Sales: the four steps, the payout on your own sale (add a bank account), Load more', async () => {
+    const sale = (id, extra) => ({
+      order_id: id,
+      listing_id: `lst_${id}`,
+      vehicle: { make: 'Tata', model: 'Nexon', mfg_year: 2022 },
+      status: 'HANDED_OVER',
+      agreed_price_minor: 80000000,
+      token_amount_minor: 2500000,
+      created_at: '2026-10-20T10:00:00Z',
+      token_paid_at: '2026-10-21T10:00:00Z',
+      handover_at: '2026-10-25T10:00:00Z',
+      completed_at: null,
+      cancelled_at: null,
+      payout_status: 'AWAITING_ACCOUNT',
+      listed_by_me: true,
+      ...extra,
+    });
+    serve({
+      'GET /dealer/orgs/org_dealer/dashboard': dashboard(),
+      'GET /dealer/orgs/org_dealer/sales': url =>
+        url.includes('cursor=c2')
+          ? {
+              items: [sale('s2', { status: 'COMPLETED', completed_at: '2026-10-28T10:00:00Z', payout_status: null, listed_by_me: false })],
+              next_cursor: null,
+              request_id: 'r',
+            }
+          : { items: [sale('s1')], next_cursor: 'c2', request_id: 'r' },
+    });
+    const navigation = nav();
+    const root = await render(<DealerPortal navigation={navigation} route={{ params: { org: dealerOrg } }} />);
+    await press(root.findAllByType(ChipTabs)[0].props.onChange, 'sales');
+    expect(calls('GET', '/sales?status=active')).toHaveLength(1);
+    expect(badges(root)).toContain('Awaiting RC transfer');
+    expect(hasText(root, '₹8,00,000')).toBe(true);
+    expect(hasText(root, 'Token ₹25,000')).toBe(true);
+    expect(hasText(root, 'Handed over')).toBe(true);
+    expect(hasText(root, 'Add your bank account to get paid')).toBe(true);
+    const addBank = root.findAll(
+      n => n.props.accessibilityRole === 'button' && n.props.onPress && n.findAll(c => c.props.children === 'Add bank account').length > 0,
+    );
+    await press(addBank[addBank.length - 1].props.onPress);
+    expect(navigation.navigate).toHaveBeenCalledWith('PayoutAccounts');
+
+    await press(button(root, 'Load more').props.onPress);
+    expect(calls('GET', 'cursor=c2')).toHaveLength(1);
+    expect(badges(root)).toEqual(expect.arrayContaining(['Awaiting RC transfer', 'Sold']));
+    expect(button(root, 'Load more')).toBeUndefined();
   });
 
   test('a 404 on the org shows the no-access message', async () => {

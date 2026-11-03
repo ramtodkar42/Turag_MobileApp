@@ -1,6 +1,6 @@
 // en - Evaluate flow: vehicle number, details, condition, documents, photos, camera, result.
 export default {
-  'valuation.mode.self': 'Self Inspection',
+  'valuation.mode.self': 'AI Self Inspection',
   'valuation.mode.inspector': 'Appoint an Inspector',
 
   'valuation.evaluate.regLabel': 'Registration Number',
@@ -91,10 +91,10 @@ export default {
   'valuation.accident.none': 'No',
   'valuation.accident.minor': 'Minor',
   'valuation.accident.major': 'Major',
-  'valuation.self.startError': 'Could not start the self-inspection. Please try again.',
-  'valuation.self.carsOnly': 'Self-inspection is available for cars. Book an inspector for this vehicle.',
+  'valuation.self.startError': 'Could not start the AI self-inspection. Please try again.',
+  'valuation.self.carsOnly': 'AI Self Inspection is available for cars. Inspector visits for other vehicles are coming soon.',
   // The full self-inspection checklist (same wizard as the inspector's)
-  'valuation.self.title': 'Self-inspection',
+  'valuation.self.title': 'AI Self Inspection',
   'valuation.self.partDocs': 'Documents',
   'valuation.self.partDocsText': 'RC, insurance and PUC',
   'valuation.self.partPhotos': 'Photos',
@@ -102,21 +102,21 @@ export default {
   'valuation.self.partChecks': 'Condition checks',
   'valuation.self.partChecksText': 'Odometer, body, engine, brakes, tyres, AC and interior',
   'valuation.self.introNote':
-    'Takes about 10 minutes and your answers save as you go. A self-inspection is self-declared, not Turag Verified.',
-  'valuation.self.start': 'Start self-inspection',
+    'Takes about 10 minutes and your answers save as you go. An AI self-inspection is self-declared, not Turag Verified.',
+  'valuation.self.start': 'Start AI Self Inspection',
   'valuation.self.submit': 'Submit inspection',
-  'valuation.self.submittedTitle': 'Self-inspection submitted',
+  'valuation.self.submittedTitle': 'AI Self Inspection submitted',
   'valuation.self.submittedMessage': 'Turag will review your photos and answers. Your updated estimate is ready.',
   'valuation.self.seeEstimate': 'See my estimate',
-  'valuation.result.submitted': 'Your self-inspection has been sent to Turag for review.',
-  'valuation.result.reviewNote': 'Turag is reviewing your self-inspection. You’ll see its status in your Garage.',
+  'valuation.result.submitted': 'Your AI self-inspection has been sent to Turag for review.',
+  'valuation.result.reviewNote': 'Turag is reviewing your AI self-inspection. You’ll see its status in your Garage.',
   'valuation.result.noValue': 'Not available yet',
   'valuation.result.noValueNote': 'We couldn’t estimate a value yet. Save the vehicle and we’ll show it in your Garage when it’s ready.',
   'valuation.estimate.updatedLabel': 'Updated Estimate',
   'valuation.estimate.declaredNote': 'This is an estimated value based on your answers, not the final price. The final price depends on your vehicle’s actual condition, checked during inspection.',
   'valuation.estimate.instantNote': 'This is an estimated value based on the vehicle details, not the final price. The final price depends on your vehicle’s actual condition, checked during inspection.',
   'valuation.estimate.noValueNote': 'We couldn’t estimate a value yet. You can still save the vehicle or verify it.',
-  'valuation.estimate.verifyNote': 'A free self-inspection narrows the range, or book an inspector to make it Turag verified.',
+  'valuation.estimate.verifyNote': 'A free AI self-inspection narrows the range, or book an inspector to make it Turag verified.',
   'valuation.save.viewGarage': 'View in Garage',
   'valuation.estimate.inspect': 'Inspect Vehicle',
 
@@ -132,8 +132,11 @@ export default {
   'valuation.chat.ownersAnswer_other': '{count} owners',
   'valuation.chat.askAccident': 'Any accident history?',
   'valuation.chat.howVerify': 'How would you like to verify your vehicle?',
-  'valuation.chat.selfIntro': 'The self-inspection goes step by step through:',
-  'valuation.chat.bookInspector': 'Let’s book an inspector. Pick a time and where the vehicle will be.',
+  'valuation.chat.selfIntro': 'The AI self-inspection goes step by step through:',
+  'valuation.chat.inspectorSoon':
+    'Inspector visits are coming soon. Meanwhile, you can check your car yourself with AI Self Inspection. Tap the button below to start.',
+  'valuation.chat.inspectorSoonOnly':
+    'Inspector visits are coming soon. We will let you know when you can book one for this vehicle.',
   'valuation.chat.startOver': 'Start over',
   'valuation.chat.moreDetails': 'More details',
   'valuation.chat.lessDetails': 'Fewer details',

@@ -17,8 +17,10 @@ const real = () => USE_REAL_API.auth;
 // Languages aren't stored by the backend yet.
 const LANGUAGES = ['English', 'Marathi', 'Hindi'];
 
-// { user, consents, memberSince }. `phone`: the number typed at login, shown
-// instead of the masked one the backend returns.
+// { user, consents, memberSince, consentRequired }. `phone`: the number typed
+// at login, shown instead of the masked one the backend returns.
+// consentRequired: the user still owes the account Terms + Privacy (the server
+// decides, with the same rule as sign-in).
 export const getMe = async ({ phone } = {}) => {
   if (!real()) {
     return mockGetMe();
@@ -28,16 +30,18 @@ export const getMe = async ({ phone } = {}) => {
     user: mapUser(data.user, { phone }),
     consents: mapConsents(data.consents_summary),
     memberSince: data.member_since,
+    consentRequired: !!data.consent_required,
   };
 };
 
-// Personal Information: { mobile, accountId, email, emailVerified, languages, consents }.
+// Personal Information: { mobile, phoneVerified, accountId, email, emailVerified, languages, consents }.
 // emailVerified turns true only once the user taps the link Turag emailed.
 export const getProfile = async () => {
   if (!real()) {
     await mockGetMe();
     return {
       mobile: '+91 94757 74739',
+      phoneVerified: true,
       accountId: 'TRG57488832',
       languages: LANGUAGES,
       consents: [
@@ -50,6 +54,7 @@ export const getProfile = async () => {
   const data = await request(ENDPOINTS.ME);
   return {
     mobile: data.user.phone_masked,
+    phoneVerified: !!data.user.phone_verified,
     accountId: data.user.id,
     email: data.user.email ?? '',
     emailVerified: !!data.user.email_verified,
@@ -223,6 +228,31 @@ export const registerBusinessInterest = async kind => {
   }
   const data = await request(ENDPOINTS.BUSINESS_INTEREST, { method: 'POST', body: { kind } });
   return { whatsappQueued: !!data?.whatsapp_queued };
+};
+
+// Verify the account's own mobile (as the web's Account page): a code goes to
+// the number on the account by WhatsApp (or SMS). Returns { alreadyVerified,
+// otpToken, resendAfter (s), devHint (test server only) }.
+export const startPhoneVerification = async (channel = 'whatsapp') => {
+  if (!real()) {
+    return { alreadyVerified: false, otpToken: 'mock-phone-otp', resendAfter: 30, devHint: '123456' };
+  }
+  const data = await request(ENDPOINTS.PHONE_VERIFY_START, { method: 'POST', body: { channel } });
+  return {
+    alreadyVerified: !!data.already_verified,
+    otpToken: data.otp_token ?? null,
+    resendAfter: data.resend_after ?? 30,
+    devHint: data.dev_hint ?? null,
+  };
+};
+
+// The code from that message: the mobile is verified. Errors: AUTH_OTP_INVALID,
+// AUTH_OTP_EXPIRED, RATE_LIMITED (too many tries).
+export const confirmPhoneVerification = async ({ otpToken, code }) => {
+  if (!real()) {
+    return;
+  }
+  await request(ENDPOINTS.PHONE_VERIFY_CONFIRM, { method: 'POST', body: { otp_token: otpToken, code: code.trim() } });
 };
 
 // Saves the email on the account, unverified, and emails a verification link

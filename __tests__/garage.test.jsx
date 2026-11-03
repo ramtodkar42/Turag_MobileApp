@@ -167,7 +167,7 @@ test('Garage vehicle page: details; not inspected yet - self-inspect (after cons
 
   // ADR-0038: not listable before a finished inspection.
   expect(button(root, 'Create Listing')).toBeUndefined();
-  expect(button(root, 'Self-inspect now').props.disabled).toBe(true); // consent first
+  expect(button(root, 'Start AI Self Inspection').props.disabled).toBe(true); // consent first
   await act(async () => button(root, 'Book an Inspector').props.onPress());
   expect(navigation.navigate).toHaveBeenCalledWith(
     ROUTES.BOOK_APPOINTMENT,

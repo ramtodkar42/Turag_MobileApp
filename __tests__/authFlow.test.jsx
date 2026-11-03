@@ -37,6 +37,7 @@ jest.mock('../src/api/services/auth.api', () => ({
   ),
   verifyLoginOtp: jest.fn(),
   loginWithPassword: jest.fn(),
+  confirmPasswordLogin: jest.fn(),
   requestPasswordReset: jest.fn(() => Promise.resolve({ otpToken: 'reset-token-1', resendAfter: 30 })),
   resetPassword: jest.fn(() => Promise.resolve()),
   // The server doesn't say how the code is sent: no WhatsApp / SMS choice.
@@ -666,6 +667,57 @@ describe('Email + password sign-in (accounts Turag created, as the web)', () => 
     expect(authApi.loginWithPassword).toHaveBeenCalledWith({ email: 'dealer@shree.in', password: 'wrong-pass' });
     expect(root.findAll(n => n.props.children === 'Email or password is incorrect.').length).toBeGreaterThan(0);
     expect(navigation.reset).not.toHaveBeenCalled();
+  });
+
+  test('a dealer email on an existing account: the code from its mobile, then signed in', async () => {
+    authApi.loginWithPassword.mockResolvedValueOnce({
+      confirmationRequired: true,
+      otpToken: 'otp_up',
+      confirmTicket: 'ticket_1',
+      phoneHint: '+91 98•••••210',
+      expiresIn: 300,
+      devHint: null,
+    });
+    const navigation = makeNavigation();
+    const root = await render(<EmailLogin navigation={navigation} route={{ params: {} }} />);
+    await type(root, 'label', 'Email', 'dealer@shree.in');
+    await type(root, 'label', 'Password', 'right-pass');
+    await press(root, 'Sign in');
+    // Not signed in yet: the code step, saying where the code went.
+    expect(navigation.reset).not.toHaveBeenCalled();
+    expect(root.findAll(n => n.props.children === "Confirm it's you").length).toBeGreaterThan(0);
+    expect(
+      root.findAll(n => typeof n.props.children === 'string' && n.props.children.includes('+91 98•••••210')).length,
+    ).toBeGreaterThan(0);
+
+    // A short code is caught here; a wrong one shows the server's answer in words.
+    await type(root, 'maxLength', 6, '12');
+    await press(root, 'Confirm and sign in');
+    expect(root.findAll(n => n.props.children === 'Enter the 6-digit code.').length).toBeGreaterThan(0);
+    expect(authApi.confirmPasswordLogin).not.toHaveBeenCalled();
+    authApi.confirmPasswordLogin.mockRejectedValueOnce(new ApiError({ status: 401, code: 'AUTH_OTP_INVALID', message: 'x' }));
+    await type(root, 'maxLength', 6, '111111');
+    await press(root, 'Confirm and sign in');
+    expect(root.findAll(n => n.props.children === "That code isn't right. Please check it and try again.").length).toBeGreaterThan(0);
+
+    authApi.confirmPasswordLogin.mockResolvedValueOnce(dealerSession());
+    await type(root, 'maxLength', 6, '123456');
+    await press(root, 'Confirm and sign in');
+    expect(authApi.confirmPasswordLogin).toHaveBeenLastCalledWith({
+      email: 'dealer@shree.in',
+      code: '123456',
+      otpToken: 'otp_up',
+      confirmTicket: 'ticket_1',
+    });
+    expect(navigation.reset).toHaveBeenCalledWith({
+      index: 0,
+      routes: [
+        {
+          name: ROUTES.AUTH_SUCCESS,
+          params: { titleKey: 'auth.loginSuccessful', next: ROUTES.MAIN_TABS, thenOpen: ROUTES.BUSINESS_HOME },
+        },
+      ],
+    });
   });
 
   test('"Forgot password?" opens the reset with the email already typed', async () => {

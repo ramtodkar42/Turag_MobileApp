@@ -79,18 +79,9 @@ export const verifyLoginOtp = async ({ phone, otpToken, otp }) => {
   };
 };
 
-// Email + password sign-in (as the web's /login, ADR-0033) - for accounts
-// Turag's team created (dealers), never a sign-up. Same session as the OTP.
-// Returns { accessToken, refreshToken, expiresIn, user, consentRequired }.
-// Errors: AUTH_INVALID_CREDENTIALS (one message for a wrong email or password),
-// RATE_LIMITED (too many tries: locked for a while), SERVICE_UNAVAILABLE.
-export const loginWithPassword = async ({ email, password }) => {
-  const res = await request(ENDPOINTS.PASSWORD_LOGIN, {
-    method: 'POST',
-    body: { email: email.trim(), password },
-    auth: false,
-    raw: true,
-  });
+// A session answer (password login / its confirm step) -> the app's session:
+// { accessToken, refreshToken, expiresIn, user, consentRequired }.
+const passwordSession = res => {
   const refreshToken = refreshTokenFrom(res);
   if (!refreshToken) {
     throw new Error(tNow('auth.emailLogin.error'));
@@ -102,6 +93,47 @@ export const loginWithPassword = async ({ email, password }) => {
     user: mapUser(res.data.user),
     consentRequired: !!res.data.consent_required,
   };
+};
+
+// Email + password sign-in (as the web's /login, ADR-0033) - for accounts
+// Turag's team created (dealers), never a sign-up. Same session as the OTP.
+// Errors: AUTH_INVALID_CREDENTIALS (one message for a wrong email or password),
+// RATE_LIMITED (too many tries: locked for a while), SERVICE_UNAVAILABLE.
+// Usually a session. When Turag's team added this
+// email as a dealer on an EXISTING account, the server answers 202 instead:
+// the password was right and a code went to that account's own mobile, to be
+// confirmed with confirmPasswordLogin - then
+// { confirmationRequired: true, otpToken, confirmTicket, phoneHint, expiresIn, devHint }.
+export const loginWithPassword = async ({ email, password }) => {
+  const res = await request(ENDPOINTS.PASSWORD_LOGIN, {
+    method: 'POST',
+    body: { email: email.trim(), password },
+    auth: false,
+    raw: true,
+  });
+  if (res.status === 202 || res.data?.confirmation_required) {
+    return {
+      confirmationRequired: true,
+      otpToken: res.data.otp_token,
+      confirmTicket: res.data.confirm_ticket,
+      phoneHint: res.data.phone_hint ?? '',
+      expiresIn: res.data.expires_in ?? null,
+      devHint: res.data.dev_hint ?? null,
+    };
+  }
+  return passwordSession(res);
+};
+
+// The second step after that 202: the code from the account's mobile. Signs in
+// (the dealer access is added to the account) - same answer as a sign-in.
+export const confirmPasswordLogin = async ({ email, otpToken, confirmTicket, code }) => {
+  const res = await request(ENDPOINTS.PASSWORD_CONFIRM, {
+    method: 'POST',
+    body: { email: email.trim(), otp_token: otpToken, confirm_ticket: confirmTicket, code: code.trim() },
+    auth: false,
+    raw: true,
+  });
+  return passwordSession(res);
 };
 
 // Forgot password (ADR-0054, as the web's /forgot-password): asks for a reset

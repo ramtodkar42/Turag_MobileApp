@@ -21,6 +21,7 @@ import {
 import { colors, radius, spacing } from '../../../theme';
 import { fs, ms } from '../../../utils/responsive';
 import { formatINROrDash } from '../../../utils/format';
+import { formatDateTime } from '../../../utils/date';
 import { openWebPage } from '../../../utils/linking';
 import useConfirmDialog from '../../../hooks/useConfirmDialog';
 import { codeLabel } from '../../../i18n/vehicleLabels';
@@ -100,7 +101,8 @@ function OfferDetails({ navigation, route }) {
   const yourAmount = countered ? offer.lastBuyerAmount : offer.amount;
   const acceptedAmount = order?.agreedPrice ?? offer.amount;
   const tokenStep = offer.status === 'ACCEPTED' && order?.status === 'CREATED';
-  const handedOver = order?.status === 'HANDED_OVER' || order?.status === 'COMPLETED';
+  const completed = order?.status === 'COMPLETED';
+  const handedOver = order?.status === 'HANDED_OVER' || completed;
   const payBusy = pay?.phase === 'paying';
   // Waiting for the bank's confirmation is checked automatically; paying again
   // stays possible (it continues the same payment order - never a second charge).
@@ -274,9 +276,14 @@ function OfferDetails({ navigation, route }) {
             </View>
             <View style={styles.flex}>
               <AppText variant="title" color={colors.success}>
-                {t('offers.order.HANDED_OVER')}
+                {t(completed ? 'offers.completed.title' : 'offers.order.HANDED_OVER')}
               </AppText>
               <AppText variant="caption">{t('offers.agreedAt', { amount: formatINROrDash(acceptedAmount) })}</AppText>
+              {completed && order.completedAt ? (
+                <AppText variant="caption">
+                  {t('offers.completed.on', { date: formatDateTime(order.completedAt) })}
+                </AppText>
+              ) : null}
             </View>
           </View>
         ) : null}

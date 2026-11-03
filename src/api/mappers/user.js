@@ -13,6 +13,9 @@ export const mapUser = (apiUser, { phone } = {}) => {
     contact: phone ?? apiUser?.phone_masked ?? '',
     email: apiUser?.email ?? '',
     emailVerified: !!apiUser?.email_verified,
+    // Whether the mobile number was proven with a code (signing in with the
+    // mobile does it; a dealer who signs in by email may verify it in Profile).
+    phoneVerified: !!apiUser?.phone_verified,
     // The profile photo saved on the account (changes when a new one is uploaded),
     // or null. The picture itself is GET /me/avatar with the login token.
     avatarUrl: apiUser?.avatar_url ?? null,

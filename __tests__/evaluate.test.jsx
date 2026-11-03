@@ -64,7 +64,7 @@ test('Evaluate tab opens the Evaluate chat with TURAG.ai', async () => {
   await act(async () => navRef.navigate(ROUTES.MAIN_TABS));
 
   const evaluateTab = root.find(
-    n => n.props.accessibilityRole === 'tab' && n.props.accessibilityLabel === 'Evaluate',
+    n => n.props.accessibilityRole === 'tab' && n.props.accessibilityLabel === 'AI Evaluate',
   );
   await act(async () => evaluateTab.props.onPress());
 

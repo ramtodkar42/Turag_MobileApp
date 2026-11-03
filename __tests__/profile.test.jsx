@@ -115,8 +115,10 @@ test('Personal Information shows name, role, details and verified consents', asy
   expect(root.findAll(n => n.props.children === 'Consumer').length).toBeGreaterThan(0);
 
   const labels = root.findAllByType(KeyValueRow).map(r => r.props.label);
+  // The mobile has its own card, with its verified state (drop 11).
+  expect(root.findAll(n => n.props.children === 'Mobile').length).toBeGreaterThan(0);
+  expect(root.findAll(n => n.props.label === 'Verified').length).toBeGreaterThan(0);
   expect(labels).toEqual([
-    'Mobile',
     'Account ID',
     'Language',
     'Account Terms',
@@ -124,7 +126,7 @@ test('Personal Information shows name, role, details and verified consents', asy
     'Offers and updates',
   ]);
   // Terms + Privacy as badges; Marketing (optional, as the web) is an on / off switch.
-  expect(root.findAllByType(Badge).map(b => b.props.label)).toEqual(['Verified', 'Verified']); // Terms + Privacy (the role is a pill in the header)
+  expect(root.findAllByType(Badge).map(b => b.props.label)).toEqual(['Verified', 'Verified', 'Verified']); // Mobile, Terms + Privacy (the role is a pill in the header)
   expect(root.findByType(Switch).props.value).toBe(true);
 });
 

@@ -97,7 +97,7 @@ test('Profile shows a guest the usual cards; an account page asks them to log in
 test('Evaluate asks a guest to log in; "Log in or sign up" opens Login over the app', async () => {
   const root = await renderGuestApp();
 
-  await act(async () => tab(root, 'Evaluate').props.onPress());
+  await act(async () => tab(root, 'AI Evaluate').props.onPress());
   expect(currentRoute()).toBe(ROUTES.MARKET);
   expect(promptOpen(root)).toBe(true);
   expect(hasText(root, 'Log in to find out what your vehicle is worth with TURAG.AI.')).toBe(true);

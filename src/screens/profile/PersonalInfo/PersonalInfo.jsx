@@ -18,6 +18,8 @@ import usePersonalInfo from './usePersonalInfo';
 import useProfilePhoto from './useProfilePhoto';
 import useEmail from './useEmail';
 import EmailCard from './components/EmailCard';
+import MobileCard from './components/MobileCard';
+import usePhoneVerification from './usePhoneVerification';
 
 const ROLE_KEYS = {
   [ROLES.INDIVIDUAL]: 'profile.role.individual',
@@ -72,7 +74,10 @@ function PersonalInfo({ navigation }) {
     saving,
     consentError,
     setEmail,
+    setPhoneVerified,
   } = usePersonalInfo();
+  // The mobile's verified state (as the web): verify it here with a code.
+  const phone = usePhoneVerification({ onVerified: setPhoneVerified });
   // The account's email (as the web): resend the link, or add / change it.
   const email = profile?.email || user?.email || '';
   const mail = useEmail({ email, onSaved: setEmail });
@@ -125,13 +130,18 @@ function PersonalInfo({ navigation }) {
               dense
               header={cardTitle(t('profile.info.details'))}
               rows={[
-                { label: t('profile.info.mobile'), value: mobile },
                 {
                   label: t('profile.info.accountId'),
                   value: profile.accountId,
                 },
                 { label: t('profile.info.language'), value: languageName },
               ]}
+              style={styles.card}
+            />
+            <MobileCard
+              mobile={mobile}
+              verified={!!profile.phoneVerified}
+              phone={phone}
               style={styles.card}
             />
             <EmailCard

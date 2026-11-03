@@ -51,11 +51,18 @@ function TabBar({ state, descriptors, navigation }) {
               style={styles.tab}
             >
               <Icon name={options.icon} size={ms(22)} color={colors.primary} filled={focused} />
-              {focused ? (
-                <AppText variant="caption" color={colors.primary} style={styles.label}>
-                  {options.title}
-                </AppText>
-              ) : null}
+              {/* Every tab is named (the open one: filled icon, full-strength
+                  name). Long names ("AI Inspection") shrink to fit narrow phones. */}
+              <AppText
+                variant="caption"
+                color={colors.primary}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.8}
+                style={[styles.label, focused && styles.labelFocused]}
+              >
+                {options.title}
+              </AppText>
             </Pressable>
           );
         })}
@@ -87,11 +94,16 @@ const styles = StyleSheet.create({
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: ms(2),
   },
   label: {
     marginTop: ms(2),
     fontSize: ms(10),
     lineHeight: ms(12),
+    opacity: 0.75,
+  },
+  labelFocused: {
+    opacity: 1,
   },
 });
 

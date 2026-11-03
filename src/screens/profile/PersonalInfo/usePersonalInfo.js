@@ -10,6 +10,7 @@ import { tNow } from '../../../i18n';
 // switch moves at once and is undone if saving fails (with a message).
 // Returns { profile, loading, error, setConsent(key, on), saving (the key being
 // saved | null), consentError, setEmail(address) (saved: shown unverified),
+// setPhoneVerified() (the mobile was just verified),
 // setMarketing(on), savingMarketing, marketingError }.
 export default function usePersonalInfo() {
   const [profile, setProfile] = useState(null);
@@ -45,6 +46,11 @@ export default function usePersonalInfo() {
   const setEmail = address => {
     changes.current += 1;
     setProfile(prev => (prev ? { ...prev, email: address, emailVerified: false } : prev));
+  };
+
+  const setPhoneVerified = () => {
+    changes.current += 1;
+    setProfile(prev => (prev ? { ...prev, phoneVerified: true } : prev));
   };
 
   const setConsents = consents => {
@@ -90,6 +96,7 @@ export default function usePersonalInfo() {
     saving,
     consentError,
     setEmail,
+    setPhoneVerified,
     setMarketing: on => setConsent('MARKETING', on),
     savingMarketing: saving === 'MARKETING',
     marketingError: consentError,

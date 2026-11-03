@@ -263,16 +263,22 @@ export default function useEvaluateChat({ navigation }) {
     );
   });
 
-  // Appoint an inspector: the booking form (time + address), as the web.
+  // Appoint an inspector: not open yet. The chat says so in one short message
+  // (kept in view) and, for cars, leaves just "AI Self Inspection" to tap;
+  // other vehicles go back to Save Vehicle / Inspect Vehicle.
   const chooseInspector = once(() => {
     user(tNow('valuation.mode.inspector'));
-    const { vehicle, valuation } = data.current;
     turn(
       async () => null,
       () => {
-        bot({ text: tNow('valuation.chat.bookInspector') });
-        setStep(STEPS.MODE);
-        navigation.navigate(ROUTES.BOOK_APPOINTMENT, { vehicle, valuation });
+        data.current.inspectorSoon = true;
+        if (supportsSelfInspection(data.current.vehicle)) {
+          bot({ text: tNow('valuation.chat.inspectorSoon') });
+          setStep(STEPS.MODE);
+        } else {
+          bot({ text: tNow('valuation.chat.inspectorSoonOnly') });
+          setStep(STEPS.RESULT);
+        }
       },
     );
   });
@@ -321,6 +327,8 @@ export default function useEvaluateChat({ navigation }) {
     vehicle: data.current.vehicle,
     valuation: data.current.valuation,
     canSelfInspect: supportsSelfInspection(data.current.vehicle),
+    // "Appoint an Inspector" was tapped: it said "coming soon", so it isn't offered again.
+    inspectorSoon: !!data.current.inspectorSoon,
     restart: start,
     submitReg,
     confirm,

@@ -71,7 +71,8 @@ const mapToken = tk =>
     : null;
 
 // OrderView -> { id, listingId, offerId, agreedPrice (₹), status, cancelReason,
-// vehicle, handoverAt, token }
+// vehicle, handoverAt, completedAt, token }. completedAt: when the sale
+// completed (every required transfer item verified / waived), null before.
 export const mapOrder = o => ({
   id: o.order_id,
   listingId: o.listing_id,
@@ -83,6 +84,7 @@ export const mapOrder = o => ({
   createdAt: toTime(o.created_at),
   updatedAt: toTime(o.updated_at),
   handoverAt: toTime(o.handover_at),
+  completedAt: toTime(o.completed_at),
   token: mapToken(o.token),
 });
 

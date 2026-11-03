@@ -83,7 +83,9 @@ function EvaluateFooter({ chat, navigation }) {
             ...(chat.canSelfInspect
               ? [{ key: 'self', label: t('valuation.mode.self'), onPress: chat.chooseSelf, primary: true }]
               : []),
-            { key: 'inspector', label: t('valuation.mode.inspector'), onPress: chat.chooseInspector },
+            ...(chat.inspectorSoon
+              ? []
+              : [{ key: 'inspector', label: t('valuation.mode.inspector'), onPress: chat.chooseInspector }]),
           ]}
         />
       );
@@ -102,12 +104,6 @@ function EvaluateFooter({ chat, navigation }) {
             onPress={() => chat.startSelf(consent)}
             loading={chat.starting}
             disabled={!consent}
-          />
-          <Button
-            title={t('valuation.mode.inspector')}
-            variant="outline"
-            onPress={chat.chooseInspector}
-            disabled={chat.starting}
           />
         </View>
       );

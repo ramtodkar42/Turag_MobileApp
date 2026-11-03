@@ -1,6 +1,6 @@
 // hi - Evaluate flow: vehicle number, details, condition, documents, photos, camera, result.
 export default {
-  'valuation.mode.self': 'स्वयं निरीक्षण',
+  'valuation.mode.self': 'AI सेल्फ़-इंस्पेक्शन',
   'valuation.mode.inspector': 'इंस्पेक्टर बुलाएँ',
 
   'valuation.evaluate.regLabel': 'रजिस्ट्रेशन नंबर',
@@ -91,10 +91,10 @@ export default {
   'valuation.accident.none': 'नहीं',
   'valuation.accident.minor': 'मामूली',
   'valuation.accident.major': 'बड़ी',
-  'valuation.self.startError': 'सेल्फ़-इंस्पेक्शन शुरू नहीं हो सका। कृपया फिर से कोशिश करें।',
-  'valuation.self.carsOnly': 'सेल्फ़-इंस्पेक्शन कारों के लिए उपलब्ध है। इस वाहन के लिए निरीक्षक बुक करें।',
+  'valuation.self.startError': 'AI सेल्फ़-इंस्पेक्शन शुरू नहीं हो सका। कृपया फिर से कोशिश करें।',
+  'valuation.self.carsOnly': 'AI सेल्फ़-इंस्पेक्शन कारों के लिए उपलब्ध है। अन्य वाहनों के लिए इंस्पेक्टर विज़िट जल्द आ रही है।',
   // The full self-inspection checklist (same wizard as the inspector's)
-  'valuation.self.title': 'सेल्फ़-इंस्पेक्शन',
+  'valuation.self.title': 'AI सेल्फ़-इंस्पेक्शन',
   'valuation.self.partDocs': 'दस्तावेज़',
   'valuation.self.partDocsText': 'RC, बीमा और PUC',
   'valuation.self.partPhotos': 'फ़ोटो',
@@ -102,21 +102,21 @@ export default {
   'valuation.self.partChecks': 'स्थिति की जाँच',
   'valuation.self.partChecksText': 'ओडोमीटर, बॉडी, इंजन, ब्रेक, टायर, AC और इंटीरियर',
   'valuation.self.introNote':
-    'लगभग 10 मिनट लगते हैं और आपके जवाब साथ-साथ सेव होते हैं। सेल्फ़-इंस्पेक्शन स्व-घोषित है, Turag Verified नहीं।',
-  'valuation.self.start': 'सेल्फ़-इंस्पेक्शन शुरू करें',
+    'लगभग 10 मिनट लगते हैं और आपके जवाब साथ-साथ सेव होते हैं। AI सेल्फ़-इंस्पेक्शन स्व-घोषित है, Turag Verified नहीं।',
+  'valuation.self.start': 'AI सेल्फ़-इंस्पेक्शन शुरू करें',
   'valuation.self.submit': 'इंस्पेक्शन जमा करें',
-  'valuation.self.submittedTitle': 'सेल्फ़-इंस्पेक्शन जमा हो गया',
+  'valuation.self.submittedTitle': 'AI सेल्फ़-इंस्पेक्शन जमा हो गया',
   'valuation.self.submittedMessage': 'Turag आपकी फ़ोटो और जवाबों की जाँच करेगा। आपका अपडेटेड अनुमान तैयार है।',
   'valuation.self.seeEstimate': 'मेरा अनुमान देखें',
-  'valuation.result.submitted': 'आपका सेल्फ़-इंस्पेक्शन समीक्षा के लिए Turag को भेज दिया गया है।',
-  'valuation.result.reviewNote': 'Turag आपके सेल्फ़-इंस्पेक्शन की समीक्षा कर रहा है। इसकी स्थिति आपके गैराज में दिखेगी।',
+  'valuation.result.submitted': 'आपका AI सेल्फ़-इंस्पेक्शन समीक्षा के लिए Turag को भेज दिया गया है।',
+  'valuation.result.reviewNote': 'Turag आपके AI सेल्फ़-इंस्पेक्शन की समीक्षा कर रहा है। इसकी स्थिति आपके गैराज में दिखेगी।',
   'valuation.result.noValue': 'अभी उपलब्ध नहीं',
   'valuation.result.noValueNote': 'अभी मूल्य का अनुमान नहीं लग सका। वाहन सहेजें, तैयार होते ही यह आपके गैराज में दिखेगा।',
   'valuation.estimate.updatedLabel': 'अपडेटेड अनुमान',
   'valuation.estimate.declaredNote': 'यह आपके जवाबों पर आधारित अनुमानित कीमत है, अंतिम कीमत नहीं। अंतिम कीमत इंस्पेक्शन में जाँची गई आपके वाहन की असली स्थिति पर निर्भर करती है।',
   'valuation.estimate.instantNote': 'यह वाहन की जानकारी पर आधारित अनुमानित कीमत है, अंतिम कीमत नहीं। अंतिम कीमत इंस्पेक्शन में जाँची गई आपके वाहन की असली स्थिति पर निर्भर करती है।',
   'valuation.estimate.noValueNote': 'हम अभी मूल्य का अनुमान नहीं लगा सके। आप फिर भी वाहन सेव या वेरिफ़ाई कर सकते हैं।',
-  'valuation.estimate.verifyNote': 'मुफ़्त सेल्फ-इंस्पेक्शन से रेंज कम होती है, या इसे Turag वेरिफ़ाइड बनाने के लिए इंस्पेक्टर बुक करें।',
+  'valuation.estimate.verifyNote': 'मुफ़्त AI सेल्फ-इंस्पेक्शन से रेंज कम होती है, या इसे Turag वेरिफ़ाइड बनाने के लिए इंस्पेक्टर बुक करें।',
   'valuation.save.viewGarage': 'गैराज में देखें',
   'valuation.estimate.inspect': 'वाहन इंस्पेक्ट करें',
 
@@ -132,8 +132,11 @@ export default {
   'valuation.chat.ownersAnswer_other': '{count} मालिक',
   'valuation.chat.askAccident': 'क्या कोई एक्सीडेंट हुआ है?',
   'valuation.chat.howVerify': 'आप अपने वाहन को कैसे वेरिफ़ाई करना चाहेंगे?',
-  'valuation.chat.selfIntro': 'सेल्फ़-इंस्पेक्शन में ये सब एक-एक करके होता है:',
-  'valuation.chat.bookInspector': 'चलिए इंस्पेक्टर बुक करते हैं। समय और वाहन की जगह चुनें।',
+  'valuation.chat.selfIntro': 'AI सेल्फ़-इंस्पेक्शन में ये सब एक-एक करके होता है:',
+  'valuation.chat.inspectorSoon':
+    'इंस्पेक्टर विज़िट जल्द आ रही है। तब तक आप AI सेल्फ़-इंस्पेक्शन से अपनी कार खुद जाँच सकते हैं। शुरू करने के लिए नीचे का बटन दबाएँ।',
+  'valuation.chat.inspectorSoonOnly':
+    'इंस्पेक्टर विज़िट जल्द आ रही है। इस वाहन के लिए बुकिंग शुरू होते ही हम आपको बताएँगे।',
   'valuation.chat.startOver': 'फिर से शुरू करें',
   'valuation.chat.moreDetails': 'और जानकारी',
   'valuation.chat.lessDetails': 'कम जानकारी',

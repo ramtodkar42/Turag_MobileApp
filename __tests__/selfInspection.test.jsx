@@ -371,7 +371,7 @@ describe('Self-inspection screen', () => {
     const root = await render();
     await act(async () => tab(root, 'Estimate').props.onPress());
     expect(hasText(root, 'Before you can submit (')).toBe(true);
-    const submit = root.findAll(n => n.props.title === 'Submit self-inspection' && n.props.onPress)[0];
+    const submit = root.findAll(n => n.props.title === 'Submit AI Self Inspection' && n.props.onPress)[0];
     expect(submit.props.disabled).toBe(true);
   });
 
@@ -379,7 +379,7 @@ describe('Self-inspection screen', () => {
     api.getSelfInspection.mockResolvedValue({ inspection: { ...inspection, status: 'SUBMITTED' }, sections: m1Sections, media: [] });
     const root = await render();
     await act(async () => {});
-    expect(hasText(root, 'Self-inspection submitted')).toBe(true);
+    expect(hasText(root, 'AI Self Inspection submitted')).toBe(true);
     expect(api.estimateFinalValue).toHaveBeenCalledWith({ vehicle_id: 'veh_1', stage: 'DECLARED', inspection_id: 'insp_1' });
     expect(hasText(root, '₹4,50,000')).toBe(true);
   });
@@ -402,7 +402,7 @@ describe('inspector (M2) on the same capture screen', () => {
     const root = await render({ bookingId: 'bkg_1' });
     expect(hasText(root, 'Vehicle inspection')).toBe(true);
     expect(hasText(root, 'Turag inspection')).toBe(true);
-    expect(hasText(root, 'Self-inspection')).toBe(false);
+    expect(hasText(root, 'AI Self Inspection')).toBe(false);
   });
 
   test('after submit: sent to QC, and "Back to jobs" (no Garage)', async () => {

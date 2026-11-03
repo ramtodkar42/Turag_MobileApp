@@ -157,3 +157,70 @@ export const mapImportRow = r => ({
   errorCode: r.error_code ?? null,
   errorDetail: r.error_detail ?? null,
 });
+
+// The dealer's own dashboard (ADR-0060) -> { summary, weeks }. Counts across
+// the whole dealership; the "my*" ones are what only the caller can do (they
+// listed those cars). Money in ₹.
+export const mapDealerDashboard = d => {
+  const s = d?.summary ?? {};
+  return {
+    summary: {
+      liveListings: s.live_listings ?? 0,
+      inReview: s.in_review ?? 0,
+      offersPending: s.offers_pending ?? 0,
+      offersReceived90d: s.offers_received_90d ?? 0,
+      ordersInProgress: s.orders_in_progress ?? 0,
+      awaitingRcTransfer: s.awaiting_rc_transfer ?? 0,
+      sold90d: s.sold_90d ?? 0,
+      soldValue90d: toRupees(s.sold_value_90d_minor) ?? 0,
+      avgDaysToSell90d: s.avg_days_to_sell_90d ?? null,
+      myOffersToAnswer: s.my_offers_to_answer ?? 0,
+      myOffersExpiringSoon: s.my_offers_expiring_soon ?? 0,
+      myHandoversDue: s.my_handovers_due ?? 0,
+      teamOffersToAnswer: s.team_offers_to_answer ?? 0,
+    },
+    // 12 Monday-start weeks, oldest first.
+    weeks: (d?.weeks ?? []).map(w => ({
+      weekStart: w.week_start,
+      offersReceived: w.offers_received ?? 0,
+      salesStarted: w.sales_started ?? 0,
+      salesCompleted: w.sales_completed ?? 0,
+    })),
+  };
+};
+
+const dealerVehicle = v => ({ make: v?.make ?? '', model: v?.model ?? '', year: v?.mfg_year ?? null });
+
+// An offer on one of the dealership's cars. listedByMe: only the person who
+// listed the car can answer it (from that listing's page).
+export const mapDealerOffer = o => ({
+  id: o.offer_id,
+  listingId: o.listing_id,
+  vehicle: dealerVehicle(o.vehicle),
+  status: o.status,
+  amount: toRupees(o.amount_minor),
+  askPrice: toRupees(o.ask_price_minor),
+  lastCounter: toRupees(o.last_counter_minor),
+  lastCounterBy: o.last_counter_by ?? null,
+  createdAt: toTime(o.created_at),
+  expiresAt: toTime(o.expires_at),
+  listedByMe: !!o.listed_by_me,
+});
+
+// A sale (order) on one of the dealership's cars, with when it reached each
+// step. payoutStatus: only on the caller's own sales (null on a teammate's).
+export const mapDealerSale = o => ({
+  id: o.order_id,
+  listingId: o.listing_id,
+  vehicle: dealerVehicle(o.vehicle),
+  status: o.status,
+  agreedPrice: toRupees(o.agreed_price_minor),
+  tokenAmount: toRupees(o.token_amount_minor),
+  createdAt: toTime(o.created_at),
+  tokenPaidAt: toTime(o.token_paid_at),
+  handoverAt: toTime(o.handover_at),
+  completedAt: toTime(o.completed_at),
+  cancelledAt: toTime(o.cancelled_at),
+  payoutStatus: o.payout_status ?? null,
+  listedByMe: !!o.listed_by_me,
+});

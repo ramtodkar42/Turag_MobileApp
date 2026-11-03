@@ -32,6 +32,26 @@ export const importStatus = status => ({ labelKey: label('importStatus', status)
 const ROW_TONE = { CREATED: 'success', SKIPPED_DUPLICATE: 'neutral' };
 export const rowStatus = status => ({ labelKey: label('rowStatus', status), tone: ROW_TONE[status] ?? 'warning' });
 
+// Dealer dashboard (as the web's /dealer): an offer on the dealership's cars,
+// and a sale. PENDING = the seller's turn; COUNTERED = waiting on the buyer.
+const DEALER_OFFER_TONE = { PENDING: 'warning', ACCEPTED: 'success' };
+export const dealerOfferStatus = status => ({
+  labelKey: label('dealerOffer', status),
+  tone: DEALER_OFFER_TONE[status] ?? 'neutral',
+});
+const DEALER_SALE_TONE = { CREATED: 'warning', TOKEN_PAID: 'danger', HANDED_OVER: 'warning', COMPLETED: 'success' };
+export const dealerSaleStatus = status => ({
+  labelKey: label('dealerSale', status),
+  tone: DEALER_SALE_TONE[status] ?? 'neutral',
+});
+// The seller's payout on a sale (shown on their own sales only).
+export const PAYOUT_PROBLEM = new Set(['AWAITING_ACCOUNT', 'FAILED']);
+export const payoutLabelKey = status => label('dealerPayout', status);
+
+// The dashboard's list filters (values the backend takes).
+export const DEALER_OFFER_FILTERS = ['open', 'accepted', 'closed', 'all'];
+export const DEALER_SALE_FILTERS = ['active', 'completed', 'cancelled', 'all'];
+
 // Option lists (values the backend takes; labels are keys).
 export const CATEGORIES = ['PASSENGER', 'TWO_WHEELER'];
 export const FUELS = ['PETROL', 'DIESEL', 'CNG', 'ELECTRIC', 'HYBRID'];

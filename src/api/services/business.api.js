@@ -13,7 +13,10 @@
 import { ApiError, request } from '../client';
 import { ENDPOINTS } from '../endpoints';
 import {
+  mapDealerDashboard,
   mapDealerListing,
+  mapDealerOffer,
+  mapDealerSale,
   mapDealerStock,
   mapImportJob,
   mapImportRow,
@@ -111,6 +114,28 @@ export const browseDealerStock = async ({ category, fuel, priceMax } = {}) => {
   );
   return (data?.listings ?? []).map(mapDealerStock);
 };
+
+// --- Dealer dashboard (ADR-0060, read-only) ----------------------------------------
+
+// The dealership's numbers and what's waiting on the caller: { summary, weeks }.
+export const getDealerDashboard = orgId =>
+  orgCall(async () => mapDealerDashboard(await request(ENDPOINTS.dealerDashboard(orgId))));
+
+// Offers on the dealership's cars, newest first. status: open | accepted |
+// closed | all. Returns { items, nextCursor } (null on the last page).
+export const getDealerOffers = (orgId, { status = 'open', cursor } = {}) =>
+  orgCall(async () => {
+    const data = await request(`${ENDPOINTS.dealerOffers(orgId)}${query({ status, cursor })}`);
+    return { items: (data?.items ?? []).map(mapDealerOffer), nextCursor: data?.next_cursor ?? null };
+  });
+
+// Sales on the dealership's cars, newest first. status: active | completed |
+// cancelled | all. Returns { items, nextCursor }.
+export const getDealerSales = (orgId, { status = 'active', cursor } = {}) =>
+  orgCall(async () => {
+    const data = await request(`${ENDPOINTS.dealerSales(orgId)}${query({ status, cursor })}`);
+    return { items: (data?.items ?? []).map(mapDealerSale), nextCursor: data?.next_cursor ?? null };
+  });
 
 // --- Institutional portal (read-only) ---------------------------------------------
 

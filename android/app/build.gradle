@@ -104,15 +104,23 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        // The Play upload key. Its passwords live in ~/.gradle/gradle.properties
+        // (never in git); without them a release build falls back to the debug key.
+        if (project.hasProperty('TURAG_UPLOAD_STORE_FILE')) {
+            release {
+                storeFile file(TURAG_UPLOAD_STORE_FILE)
+                storePassword TURAG_UPLOAD_STORE_PASSWORD
+                keyAlias TURAG_UPLOAD_KEY_ALIAS
+                keyPassword TURAG_UPLOAD_KEY_PASSWORD
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            signingConfig project.hasProperty('TURAG_UPLOAD_STORE_FILE') ? signingConfigs.release : signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }

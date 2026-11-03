@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { getMe } from '../api/services/profile.api';
 import { hasSession, onSessionExpired, restoreSession, updateSession } from '../api/session';
+import { setConsentHandler } from '../api/client';
 import { clearSession } from '../api/tokenStorage';
 import { checkFreshInstall, hasChosenGuest, hasSeenIntro, markIntroSeen } from '../utils/appPrefs';
 import { initLanguage } from '../i18n';
 import { initialRouteFor } from '../navigation/authRoutes';
-import { resetTo } from '../navigation/navigationRef';
+import { navigationRef, resetTo } from '../navigation/navigationRef';
 import { ROUTES } from '../navigation/routes';
 import { getUser, setUser } from '../store/userStore';
 import { signOutLocally } from '../store/signOut';
@@ -76,6 +77,27 @@ export default function useAppBoot() {
     [],
   );
 
+  // The account's Terms + Privacy are owed (on start, or an action the server
+  // refused): the Terms step (Create Account, consent only), as the web's
+  // ConsentGuard - it can't be skipped; back signs out. Asked once at a time.
+  const askForConsent = () => {
+    if (!hasSession() || !navigationRef.isReady()) return;
+    if (navigationRef.getCurrentRoute()?.name === ROUTES.COMPLETE_PROFILE) return;
+    const user = getUser();
+    const pending = { needsProfile: false, needsConsent: true };
+    updateSession({ pending });
+    resetTo(ROUTES.COMPLETE_PROFILE, {
+      phone: user?.contact,
+      ...pending,
+      prefill: { fullName: user?.fullName ?? '', email: user?.email ?? '' },
+    });
+  };
+
+  useEffect(() => {
+    setConsentHandler(askForConsent);
+    return () => setConsentHandler(null);
+  }, []);
+
   // Called by NavigationContainer onReady (the first screen is already visible).
   const onNavigationReady = () => {
     if (!hasSession()) {
@@ -83,12 +105,13 @@ export default function useAppBoot() {
     }
     const phone = getUser()?.contact;
     getMe({ phone })
-      .then(({ user }) => {
+      .then(({ user, consentRequired }) => {
         // Keep what only the device knows ("what brings you"); the profile photo
         // (avatarUrl) comes from the account.
         const merged = { ...getUser(), ...user, contact: phone ?? user.contact };
         setUser(merged);
         updateSession({ user: merged });
+        if (consentRequired) askForConsent();
       })
       // Offline / server busy: keep the saved user. Auth failures have already
       // sent the user to Login (onSessionExpired).

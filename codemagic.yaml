@@ -1,0 +1,83 @@
+# Codemagic: builds the Turag iOS app for the iOS Simulator (no Apple
+# Developer account, no signing) and zips the .app for Appetize.io.
+#
+# Start it from the Codemagic dashboard (Start new build -> ios-simulator).
+# Optional: add an environment group "appetize" with APPETIZE_API_TOKEN to
+# upload each build to Appetize automatically (and APPETIZE_PUBLIC_KEY to
+# update the same Appetize app instead of creating a new one each time).
+#
+# It's a RELEASE build: the JavaScript is bundled inside the .app. A Debug
+# build would look for Metro on localhost:8081, which Appetize can't reach,
+# and only show a red error screen.
+
+workflows:
+  ios-simulator:
+    name: iOS Simulator build (Appetize)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      groups:
+        - appetize # optional: APPETIZE_API_TOKEN, APPETIZE_PUBLIC_KEY
+      node: 22
+      xcode: latest
+      cocoapods: default
+      vars:
+        XCODE_WORKSPACE: ios/Turag.xcworkspace
+        XCODE_SCHEME: Turag
+        APP_NAME: Turag
+    cache:
+      cache_paths:
+        - $HOME/.npm
+        - $HOME/Library/Caches/CocoaPods
+    scripts:
+      - name: Install JavaScript packages
+        # Also creates an empty src/api/secrets.js (postinstall), so no
+        # OpenAI key goes into this build.
+        script: npm ci
+
+      - name: Install CocoaPods (pods from the Gemfile's CocoaPods version)
+        script: |
+          cd ios
+          bundle install
+          bundle exec pod install --repo-update
+
+      - name: Build for the iOS Simulator (unsigned)
+        script: |
+          set -o pipefail
+          xcodebuild \
+            -workspace "$XCODE_WORKSPACE" \
+            -scheme "$XCODE_SCHEME" \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -destination "generic/platform=iOS Simulator" \
+            -derivedDataPath build \
+            ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            build | xcpretty
+
+      - name: Zip the .app for Appetize
+        script: |
+          APP_DIR="build/Build/Products/Release-iphonesimulator"
+          ls "$APP_DIR/$APP_NAME.app" > /dev/null
+          # ditto keeps the bundle intact (symlinks, attributes); the .app sits at the zip's root.
+          ditto -c -k --sequesterRsrc --keepParent "$APP_DIR/$APP_NAME.app" "$CM_BUILD_DIR/$APP_NAME-simulator.zip"
+
+      - name: Upload to Appetize (only when APPETIZE_API_TOKEN is set)
+        script: |
+          if [ -z "$APPETIZE_API_TOKEN" ]; then
+            echo "No APPETIZE_API_TOKEN: skipped. Download the zip from Artifacts and upload it on appetize.io."
+            exit 0
+          fi
+          URL="https://api.appetize.io/v1/apps"
+          if [ -n "$APPETIZE_PUBLIC_KEY" ]; then URL="$URL/$APPETIZE_PUBLIC_KEY"; fi
+          curl --fail -sS "$URL" \
+            -H "X-API-KEY: $APPETIZE_API_TOKEN" \
+            -F "file=@$CM_BUILD_DIR/$APP_NAME-simulator.zip" \
+            -F "platform=ios"
+
+    artifacts:
+      - $CM_BUILD_DIR/*-simulator.zip
+      - build/Logs/Build/*.xcactivitylog

@@ -85,7 +85,7 @@ test('asks for the registration number; Send only for a valid one', async () => 
   expect(send(root)).toBeDefined();
 });
 
-test('the whole conversation, the same calls as the web, then Self Inspection', async () => {
+test('the whole conversation, the same calls as the web, then AI Self Inspection', async () => {
   const propose = jest.spyOn(valuationApi, 'proposeVehicle');
   const confirm = jest.spyOn(valuationApi, 'confirmVehicle');
   const estimate = jest.spyOn(valuationApi, 'estimateValuation');
@@ -129,11 +129,11 @@ test('the whole conversation, the same calls as the web, then Self Inspection', 
   await act(async () => button(root, 'Inspect Vehicle').props.onPress());
   await advance(700);
   expect(hasText(root, 'How would you like to verify your vehicle?')).toBe(true);
-  await act(async () => button(root, 'Self Inspection').props.onPress());
+  await act(async () => button(root, 'AI Self Inspection').props.onPress());
   await advance(700);
   expect(hasText(root, 'RC, insurance and PUC')).toBe(true); // what it covers
   await act(async () => {
-    button(root, 'Start self-inspection').props.onPress();
+    button(root, 'Start AI Self Inspection').props.onPress();
   });
   await advance(1500);
   // The web's self-inspection process (Photos -> Documents -> Checklist -> Estimate).
@@ -161,7 +161,7 @@ test('Not my vehicle asks for the number again; a failed lookup explains and ask
   expect(input(root)).toBeDefined();
 });
 
-test('Appoint an Inspector opens the booking form; Save Vehicle saves it to the Garage', async () => {
+test('Appoint an Inspector says it is coming soon and offers the AI Self Inspection; Save Vehicle saves it to the Garage', async () => {
   const navigation = nav();
   const root = await open(navigation);
   await toResult(root);
@@ -176,10 +176,16 @@ test('Appoint an Inspector opens the booking form; Save Vehicle saves it to the 
   await advance(700);
   await act(async () => button(root, 'Appoint an Inspector').props.onPress());
   await advance(700);
-  expect(navigation.navigate).toHaveBeenCalledWith(ROUTES.BOOK_APPOINTMENT, {
-    vehicle: expect.objectContaining({ vehicleId: 'veh_mock_1' }),
-    valuation: expect.objectContaining({ stage: 'DECLARED' }),
-  });
+  // Not open yet: no booking form, the chat offers the AI Self Inspection instead.
+  expect(navigation.navigate).not.toHaveBeenCalledWith(ROUTES.BOOK_APPOINTMENT, expect.anything());
+  expect(hasText(root, 'Inspector visits are coming soon.')).toBe(true);
+  // One short message in view, and only AI Self Inspection left to tap.
+  expect(hasText(root, 'RC, insurance and PUC')).toBe(false);
+  expect(button(root, 'Appoint an Inspector')).toBeUndefined();
+  await act(async () => button(root, 'AI Self Inspection').props.onPress());
+  await advance(700);
+  expect(hasText(root, 'RC, insurance and PUC')).toBe(true);
+  expect(button(root, 'Start AI Self Inspection')).toBeDefined();
   act(() => clearGarage());
 });
 
@@ -220,8 +226,12 @@ test('two-wheelers: self-inspection is for cars, so only Appoint an Inspector', 
   await act(async () => button(root, 'Inspect Vehicle').props.onPress());
   await advance(700);
   expect(hasText(root, 'available for cars')).toBe(true);
-  expect(button(root, 'Self Inspection')).toBeUndefined();
+  expect(button(root, 'AI Self Inspection')).toBeUndefined();
   expect(button(root, 'Appoint an Inspector')).toBeDefined();
+  await act(async () => button(root, 'Appoint an Inspector').props.onPress());
+  await advance(700);
+  expect(hasText(root, 'Inspector visits are coming soon.')).toBe(true);
+  expect(button(root, 'Save Vehicle')).toBeDefined(); // back to Save / Inspect
 });
 
 test('Start over begins a new conversation', async () => {

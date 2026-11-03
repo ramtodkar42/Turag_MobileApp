@@ -5,6 +5,7 @@ export default {
   'errors.server': 'Something went wrong on our side. Please try again in a moment.',
   'errors.rateLimited': 'Too many attempts. Please wait a moment and try again.',
   'errors.signIn': 'Your session has ended. Please sign in again.',
+  'errors.consentRequired': "Please accept Turag's Terms and Privacy Policy to continue.",
   'errors.generic': 'Something went wrong. Please try again.',
   'errors.phoneLength': 'Enter your 10-digit mobile number',
   'errors.phone': 'Enter a valid mobile number starting with 6, 7, 8 or 9',
