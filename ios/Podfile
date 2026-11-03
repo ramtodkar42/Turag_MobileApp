@@ -10,6 +10,9 @@ prepare_react_native_project!
 
 # Firebase (push notifications) needs its pods as static frameworks.
 $RNFirebaseAsStaticFramework = true
+# Firebase from CocoaPods, not Swift Package Manager: with static linkage each
+# Firebase SPM package would be embedded twice (duplicate-symbol link errors).
+$RNFirebaseDisableSPM = true
 linkage = ENV['USE_FRAMEWORKS'] || 'static'
 Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
 use_frameworks! :linkage => linkage.to_sym
