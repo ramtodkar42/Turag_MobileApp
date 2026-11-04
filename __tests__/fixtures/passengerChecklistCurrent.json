@@ -1,0 +1,990 @@
+{
+  "category": "PASSENGER",
+  "version": 2,
+  "checklist": {
+    "schema_version": 2,
+    "category": "PASSENGER",
+    "applicable_modes": [
+      "M1",
+      "M2",
+      "M3",
+      "M4",
+      "M5"
+    ],
+    "required_documents": [
+      "RC",
+      "INSURANCE",
+      "PUC"
+    ],
+    "sections": [
+      {
+        "group_code": "A",
+        "label": "Identity",
+        "items": [
+          {
+            "item_code": "A1",
+            "label": "VIN/chassis plate matches RC",
+            "group_code": "A",
+            "answer_type": "STATE",
+            "applicable_modes": [
+              "M1",
+              "M2",
+              "M3",
+              "M4",
+              "M5"
+            ],
+            "gate": true,
+            "scored": false,
+            "mandatory": true
+          }
+        ]
+      },
+      {
+        "group_code": "P",
+        "label": "Documents",
+        "items": [
+          {
+            "item_code": "P1",
+            "label": "RC present and legible",
+            "group_code": "P",
+            "answer_type": "STATE",
+            "applicable_modes": [
+              "M1",
+              "M2",
+              "M3",
+              "M4",
+              "M5"
+            ],
+            "gate": true,
+            "scored": false,
+            "mandatory": true
+          },
+          {
+            "item_code": "P2",
+            "label": "RC document (photo or scan)",
+            "group_code": "P",
+            "answer_type": "STATE",
+            "applicable_modes": [
+              "M1",
+              "M2"
+            ],
+            "gate": true,
+            "scored": false,
+            "mandatory": true,
+            "evidence_requirement": {
+              "kinds": [
+                "DOCUMENT"
+              ],
+              "min_count": 1,
+              "shot_codes": [
+                "RC_FRONT"
+              ]
+            }
+          },
+          {
+            "item_code": "P3",
+            "label": "Insurance policy",
+            "group_code": "P",
+            "answer_type": "STATE",
+            "applicable_modes": [
+              "M1",
+              "M2",
+              "M4",
+              "M5"
+            ],
+            "gate": true,
+            "scored": false,
+            "mandatory": true,
+            "evidence_requirement": {
+              "kinds": [
+                "DOCUMENT"
+              ],
+              "min_count": 1,
+              "shot_codes": [
+                "INSURANCE_POLICY"
+              ]
+            }
+          },
+          {
+            "item_code": "P4",
+            "label": "PUC certificate",
+            "group_code": "P",
+            "answer_type": "STATE",
+            "applicable_modes": [
+              "M2",
+              "M4",
+              "M5"
+            ],
+            "gate": true,
+            "scored": false,
+            "mandatory": true,
+            "evidence_requirement": {
+              "kinds": [
+                "DOCUMENT"
+              ],
+              "min_count": 1,
+              "shot_codes": [
+                "PUC_CERT"
+              ]
+            }
+          },
+          {
+            "item_code": "RC_ORIG_M1",
+            "label": "Is the physical original RC (hard copy) available with you?",
+            "group_code": "P",
+            "answer_type": "BOOL",
+            "applicable_modes": [
+              "M1"
+            ],
+            "gate": true,
+            "scored": false,
+            "mandatory": true
+          },
+          {
+            "item_code": "PUC_M1",
+            "label": "Is the PUC document available?",
+            "group_code": "P",
+            "answer_type": "BOOL",
+            "applicable_modes": [
+              "M1"
+            ],
+            "gate": true,
+            "scored": false,
+            "mandatory": true
+          },
+          {
+            "item_code": "P5",
+            "label": "RC document (repo/static)",
+            "group_code": "P",
+            "answer_type": "STATE",
+            "applicable_modes": [
+              "M3"
+            ],
+            "gate": true,
+            "scored": false,
+            "mandatory": true,
+            "evidence_requirement": {
+              "kinds": [
+                "DOCUMENT"
+              ],
+              "min_count": 1,
+              "shot_codes": [
+                "RC_FRONT"
+              ]
+            }
+          },
+          {
+            "item_code": "P6",
+            "label": "Insurance policy (repo/static)",
+            "group_code": "P",
+            "answer_type": "STATE",
+            "applicable_modes": [
+              "M3"
+            ],
+            "gate": true,
+            "scored": false,
+            "mandatory": true,
+            "evidence_requirement": {
+              "kinds": [
+                "DOCUMENT"
+              ],
+              "min_count": 1,
+              "shot_codes": [
+                "INSURANCE_POLICY"
+              ]
+            }
+          },
+          {
+            "item_code": "P7",
+            "label": "PUC certificate (repo/static)",
+            "group_code": "P",
+            "answer_type": "STATE",
+            "applicable_modes": [
+              "M3"
+            ],
+            "gate": true,
+            "scored": false,
+            "mandatory": true,
+            "evidence_requirement": {
+              "kinds": [
+                "DOCUMENT"
+              ],
+              "min_count": 1,
+              "shot_codes": [
+                "PUC_CERT"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "group_code": "Q",
+        "label": "Legal / encumbrance",
+        "items": [
+          {
+            "item_code": "Q1",
+            "label": "No active theft/blacklist marker",
+            "group_code": "Q",
+            "answer_type": "STATE",
+            "applicable_modes": [
+              "M2",
+              "M3",
+              "M4",
+              "M5"
+            ],
+            "gate": true,
+            "scored": false,
+            "mandatory": true,
+            "grade_cap": {
+              "reason": "THEFT_FLAG"
+            }
+          }
+        ]
+      },
+      {
+        "group_code": "O",
+        "label": "Usage",
+        "items": [
+          {
+            "item_code": "O1",
+            "label": "Odometer reading (km)",
+            "group_code": "O",
+            "answer_type": "NUMERIC",
+            "applicable_modes": [
+              "M1",
+              "M2"
+            ],
+            "scored": false,
+            "mandatory": true
+          },
+          {
+            "item_code": "O2",
+            "label": "Number of previous owners",
+            "group_code": "O",
+            "answer_type": "NUMERIC",
+            "applicable_modes": [
+              "M1",
+              "M2"
+            ],
+            "scored": false,
+            "mandatory": true
+          },
+          {
+            "item_code": "FLOOD_M1",
+            "label": "Has the vehicle ever been flooded?",
+            "group_code": "O",
+            "answer_type": "CHOICE",
+            "applicable_modes": [
+              "M1"
+            ],
+            "gate": true,
+            "scored": false,
+            "mandatory": true,
+            "choices": [
+              {
+                "value": "YES",
+                "label": "Yes"
+              },
+              {
+                "value": "NO",
+                "label": "No"
+              }
+            ],
+            "note_required_for": [
+              "YES"
+            ]
+          },
+          {
+            "item_code": "KEYS_M1",
+            "label": "How many keys are available with the vehicle?",
+            "group_code": "O",
+            "answer_type": "NUMERIC",
+            "applicable_modes": [
+              "M1"
+            ],
+            "gate": true,
+            "scored": false,
+            "mandatory": true
+          },
+          {
+            "item_code": "SVC_M1",
+            "label": "Has the vehicle been serviced recently?",
+            "group_code": "O",
+            "answer_type": "CHOICE",
+            "applicable_modes": [
+              "M1"
+            ],
+            "gate": true,
+            "scored": false,
+            "mandatory": true,
+            "choices": [
+              {
+                "value": "YES",
+                "label": "Yes"
+              },
+              {
+                "value": "NO",
+                "label": "No"
+              }
+            ]
+          },
+          {
+            "item_code": "SVC_DATE_M1",
+            "label": "Last servicing date",
+            "group_code": "O",
+            "answer_type": "DATE",
+            "applicable_modes": [
+              "M1"
+            ],
+            "gate": true,
+            "scored": false,
+            "mandatory": true,
+            "show_if": {
+              "item_code": "SVC_M1",
+              "equals": "YES"
+            }
+          },
+          {
+            "item_code": "SVC_PLACE_M1",
+            "label": "Where was it serviced?",
+            "group_code": "O",
+            "answer_type": "CHOICE",
+            "applicable_modes": [
+              "M1"
+            ],
+            "gate": true,
+            "scored": false,
+            "mandatory": true,
+            "choices": [
+              {
+                "value": "SHOWROOM",
+                "label": "Showroom"
+              },
+              {
+                "value": "OUTSIDE",
+                "label": "Outside garage"
+              }
+            ],
+            "show_if": {
+              "item_code": "SVC_M1",
+              "equals": "YES"
+            }
+          },
+          {
+            "item_code": "SVC_RECEIPT_M1",
+            "label": "Servicing receipt",
+            "group_code": "O",
+            "answer_type": "STATE",
+            "applicable_modes": [
+              "M1"
+            ],
+            "gate": true,
+            "scored": false,
+            "mandatory": false,
+            "evidence_requirement": {
+              "kinds": [
+                "DOCUMENT"
+              ],
+              "min_count": 0,
+              "shot_codes": [
+                "SERVICE_RECEIPT"
+              ]
+            },
+            "show_if": {
+              "item_code": "SVC_M1",
+              "equals": "YES"
+            }
+          }
+        ]
+      },
+      {
+        "group_code": "B",
+        "label": "Exterior & panels",
+        "items": [
+          {
+            "item_code": "B1",
+            "label": "Body panel condition",
+            "group_code": "B",
+            "answer_type": "STATE",
+            "applicable_modes": [
+              "M1",
+              "M2",
+              "M3",
+              "M4",
+              "M5"
+            ],
+            "mandatory": true,
+            "evidence_requirement": {
+              "kinds": [
+                "PHOTO"
+              ],
+              "min_count": 11,
+              "shot_codes": [
+                "WALK_FRONT",
+                "WALK_FRONT_LEFT",
+                "WALK_LEFT",
+                "WALK_REAR_LEFT",
+                "WALK_REAR",
+                "WALK_REAR_RIGHT",
+                "WALK_RIGHT",
+                "WALK_FRONT_RIGHT",
+                "PANEL_FRONT_WINDSHIELD",
+                "PANEL_REAR_WINDSHIELD",
+                "PANEL_ROOF"
+              ],
+              "severity_escalation": true
+            }
+          },
+          {
+            "item_code": "B2",
+            "label": "Paint uniformity",
+            "group_code": "B",
+            "answer_type": "STATE",
+            "applicable_modes": [
+              "M1",
+              "M2",
+              "M3",
+              "M4",
+              "M5"
+            ]
+          },
+          {
+            "item_code": "XUB_M1",
+            "label": "Exterior walkaround: underbody",
+            "group_code": "B",
+            "applicable_modes": [
+              "M1"
+            ],
+            "gate": true,
+            "scored": false,
+            "mandatory": true,
+            "evidence_only": true,
+            "evidence_requirement": {
+              "kinds": [
+                "PHOTO"
+              ],
+              "min_count": 3,
+              "shot_codes": [
+                "UB_FRONT_LEFT",
+                "UB_REAR_RIGHT",
+                "UB_REAR"
+              ],
+              "require_all_shots": true
+            }
+          },
+          {
+            "item_code": "XINT_M1",
+            "label": "Interior photos",
+            "group_code": "B",
+            "applicable_modes": [
+              "M1"
+            ],
+            "gate": true,
+            "scored": false,
+            "mandatory": true,
+            "evidence_only": true,
+            "evidence_requirement": {
+              "kinds": [
+                "PHOTO"
+              ],
+              "min_count": 15,
+              "shot_codes": [
+                "INT_DASHBOARD",
+                "INT_STEERING",
+                "INT_CLUSTER",
+                "INT_GEAR_KNOB",
+                "INT_MUSIC_AC",
+                "INT_REAR_SEAT",
+                "INT_DICKY_INSIDE",
+                "INT_PEDALS",
+                "INT_RIGHT_FRONT_DOOR_CABIN",
+                "INT_RIGHT_REAR_DOOR_CABIN",
+                "INT_RIGHT_FRONT_DOOR_OPEN",
+                "INT_RIGHT_REAR_DOOR_OPEN",
+                "INT_LEFT_FRONT_DOOR_OPEN",
+                "INT_LEFT_REAR_DOOR_OPEN",
+                "INT_DICKY_DOOR_OPEN"
+              ],
+              "require_all_shots": true
+            }
+          },
+          {
+            "item_code": "XSEAT_M1",
+            "label": "Front seat photos",
+            "group_code": "B",
+            "applicable_modes": [
+              "M1"
+            ],
+            "gate": true,
+            "scored": false,
+            "mandatory": true,
+            "evidence_only": true,
+            "evidence_requirement": {
+              "kinds": [
+                "PHOTO"
+              ],
+              "min_count": 4,
+              "shot_codes": [
+                "INT_FRONT_DRIVER_SEAT",
+                "INT_FRONT_PASSENGER_SEAT",
+                "INT_FRONT_DRIVER_SEAT_BACK",
+                "INT_FRONT_PASSENGER_SEAT_BACK"
+              ],
+              "require_all_shots": true
+            }
+          },
+          {
+            "item_code": "XINT_M2",
+            "label": "Interior photos",
+            "group_code": "B",
+            "applicable_modes": [
+              "M2"
+            ],
+            "gate": true,
+            "scored": false,
+            "mandatory": true,
+            "evidence_only": true,
+            "evidence_requirement": {
+              "kinds": [
+                "PHOTO"
+              ],
+              "min_count": 15,
+              "shot_codes": [
+                "INT_DASHBOARD",
+                "INT_STEERING",
+                "INT_CLUSTER",
+                "INT_GEAR_KNOB",
+                "INT_MUSIC_AC",
+                "INT_REAR_SEAT",
+                "INT_DICKY_INSIDE",
+                "INT_PEDALS",
+                "INT_RIGHT_FRONT_DOOR_CABIN",
+                "INT_RIGHT_REAR_DOOR_CABIN",
+                "INT_RIGHT_FRONT_DOOR_OPEN",
+                "INT_RIGHT_REAR_DOOR_OPEN",
+                "INT_LEFT_FRONT_DOOR_OPEN",
+                "INT_LEFT_REAR_DOOR_OPEN",
+                "INT_DICKY_DOOR_OPEN"
+              ]
+            }
+          },
+          {
+            "item_code": "XENG",
+            "label": "Engine photos",
+            "group_code": "B",
+            "applicable_modes": [
+              "M1",
+              "M2"
+            ],
+            "gate": true,
+            "scored": false,
+            "mandatory": true,
+            "evidence_only": true,
+            "evidence_requirement": {
+              "kinds": [
+                "PHOTO"
+              ],
+              "min_count": 5,
+              "shot_codes": [
+                "ENG_BONNET_FRONT",
+                "ENG_LEFT",
+                "ENG_RIGHT",
+                "ENG_LEFT_HINGE_APRON",
+                "ENG_RIGHT_HINGE_APRON"
+              ]
+            }
+          },
+          {
+            "item_code": "XTYRE",
+            "label": "Tyre photos",
+            "group_code": "B",
+            "applicable_modes": [
+              "M1",
+              "M2"
+            ],
+            "gate": true,
+            "scored": false,
+            "mandatory": true,
+            "evidence_only": true,
+            "evidence_requirement": {
+              "kinds": [
+                "PHOTO"
+              ],
+              "min_count": 9,
+              "shot_codes": [
+                "WHEEL_RIGHT_FRONT_RIM",
+                "WHEEL_RIGHT_REAR_RIM",
+                "WHEEL_LEFT_FRONT_RIM",
+                "WHEEL_LEFT_REAR_RIM",
+                "TYRE_RIGHT_FRONT_TREAD",
+                "TYRE_RIGHT_REAR_TREAD",
+                "TYRE_LEFT_FRONT_TREAD",
+                "TYRE_LEFT_REAR_TREAD",
+                "WHEEL_SPARE"
+              ]
+            }
+          },
+          {
+            "item_code": "XEXTRA_M1",
+            "label": "Extra photos",
+            "group_code": "B",
+            "applicable_modes": [
+              "M1"
+            ],
+            "gate": true,
+            "scored": false,
+            "mandatory": true,
+            "evidence_only": true,
+            "evidence_requirement": {
+              "kinds": [
+                "PHOTO"
+              ],
+              "min_count": 1,
+              "shot_codes": [
+                "EXTRA_CAR_KEY"
+              ],
+              "require_all_shots": true
+            }
+          },
+          {
+            "item_code": "XEXTRA_M2",
+            "label": "Extra photos",
+            "group_code": "B",
+            "applicable_modes": [
+              "M2"
+            ],
+            "gate": true,
+            "scored": false,
+            "mandatory": true,
+            "evidence_only": true,
+            "evidence_requirement": {
+              "kinds": [
+                "PHOTO"
+              ],
+              "min_count": 4,
+              "shot_codes": [
+                "EXTRA_CAR_KEY",
+                "UB_FRONT_LEFT",
+                "UB_REAR_RIGHT",
+                "UB_REAR"
+              ]
+            }
+          },
+          {
+            "item_code": "XDENT",
+            "label": "Dents & scratches",
+            "group_code": "B",
+            "applicable_modes": [
+              "M1",
+              "M2"
+            ],
+            "gate": true,
+            "scored": false,
+            "mandatory": false,
+            "evidence_only": true,
+            "evidence_requirement": {
+              "kinds": [
+                "PHOTO"
+              ],
+              "min_count": 0,
+              "shot_codes": [
+                "DENT_1",
+                "DENT_2",
+                "DENT_3",
+                "DENT_4",
+                "DENT_5",
+                "DENT_6"
+              ]
+            }
+          },
+          {
+            "item_code": "XWALK_M1",
+            "label": "Interior & exterior walkaround video",
+            "group_code": "B",
+            "applicable_modes": [
+              "M1"
+            ],
+            "gate": true,
+            "scored": false,
+            "mandatory": true,
+            "evidence_only": true,
+            "evidence_requirement": {
+              "kinds": [
+                "VIDEO"
+              ],
+              "min_count": 1,
+              "shot_codes": [
+                "WALK_INT_EXT_VIDEO"
+              ],
+              "max_duration_s": 120
+            }
+          },
+          {
+            "item_code": "XENGVID_M1",
+            "label": "Engine start video",
+            "group_code": "B",
+            "applicable_modes": [
+              "M1"
+            ],
+            "gate": true,
+            "scored": false,
+            "mandatory": true,
+            "evidence_only": true,
+            "evidence_requirement": {
+              "kinds": [
+                "VIDEO"
+              ],
+              "min_count": 1,
+              "shot_codes": [
+                "ENG_START_VIDEO"
+              ],
+              "min_duration_s": 30,
+              "max_duration_s": 45
+            }
+          },
+          {
+            "item_code": "XVID_M2",
+            "label": "Dashboard video",
+            "group_code": "B",
+            "applicable_modes": [
+              "M2"
+            ],
+            "gate": true,
+            "scored": false,
+            "mandatory": true,
+            "evidence_only": true,
+            "evidence_requirement": {
+              "kinds": [
+                "VIDEO"
+              ],
+              "min_count": 1,
+              "shot_codes": [
+                "INT_DASHBOARD_VIDEO"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "group_code": "C",
+        "label": "Structural",
+        "items": [
+          {
+            "item_code": "C1",
+            "label": "Chassis / underbody integrity",
+            "group_code": "C",
+            "answer_type": "STATE",
+            "applicable_modes": [
+              "M2",
+              "M3",
+              "M4",
+              "M5"
+            ],
+            "mandatory": true
+          },
+          {
+            "item_code": "C3",
+            "label": "A/B/C pillars intact (no cut/weld)",
+            "group_code": "C",
+            "answer_type": "STATE",
+            "applicable_modes": [
+              "M2",
+              "M3",
+              "M4",
+              "M5"
+            ],
+            "grade_cap": {
+              "reason": "PILLAR_CUT"
+            }
+          }
+        ]
+      },
+      {
+        "group_code": "D",
+        "label": "Engine & drivetrain",
+        "items": [
+          {
+            "item_code": "D1",
+            "label": "Engine bay condition (static)",
+            "group_code": "D",
+            "answer_type": "STATE",
+            "applicable_modes": [
+              "M1",
+              "M2",
+              "M3",
+              "M4",
+              "M5"
+            ]
+          },
+          {
+            "item_code": "D2",
+            "label": "Engine runs smoothly (dynamic)",
+            "group_code": "D",
+            "answer_type": "STATE",
+            "dynamic": true,
+            "applicable_modes": [
+              "M1",
+              "M2",
+              "M3",
+              "M4",
+              "M5"
+            ]
+          }
+        ]
+      },
+      {
+        "group_code": "E",
+        "label": "Transmission",
+        "items": [
+          {
+            "item_code": "E1",
+            "label": "Clutch/gearshift (dynamic)",
+            "group_code": "E",
+            "answer_type": "STATE",
+            "dynamic": true,
+            "applicable_modes": [
+              "M1",
+              "M2",
+              "M3",
+              "M4",
+              "M5"
+            ]
+          }
+        ]
+      },
+      {
+        "group_code": "F",
+        "label": "Suspension & steering",
+        "items": [
+          {
+            "item_code": "F1",
+            "label": "Suspension condition",
+            "group_code": "F",
+            "answer_type": "STATE",
+            "applicable_modes": [
+              "M1",
+              "M2",
+              "M3",
+              "M4",
+              "M5"
+            ]
+          }
+        ]
+      },
+      {
+        "group_code": "G",
+        "label": "Brakes",
+        "items": [
+          {
+            "item_code": "G1",
+            "label": "Brake system condition",
+            "group_code": "G",
+            "answer_type": "STATE",
+            "applicable_modes": [
+              "M1",
+              "M2",
+              "M3",
+              "M4",
+              "M5"
+            ]
+          }
+        ]
+      },
+      {
+        "group_code": "H",
+        "label": "Tyres",
+        "items": [
+          {
+            "item_code": "H1",
+            "label": "Tyre tread depth",
+            "group_code": "H",
+            "answer_type": "NUMERIC",
+            "applicable_modes": [
+              "M1",
+              "M2",
+              "M3",
+              "M4",
+              "M5"
+            ]
+          }
+        ]
+      },
+      {
+        "group_code": "I",
+        "label": "Electricals",
+        "items": [
+          {
+            "item_code": "I1",
+            "label": "Lights & electricals",
+            "group_code": "I",
+            "answer_type": "STATE",
+            "applicable_modes": [
+              "M1",
+              "M2",
+              "M3",
+              "M4",
+              "M5"
+            ]
+          }
+        ]
+      },
+      {
+        "group_code": "J",
+        "label": "HVAC",
+        "items": [
+          {
+            "item_code": "J1",
+            "label": "AC cooling (dynamic)",
+            "group_code": "J",
+            "answer_type": "STATE",
+            "dynamic": true,
+            "applicable_modes": [
+              "M1",
+              "M2",
+              "M3",
+              "M4",
+              "M5"
+            ]
+          }
+        ]
+      },
+      {
+        "group_code": "K",
+        "label": "Interior",
+        "items": [
+          {
+            "item_code": "K1",
+            "label": "Interior condition",
+            "group_code": "K",
+            "answer_type": "STATE",
+            "applicable_modes": [
+              "M1",
+              "M2",
+              "M3",
+              "M4",
+              "M5"
+            ]
+          }
+        ]
+      },
+      {
+        "group_code": "R",
+        "label": "Modifications",
+        "items": [
+          {
+            "item_code": "R1",
+            "label": "No illegal modifications",
+            "group_code": "R",
+            "answer_type": "STATE",
+            "applicable_modes": [
+              "M2",
+              "M3",
+              "M4",
+              "M5"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

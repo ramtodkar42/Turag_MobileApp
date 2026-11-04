@@ -8,6 +8,7 @@ import { useT } from '../../i18n';
 // App-styled confirmation dialog (replaces the system Alert).
 // Two buttons by default; pass cancelLabel={null} for a single "OK" style dialog.
 // Labels default to "Confirm" / "Cancel" in the app language.
+// children: anything to ask with it (e.g. an optional reason), under the message.
 function ConfirmDialog({
   visible,
   title,
@@ -18,6 +19,7 @@ function ConfirmDialog({
   onConfirm,
   onCancel,
   loading = false,
+  children,
 }) {
   const t = useT();
   const confirmLabel = confirmLabelProp ?? t('common.confirm');
@@ -38,6 +40,8 @@ function ConfirmDialog({
               {message}
             </AppText>
           ) : null}
+
+          {children}
 
           <View style={styles.actions}>
             {cancelLabel ? (

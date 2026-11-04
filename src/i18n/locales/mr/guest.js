@@ -1,8 +1,6 @@
 // Browsing without an account: Login's "browse" link, the "Log in to
 // continue" sheet and the guest view of the account tabs.
-export default {
-  'guest.browse': 'लॉगिन न करता कार पहा',
-  'guest.logIn': 'लॉग इन किंवा साइन अप करा',
+export default {  'guest.logIn': 'लॉग इन किंवा साइन अप करा',
   'guest.notNow': 'आत्ता नको',
 
   'guest.prompt.title': 'पुढे जाण्यासाठी लॉग इन करा',

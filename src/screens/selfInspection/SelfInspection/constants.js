@@ -2,7 +2,7 @@
 // severity scale (consumer wording) and the "can't check" reasons. Labels are
 // i18n keys; values are what the backend takes.
 
-export const STEPS = ['photos', 'documents', 'checklist', 'review'];
+export const STEPS = ['documents', 'checklist', 'photos', 'review'];
 
 export const STEP_ICONS = { photos: 'camera', documents: 'document', checklist: 'check', review: 'rupee' };
 
@@ -39,6 +39,19 @@ export const NA_REASONS_INSPECTOR = [
   'WEATHER',
   'TIME_CONSTRAINT',
 ];
+
+// The required videos, guided (the web's GUIDED_VIDEOS), by shot code. Their lengths
+// come from the checklist. checkCoverage: the walkaround's area check.
+export const GUIDED_VIDEOS = {
+  WALK_INT_EXT_VIDEO: {
+    checkCoverage: true,
+    tipKeys: ['selfInspection.gvideo.walk.exterior', 'selfInspection.gvideo.walk.interior', 'selfInspection.gvideo.walk.length'],
+  },
+  ENG_START_VIDEO: {
+    checkCoverage: false,
+    tipKeys: ['selfInspection.gvideo.engine.start', 'selfInspection.gvideo.engine.silent', 'selfInspection.gvideo.engine.exhaust'],
+  },
+};
 
 // Identity / usage items that live with the documents (the web's DETAIL_ITEM_CODES).
 export const DETAIL_ITEM_CODES = ['P1', 'A1', 'O1', 'O2'];

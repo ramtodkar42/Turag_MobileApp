@@ -314,4 +314,6 @@ export default {
   'business.rowStatus.CREATED': 'रजिस्टर्ड',
   'business.rowStatus.FAILED': 'विफल',
   'business.rowStatus.SKIPPED_DUPLICATE': 'डुप्लिकेट',
+  'business.listingStatus.CHANGES_REQUESTED': 'बदलाव माँगे गए',
+  'business.dealer.sellNote': 'कोई भी विक्रेता जैसे करता है वैसे ही कार लिस्ट करें: रजिस्ट्रेशन नंबर डालें, AI सेल्फ इंस्पेक्शन करें, फिर लिस्ट करें। यह यहाँ अपने ऑफ़र और बिक्री के साथ दिखेगी।',
 };

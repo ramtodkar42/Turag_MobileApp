@@ -10,6 +10,7 @@ export const ROUTES = {
   FORGOT_PASSWORD: 'ForgotPassword', // a reset code by WhatsApp, then a new password
   VERIFY_OTP: 'VerifyOtp',
   COMPLETE_PROFILE: 'CompleteProfile',
+  ABOUT_YOU: 'AboutYou', // sign-up's last, optional step: the insights questions
   AUTH_SUCCESS: 'AuthSuccess',
 
   MAIN_TABS: 'MainTabs', // consumer app
@@ -25,6 +26,7 @@ export const ROUTES = {
   // then the self-inspection (SELF_INSPECTION) -> ValuationResult, or booking.
   EVALUATE_CHAT: 'EvaluateChat',
   VEHICLE_CAMERA: 'VehicleCamera',
+  VIDEO_RECORDER: 'VideoRecorder',
   VALUATION_RESULT: 'ValuationResult',
 
   // Garage (user's own vehicles)
@@ -45,6 +47,7 @@ export const ROUTES = {
   // Selling: Garage vehicle -> CreateListing (a draft) -> MyListing (submit
   // for review, price, withdraw, offers); My listings in Profile.
   CREATE_LISTING: 'CreateListing',
+  LIST_VEHICLE_START: 'ListVehicleStart', // registration number -> AI Self Inspection (no valuation first)
   MY_LISTINGS: 'MyListings',
   PAYOUT_ACCOUNTS: 'PayoutAccounts', // seller: the bank account sales are paid to
   SETTLEMENTS: 'Settlements', // seller: payouts for sold vehicles

@@ -227,7 +227,7 @@ describe('My listings', () => {
     await act(async () => rows[0].props.onPress(rows[0].props.listing));
     expect(navigation.navigate).toHaveBeenCalledWith(ROUTES.MY_LISTING, { listingId: rows[0].props.listing.id });
     await act(async () => button(root, 'List a vehicle').props.onPress());
-    expect(navigation.navigate).toHaveBeenCalledWith(ROUTES.MAIN_TABS, { screen: ROUTES.GARAGE });
+    expect(navigation.navigate).toHaveBeenCalledWith(ROUTES.LIST_VEHICLE_START);
   });
 });
 

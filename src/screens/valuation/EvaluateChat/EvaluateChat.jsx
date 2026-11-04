@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { FlatList, Keyboard, StyleSheet } from 'react-native';
 import { Button, ScreenContainer } from '../../../components';
 import { spacing } from '../../../theme';
@@ -11,18 +11,24 @@ import useEvaluateChat from './useEvaluateChat';
 import { STEPS } from './steps';
 
 // Steps answered by typing (the keyboard may stay open).
-const TYPED_STEPS = new Set([STEPS.REG, STEPS.KM, STEPS.OWNERS]);
+const TYPED_STEPS = new Set([STEPS.REG, STEPS.KM]);
 
 // Evaluate (the Evaluate tab): TURAG.AI asks the same questions as the web's
 // /evaluate and shows the same results, one message at a time - registration
 // number, "Is this your vehicle?", the estimates, then Save Vehicle / Inspect
 // Vehicle and Self Inspection / Appoint an Inspector (see useEvaluateChat).
-// The list is inverted, so it stays on the latest message.
+// The list is inverted, so offset 0 is the latest message: each answer and reply
+// comes back to it, even if the user had scrolled up to read.
 function EvaluateChat({ navigation }) {
   const t = useT();
   const chat = useEvaluateChat({ navigation });
   const data = useMemo(() => [...chat.messages].reverse(), [chat.messages]);
   const renderItem = useCallback(({ item }) => <ChatItem message={item} />, []);
+  const listRef = useRef(null);
+
+  useEffect(() => {
+    listRef.current?.scrollToOffset({ offset: 0, animated: true });
+  }, [chat.messages.length, chat.typing]);
 
   // While TURAG.AI replies, and when the answer is a choice (buttons), the
   // keyboard closes so the whole reply and the choices fit in view.
@@ -52,6 +58,7 @@ function EvaluateChat({ navigation }) {
       footer={<EvaluateFooter chat={chat} navigation={navigation} />}
     >
       <FlatList
+        ref={listRef}
         inverted
         data={data}
         keyExtractor={item => item.id}

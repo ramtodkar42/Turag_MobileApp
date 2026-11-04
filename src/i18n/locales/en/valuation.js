@@ -19,7 +19,6 @@ export default {
   'valuation.band.retail': 'Retail',
 
   'valuation.condition.kmPlaceholder': 'e.g. 12,000',
-  'valuation.condition.ownersPlaceholder': 'e.g. 1',
 
 
 
@@ -96,13 +95,12 @@ export default {
   // The full self-inspection checklist (same wizard as the inspector's)
   'valuation.self.title': 'AI Self Inspection',
   'valuation.self.partDocs': 'Documents',
-  'valuation.self.partDocsText': 'RC, insurance and PUC',
+  'valuation.self.partDocsText': 'RC and insurance',
   'valuation.self.partPhotos': 'Photos',
-  'valuation.self.partPhotosText': 'All 8 angles around the vehicle',
+  'valuation.self.partPhotosText': 'Odometer, VIN, every angle of the vehicle and two short videos',
   'valuation.self.partChecks': 'Condition checks',
-  'valuation.self.partChecksText': 'Odometer, body, engine, brakes, tyres, AC and interior',
-  'valuation.self.introNote':
-    'Takes about 10 minutes and your answers save as you go. An AI self-inspection is self-declared, not Turag Verified.',
+  'valuation.self.partChecksText': 'Flood history, keys, servicing, body, engine, brakes, tyres, AC and interior',
+  'valuation.self.introNote': 'Your answers save as you go. An AI Self Inspection is self-declared, not Turag Verified.',
   'valuation.self.start': 'Start AI Self Inspection',
   'valuation.self.submit': 'Submit inspection',
   'valuation.self.submittedTitle': 'AI Self Inspection submitted',
@@ -112,11 +110,10 @@ export default {
   'valuation.result.reviewNote': 'Turag is reviewing your AI self-inspection. You’ll see its status in your Garage.',
   'valuation.result.noValue': 'Not available yet',
   'valuation.result.noValueNote': 'We couldn’t estimate a value yet. Save the vehicle and we’ll show it in your Garage when it’s ready.',
-  'valuation.estimate.updatedLabel': 'Updated Estimate',
   'valuation.estimate.declaredNote': 'This is an estimated value based on your answers, not the final price. The final price depends on your vehicle’s actual condition, checked during inspection.',
   'valuation.estimate.instantNote': 'This is an estimated value based on the vehicle details, not the final price. The final price depends on your vehicle’s actual condition, checked during inspection.',
   'valuation.estimate.noValueNote': 'We couldn’t estimate a value yet. You can still save the vehicle or verify it.',
-  'valuation.estimate.verifyNote': 'A free AI self-inspection narrows the range, or book an inspector to make it Turag verified.',
+  'valuation.estimate.verifyNote': 'Inspect it yourself to narrow the range, or book an inspector to make it Turag Verified.',
   'valuation.save.viewGarage': 'View in Garage',
   'valuation.estimate.inspect': 'Inspect Vehicle',
 
@@ -127,9 +124,6 @@ export default {
   'valuation.chat.reenter': 'No problem. Please type the correct registration number.',
   'valuation.chat.askKm': 'Great! How many km has it done?',
   'valuation.chat.kmAnswer': '{km} km',
-  'valuation.chat.askOwners': 'How many owners has it had, including you?',
-  'valuation.chat.ownersAnswer_one': '{count} owner',
-  'valuation.chat.ownersAnswer_other': '{count} owners',
   'valuation.chat.askAccident': 'Any accident history?',
   'valuation.chat.howVerify': 'How would you like to verify your vehicle?',
   'valuation.chat.selfIntro': 'The AI self-inspection goes step by step through:',
@@ -140,4 +134,14 @@ export default {
   'valuation.chat.startOver': 'Start over',
   'valuation.chat.moreDetails': 'More details',
   'valuation.chat.lessDetails': 'Fewer details',
+  'valuation.estimate.notFinal': 'This is an estimate, not the final price. An inspection confirms it.',
+  'valuation.estimate.dealerPays': 'Dealer will pay about',
+  'valuation.estimate.range': 'Usually {low} to {high}',
+  'valuation.estimate.privateSale': 'Sell to a private buyer for about',
+  'valuation.estimate.privateHelp': 'Private buyers usually pay more than dealers, but selling privately takes longer.',
+  'valuation.tier.today': 'Turag tier today',
+  'valuation.tier.assured1': 'A Turag Verified inspection at grade B or better with a condition score of 7/10 or higher lists it as',
+  'valuation.tier.assured2': '.',
+  'valuation.tier.premiumHere': 'At this value, grade A with 8.5/10 or higher makes it Turag Premium.',
+  'valuation.tier.premiumNeeds': 'Turag Premium needs grade A, 8.5/10 or higher and an asking price of Rs 10 lakh or more.',
 };

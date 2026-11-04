@@ -6,7 +6,7 @@ import { formatNumber } from '../../../../utils/format';
 import { isValidRegNumber, normalizeRegNumber } from '../../../../utils/validators';
 import { useT } from '../../../../i18n';
 import ChatInput from '../../../chat/Chat/components/ChatInput';
-import { MAX_KM, MAX_OWNERS } from '../steps';
+import { MAX_KM } from '../steps';
 
 const MAX_REG_LENGTH = 10; // MH12CT4590
 const digits = text => text.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
@@ -32,20 +32,9 @@ const KINDS = {
     value: Number,
     inputProps: { keyboardType: 'number-pad' },
   },
-  owners: {
-    placeholderKey: 'valuation.condition.ownersPlaceholder',
-    clean: (text, prev) => {
-      const next = digits(text);
-      return next === '' || Number(next) <= MAX_OWNERS ? next : prev;
-    },
-    show: value => value,
-    valid: value => Number(value) >= 1,
-    value: Number,
-    inputProps: { keyboardType: 'number-pad' },
-  },
 };
 
-// The chat's text box for a typed answer (registration number, km, owners):
+// The chat's text box for a typed answer (registration number, km):
 // Send shows once the answer is valid. onSubmit(value).
 function AnswerInput({ kind, onSubmit }) {
   const t = useT();

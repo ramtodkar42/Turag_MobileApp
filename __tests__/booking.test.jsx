@@ -141,6 +141,39 @@ const fillAddress = async (root, value = address) => {
 };
 const chip = (root, label) => root.findAllByType(ChoiceChip).find(c => c.props.label === label);
 
+// Paused for customers (as the web); these cover the form behind the switch.
+const { FEATURES } = require('../src/api/config');
+beforeAll(() => {
+  FEATURES.inspectorBooking = true;
+});
+afterAll(() => {
+  FEATURES.inspectorBooking = false;
+});
+
+describe('Booking an inspector is paused', () => {
+  test('every way to the form says it is coming soon, with the way forward', async () => {
+    FEATURES.inspectorBooking = false;
+    try {
+      const navigation = { navigate: jest.fn(), goBack: jest.fn() };
+      let tree2;
+      await act(async () => {
+        tree2 = ReactTestRenderer.create(
+          <SafeAreaProvider initialMetrics={{ frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 0, left: 0, right: 0, bottom: 0 } }}>
+            <BookAppointment navigation={navigation} route={{ params: {} }} />
+          </SafeAreaProvider>,
+        );
+      });
+      const root2 = tree2.root;
+      expect(root2.findAll(n => n.props.children === 'Booking an inspector is coming soon').length).toBeGreaterThan(0);
+      await act(async () => root2.findAll(n => n.props.title === 'Start AI Self Inspection' && n.props.onPress)[0].props.onPress());
+      expect(navigation.navigate).toHaveBeenCalledWith(ROUTES.EVALUATE_CHAT);
+      act(() => tree2.unmount());
+    } finally {
+      FEATURES.inspectorBooking = true;
+    }
+  });
+});
+
 describe('Book a doorstep inspection', () => {
   const pickFirstFreeTime = async root => {
     const picker = root.findAll(n => n.props.onSlotChange && n.props.days)[0];

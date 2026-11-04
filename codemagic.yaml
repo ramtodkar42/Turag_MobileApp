@@ -31,8 +31,6 @@ workflows:
         - $HOME/Library/Caches/CocoaPods
     scripts:
       - name: Install JavaScript packages
-        # Also creates an empty src/api/secrets.js (postinstall), so no
-        # OpenAI key goes into this build.
         script: npm ci
 
       - name: Install CocoaPods (pods from the Gemfile's CocoaPods version)

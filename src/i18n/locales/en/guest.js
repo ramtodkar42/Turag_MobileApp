@@ -1,8 +1,6 @@
 // Browsing without an account: Login's "browse" link, the "Log in to
 // continue" sheet and the guest view of the account tabs.
-export default {
-  'guest.browse': 'Browse cars without login',
-  'guest.logIn': 'Log in or sign up',
+export default {  'guest.logIn': 'Log in or sign up',
   'guest.notNow': 'Not now',
 
   'guest.prompt.title': 'Log in to continue',

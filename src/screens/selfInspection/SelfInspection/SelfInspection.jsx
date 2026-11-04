@@ -24,7 +24,9 @@ import { pickVideoFromGallery, recordVideo } from '../../../utils/pickVideo';
 import { warmPhotoLocation } from '../../../utils/photoLocation';
 import { saveToGarage, useIsInGarage } from '../../../store/garageStore';
 import useLeaveGuard from './useLeaveGuard';
+import useGuidedVideos from './useGuidedVideos';
 import useSelfInspection, { slotKey } from './useSelfInspection';
+import { useDetailScans } from './components/detailContent';
 import { STEPS } from './constants';
 import ProgressRing from './components/ProgressRing';
 import StepTabs from './components/StepTabs';
@@ -39,10 +41,13 @@ import SubmittedView from './steps/SubmittedView';
 const inr = minor => formatINR(Math.round(minor / 100));
 // Let a bottom sheet finish closing before a picker opens over it.
 const AFTER_SHEET_MS = 350;
+const FOCUS_AFTER_MS = 150;
+const FOCUS_FOR_MS = 1500;
 
 // The customer's own self-inspection (M1), the same process as the web's
-// /inspect/[id]: Photos -> Documents -> Checklist -> Estimate, with "X of Y
-// done", a live estimate, and Submit once nothing's left. Then the final value.
+// /inspect/[id]: Documents -> Checklist -> Photos -> Estimate, with "X of Y
+// done", the estimate from Evaluate, and Submit once nothing's left. Then the
+// final value.
 // The inspection officer's doorstep inspection (M2) uses this same screen, as
 // the web's inspector capture is the M1 flow's M2 equivalent: inspector
 // wording, the 10 "can't check" reasons, and after submit it goes to Turag's
@@ -55,8 +60,7 @@ function SelfInspection({ navigation, route }) {
   const si = useSelfInspection(inspectionId);
   const inspector = !!bookingId || si.inspection?.mode === 'M2';
   const titleKey = inspector ? 'selfInspection.inspector.title' : 'selfInspection.title';
-  const [step, setStep] = useState('photos');
-  const [qIndex, setQIndex] = useState(0);
+  const [step, setStep] = useState('documents');
   const [docIndex, setDocIndex] = useState(null); // null = the first document still to do
   // Set when a step was opened from Estimate's "what's left" list: back returns there.
   const [returnTo, setReturnTo] = useState(null);
@@ -67,6 +71,8 @@ function SelfInspection({ navigation, route }) {
   // Camera shots waiting to come back: key -> { itemCode, shotCode, kind, replace }.
   const pending = useRef({});
   const inGarage = useIsInGarage(vehicle?.vehicleId);
+  const scans = useDetailScans();
+  const videos = useGuidedVideos({ si, navigation, recorded: route.params?.recorded });
 
   // Open on the first step that still needs work (once per visit).
   useEffect(() => {
@@ -74,12 +80,12 @@ function SelfInspection({ navigation, route }) {
     initialStepChosen.current = true;
     const p = si.progress;
     setStep(
-      p.photos.done < p.photos.total
-        ? 'photos'
-        : p.documents.done < p.documents.total
+      p.documents.done < p.documents.total
         ? 'documents'
         : p.checklist.done < p.checklist.total
         ? 'checklist'
+        : p.photos.done < p.photos.total
+        ? 'photos'
         : 'review',
     );
   }, [si.screen, si.allItems.length, si.progress]);
@@ -99,8 +105,8 @@ function SelfInspection({ navigation, route }) {
   }, [step]);
 
   // "Back" (phone back button, header arrow) steps back through the process
-  // instead of closing it: Estimate -> Checklist -> previous question ->
-  // Documents -> previous document -> Photos -> leave (everything is saved).
+  // instead of closing it: Estimate -> Photos -> Checklist -> Documents ->
+  // previous document -> leave (everything is saved).
   const stepBack = () => {
     // Opened from Estimate's "what's left" list: back returns there.
     if (returnTo) {
@@ -108,16 +114,15 @@ function SelfInspection({ navigation, route }) {
       return true;
     }
     if (step === 'review') {
+      goStep('photos');
+      return true;
+    }
+    if (step === 'photos') {
       goStep('checklist');
       return true;
     }
     if (step === 'checklist') {
-      if (qIndex > 0) {
-        setQIndex(qIndex - 1);
-        scrollRef.current?.scrollTo({ y: 0, animated: true });
-      } else {
-        goStep('documents');
-      }
+      goStep('documents');
       return true;
     }
     if (step === 'documents') {
@@ -127,12 +132,10 @@ function SelfInspection({ navigation, route }) {
       if (current > 0) {
         setDocIndex(current - 1);
         scrollRef.current?.scrollTo({ y: 0, animated: true });
-      } else {
-        goStep('photos');
+        return true;
       }
-      return true;
     }
-    return false; // Photos: leave the self-inspection
+    return false; // The first document: leave the self-inspection
   };
   useLeaveGuard({
     navigation,
@@ -208,15 +211,12 @@ function SelfInspection({ navigation, route }) {
   // "What's left": jump to the step, opened on that photo group / document /
   // question - and remember to come back to Estimate on "back".
   const goMissing = entry => {
-    if (entry.step === 'checklist' && entry.itemCode) {
-      const i = si.partition.checklist.findIndex(x => x.item_code === entry.itemCode);
-      if (i >= 0) setQIndex(i);
-    }
-    if ((entry.step === 'documents' || entry.step === 'photos') && entry.itemCode) {
-      setFocusItem(entry.itemCode);
-      setTimeout(() => setFocusItem(null), 300);
-    }
     goStep(entry.step);
+    if (entry.itemCode) {
+      // After the step has opened (a question scrolls into view).
+      setTimeout(() => setFocusItem(entry.itemCode), FOCUS_AFTER_MS);
+      setTimeout(() => setFocusItem(null), FOCUS_AFTER_MS + FOCUS_FOR_MS);
+    }
     setReturnTo('review');
   };
 
@@ -315,8 +315,9 @@ function SelfInspection({ navigation, route }) {
   const totalDone = progress.photos.done + progress.documents.done + progress.checklist.done;
   const totalAll = progress.photos.total + progress.documents.total + progress.checklist.total;
   const canSubmit = missing.length === 0;
-  const estimateText =
-    pricing.estimatedPriceMinor != null ? `≈ ${inr(pricing.estimatedPriceMinor)}` : t('selfInspection.estimate.tabEmpty');
+  // The owner sees the value from Evaluate; the inspector the pricing engine's read.
+  const liveMinor = inspector ? pricing.estimatedPriceMinor : si.liveEstimateMinor;
+  const estimateText = liveMinor != null ? `≈ ${inr(liveMinor)}` : t('selfInspection.estimate.tabEmpty');
 
   const footer = (
     <View style={styles.bar}>
@@ -387,12 +388,12 @@ function SelfInspection({ navigation, route }) {
             tone="neutral"
             label={t(inspector ? 'selfInspection.inspector.badge' : 'selfInspection.selfDeclared')}
           />
-          {pricing.estimatedPriceMinor != null ? (
+          {liveMinor != null ? (
             <Pressable onPress={() => goStep('review')} accessibilityRole="button" hitSlop={8} style={styles.live}>
               <AppText variant="caption" color={colors.heading}>
                 {t('selfInspection.liveEstimate')}
               </AppText>
-              <AppText style={styles.liveValue}>{inr(pricing.estimatedPriceMinor)}</AppText>
+              <AppText style={styles.liveValue}>{inr(liveMinor)}</AppText>
             </Pressable>
           ) : null}
         </View>
@@ -404,19 +405,30 @@ function SelfInspection({ navigation, route }) {
 
       <View style={styles.body}>
         <FadeIn key={step} offset={ms(10)}>
-          {step === 'photos' ? <PhotosStep si={si} focusItem={focusItem} onTakePhoto={onTakePhoto} onAddVideo={onAddVideo} /> : null}
+          {step === 'photos' ? (
+            <PhotosStep
+              si={si}
+              focusItem={focusItem}
+              scans={scans}
+              videos={videos}
+              onTakePhoto={onTakePhoto}
+              onAddVideo={onAddVideo}
+              onAddDocument={onAddDocument}
+            />
+          ) : null}
           {step === 'documents' ? (
             <DocumentsStep
               si={si}
               docIndex={docIndex}
               onDocIndex={setDocIndex}
               focusItem={focusItem}
+              scans={scans}
               onAddDocument={onAddDocument}
               onGoStep={goStep}
             />
           ) : null}
           {step === 'checklist' ? (
-            <ChecklistStep si={si} qIndex={qIndex} onQuestion={setQIndex} onGoStep={goStep} onAddDocument={onAddDocument} />
+            <ChecklistStep si={si} focusItem={focusItem} scrollRef={scrollRef} onGoStep={goStep} onAddDocument={onAddDocument} />
           ) : null}
           {step === 'review' ? <EstimateStep si={si} vehicleLabel={vehicleLabel} onGoStep={goStep} onGoMissing={goMissing} /> : null}
         </FadeIn>

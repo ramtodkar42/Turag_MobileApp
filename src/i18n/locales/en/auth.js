@@ -1,5 +1,6 @@
 // en - Login, OTP, Create Account and sign-in success.
 export default {
+  'auth.skip': 'Skip',
   'auth.welcome': 'Welcome to Turag.ai',
   'auth.tagline': 'Verified insights for smarter vehicle decision.',
   'auth.phonePlaceholder': 'Enter your number',

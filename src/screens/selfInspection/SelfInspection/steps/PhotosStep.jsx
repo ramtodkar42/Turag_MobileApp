@@ -7,16 +7,20 @@ import { useT } from '../../../../i18n';
 import { isVideoItem } from '../../../../vendor/selfInspectionLogic';
 import { slotKey } from '../useSelfInspection';
 import { itemName, shotName } from '../labels';
+import { GUIDED_VIDEOS } from '../constants';
+import { detailContent } from '../components/detailContent';
+import GuidedVideo from '../components/GuidedVideo';
 import SectionCard from '../components/SectionCard';
 import StatusPill from '../components/StatusPill';
 import VideoSlot from '../components/VideoSlot';
 
 const TIP_KEYS = ['distance', 'centered', 'lighting', 'steady', 'betterLight'];
+const DETAIL_NEXT_MS = 700;
 
 // Short group names for the pills (B1 = the exterior walkaround).
 const GROUP_KEY = code => {
   const base = code.replace(/_M\d$/, '');
-  return ['B1', 'XINT', 'XENG', 'XTYRE', 'XEXTRA', 'XDENT', 'XVID'].includes(base) ? `selfInspection.photoGroup.${base}` : null;
+  return ['B1', 'XINT', 'XENG', 'XTYRE', 'XEXTRA', 'XDENT', 'XVID', 'XWALK', 'XENGVID'].includes(base) ? `selfInspection.photoGroup.${base}` : null;
 };
 
 // AI badge for a walkaround photo (the web's aiBadge).
@@ -32,13 +36,16 @@ const aiBadge = (state, finding) => {
 };
 
 // Photos, one at a time (the same photos and rules as the web's Photos step):
-// the groups as pills (Exterior, Interior, Engine, Tyres, Video, Extras, Dents
-// - required first), one large card for the current angle with "Take photo"
+// the odometer and chassis / VIN read off the car, then the groups as pills
+// (Exterior with the underbody, Interior with the front seats, Engine, Tyres,
+// Extras, the videos, Dents - required first), one large card for the current
+// angle with "Take photo"
 // (the camera only - no gallery), then on to the next one by itself. A strip of
 // the group's angles to jump around; dents grow one at a time.
 // focusItem: open the group of that item (a jump from the "what's left" list).
 // onTakePhoto(itemCode, shotCode, label, replace).
-function PhotosStep({ si, focusItem, onTakePhoto, onAddVideo }) {
+// videos: the guided videos' state (useGuidedVideos).
+function PhotosStep({ si, focusItem, scans, videos, onTakePhoto, onAddVideo, onAddDocument }) {
   const t = useT();
   const { groups, progress, mediaShots, mediaFiles, thumbs, uploading, removing, slotMsg, analysis, persisted, submitting } = si;
   const [tipsOpen, setTipsOpen] = useState(false);
@@ -47,17 +54,21 @@ function PhotosStep({ si, focusItem, onTakePhoto, onAddVideo }) {
   const has = (s) => (mediaShots[s.itemCode] ?? []).includes(s.shotCode);
   const isDents = g => g.slots.length > 0 && g.slots.every(s => s.shotCode.startsWith('DENT_'));
 
-  // Required groups, the video, then optional groups (the web's order).
+  // The details read off the car, required groups, the videos, then optional
+  // groups (the web's order).
+  const photoDetails = si.partition.photoDetails;
   const sections = useMemo(() => {
-    const videos = si.allItems.filter(isVideoItem);
+    const videoItems = si.allItems.filter(isVideoItem);
     return [
+      ...photoDetails.map(item => ({ key: item.item_code, detail: item })),
       ...groups.filter(g => g.minCount > 0).map(g => ({ key: g.item.item_code, group: g })),
-      ...videos.map(item => ({ key: item.item_code, video: item })),
+      ...videoItems.map(item => ({ key: item.item_code, video: item })),
       ...groups.filter(g => g.minCount === 0).map(g => ({ key: g.item.item_code, group: g })),
     ];
-  }, [groups, si.allItems]);
+  }, [groups, photoDetails, si.allItems]);
 
   const sectionDone = sec => {
+    if (sec.detail) return si.local[sec.detail.item_code]?.saved === true;
     if (sec.video) {
       const shot = sec.video.evidence_requirement?.shot_codes?.[0] ?? 'VIDEO';
       return (mediaShots[sec.video.item_code] ?? []).includes(shot);
@@ -68,7 +79,7 @@ function PhotosStep({ si, focusItem, onTakePhoto, onAddVideo }) {
 
   // Start on the first required group that's missing something.
   const firstOpen = () => {
-    const i = sections.findIndex(sec => sec.group && sec.group.minCount > 0 && !sectionDone(sec));
+    const i = sections.findIndex(sec => (sec.detail || (sec.group && sec.group.minCount > 0)) && !sectionDone(sec));
     return i >= 0 ? i : 0;
   };
   const [secIndex, setSecIndex] = useState(firstOpen);
@@ -99,12 +110,33 @@ function PhotosStep({ si, focusItem, onTakePhoto, onAddVideo }) {
   };
 
   // Opened from the "what's left" list: show that item's group.
+  // (Underbody and front seats sit inside the Exterior and Interior sections.)
   useEffect(() => {
     if (!focusItem) return;
-    const i = sections.findIndex(s => s.key === focusItem);
+    const i = sections.findIndex(s => s.key === focusItem || s.group?.slots.some(slotOf => slotOf.itemCode === focusItem));
     if (i >= 0) openSection(i);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusItem]);
+
+  // A confirmed odometer / VIN moves on to the next thing left, by itself.
+  const detailCode = sec?.detail?.item_code;
+  const detailSaved = detailCode ? si.local[detailCode]?.saved === true : false;
+  const wasSaved = useRef(detailSaved);
+  useEffect(() => {
+    wasSaved.current = detailSaved;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detailCode]);
+  useEffect(() => {
+    const justSaved = detailSaved && !wasSaved.current;
+    wasSaved.current = detailSaved;
+    if (!justSaved || scans.isOpen(detailCode)) return undefined;
+    const timer = setTimeout(() => {
+      const next = sections.findIndex((s, i) => i > secIndex && !sectionDone(s));
+      if (next >= 0) openSection(next);
+    }, DETAIL_NEXT_MS);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detailSaved]);
 
   // After a photo finishes uploading for the current angle, go on to the next
   // missing one in the group by itself - unless it came with a hint ("looks
@@ -128,12 +160,13 @@ function PhotosStep({ si, focusItem, onTakePhoto, onAddVideo }) {
   }
 
   const groupLabel = s => {
+    if (s.detail) return t(`selfInspection.docShort.${s.detail.item_code}`);
     const code = s.video ? s.video.item_code : s.group.item.item_code;
     const k = GROUP_KEY(code);
     return k ? t(k) : itemName(t, s.video ?? s.group.item);
   };
   const groupCount = s => {
-    if (s.video) return null;
+    if (s.video || s.detail) return null;
     const taken = s.group.slots.filter(has).length;
     return s.group.minCount > 0 ? `${Math.min(taken, s.group.minCount)}/${s.group.minCount}` : taken > 0 ? `${taken}` : null;
   };
@@ -332,7 +365,9 @@ function PhotosStep({ si, focusItem, onTakePhoto, onAddVideo }) {
           const done = sectionDone(s);
           const active = i === secIndex;
           const count = groupCount(s);
-          const optional = s.video
+          const optional = s.detail
+            ? false
+            : s.video
             ? (s.video.evidence_requirement?.min_count ?? 0) === 0
             : s.group.minCount === 0;
           return (
@@ -353,17 +388,61 @@ function PhotosStep({ si, focusItem, onTakePhoto, onAddVideo }) {
         })}
       </ScrollView>
 
-      {sec.video ? (
+      {sec.detail ? (
+        <FadeIn key={sec.key} offset={ms(8)} style={styles.focus}>
+          {(() => {
+            const { title, hint, body } = detailContent({ t, si, item: sec.detail, scans, onAddDocument });
+            return (
+              <>
+                <AppText variant="h3" style={styles.angle}>
+                  {title}
+                </AppText>
+                <AppText variant="caption">{hint}</AppText>
+                {body}
+              </>
+            );
+          })()}
+          {secIndex < sections.length - 1 ? (
+            <Button
+              title={t('selfInspection.photos.nextGroup', { name: groupLabel(sections[secIndex + 1]) })}
+              variant="outline"
+              size="md"
+              onPress={() => openSection(secIndex + 1)}
+            />
+          ) : null}
+        </FadeIn>
+      ) : sec.video ? (
         <FadeIn key={sec.key} offset={ms(8)} style={styles.focus}>
           <AppText variant="h3" style={styles.angle}>
             {itemName(t, sec.video)}
           </AppText>
-          <AppText variant="caption">{t('selfInspection.video.hint')}</AppText>
           {(() => {
             const shot = sec.video.evidence_requirement?.shot_codes?.[0] ?? 'VIDEO';
             const vkey = slotKey(sec.video.item_code, shot);
             const have = (mediaShots[sec.video.item_code] ?? []).includes(shot);
+            const guide = GUIDED_VIDEOS[shot];
+            if (guide) {
+              return (
+                <GuidedVideo
+                  guide={guide}
+                  title={itemName(t, sec.video)}
+                  minS={sec.video.evidence_requirement?.min_duration_s}
+                  maxS={sec.video.evidence_requirement?.max_duration_s}
+                  have={have}
+                  busy={uploading[vkey] === true}
+                  disabled={submitting}
+                  pending={videos.pending[vkey]}
+                  savedUri={videos.saved[vkey]}
+                  error={videos.errors[vkey]}
+                  message={slotMsg[vkey]}
+                  onRecord={() => videos.record(sec.video, shot)}
+                  onUse={file => videos.use(sec.video, shot, file, have)}
+                />
+              );
+            }
             return (
+              <>
+              <AppText variant="caption">{t('selfInspection.video.hint')}</AppText>
               <VideoSlot
                 have={have}
                 busy={uploading[vkey] === true}
@@ -371,6 +450,7 @@ function PhotosStep({ si, focusItem, onTakePhoto, onAddVideo }) {
                 message={slotMsg[vkey]}
                 onAdd={source => onAddVideo(sec.video, shot, have, source)}
               />
+              </>
             );
           })()}
         </FadeIn>

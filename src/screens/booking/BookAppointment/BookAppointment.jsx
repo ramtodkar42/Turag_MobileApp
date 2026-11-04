@@ -28,6 +28,8 @@ import PaymentsSoonCard from './components/PaymentsSoonCard';
 import SlotPicker from './components/SlotPicker';
 import { BOOKING_CATEGORIES, PREPARATION } from './constants';
 import useBookingForm from './useBookingForm';
+import { FEATURES } from '../../../api/config';
+import BookingPaused from '../BookingPaused/BookingPaused';
 
 // Book a doorstep inspection (as the web's /book page): vehicle type, a date
 // and time the backend offers, where the vehicle will be (typed for this
@@ -35,7 +37,7 @@ import useBookingForm from './useBookingForm';
 // ready on the day. The fee is paid after the summary, to confirm the booking.
 // params: { vehicle?, valuation? } - from the Evaluate flow / Garage
 // (vehicle known) or My inspections (choose the vehicle type).
-function BookAppointment({ navigation, route }) {
+function BookingForm({ navigation, route }) {
   const t = useT();
   const { vehicle, valuation } = route.params ?? {};
   const {
@@ -286,5 +288,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
 });
+
+// Booking an inspector is paused for customers: every way here shows why (as the web's /book).
+function BookAppointment(props) {
+  return FEATURES.inspectorBooking ? <BookingForm {...props} /> : <BookingPaused navigation={props.navigation} />;
+}
 
 export default BookAppointment;

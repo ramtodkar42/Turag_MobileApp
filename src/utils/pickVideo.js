@@ -28,11 +28,12 @@ const firstAsset = (result, fallbackType, kind) => {
   return asset ? { ...asset, type: asset.type || fallbackType } : null;
 };
 
-export const recordVideo = async () => {
+// durationLimit (seconds, optional): the longest the item takes.
+export const recordVideo = async ({ durationLimit = VIDEO.durationLimit } = {}) => {
   if (!(await ensureCameraPermission())) {
     throw new Error('camera_permission');
   }
-  return firstAsset(await launchCamera({ ...VIDEO, saveToPhotos: false }), 'video/mp4', 'camera');
+  return firstAsset(await launchCamera({ ...VIDEO, durationLimit, saveToPhotos: false }), 'video/mp4', 'camera');
 };
 
 export const pickVideoFromGallery = async () => firstAsset(await launchImageLibrary(VIDEO), 'video/mp4', 'photos');

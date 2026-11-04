@@ -5,12 +5,12 @@ import { colors, fonts, spacing } from '../../../../theme';
 import { fs, ms } from '../../../../utils/responsive';
 import { useT } from '../../../../i18n';
 import { formatNumber } from '../../../../utils/format';
-import { analyzeOdometerWithOpenAI } from '../../../../api/services/visionScan';
+import { readOdometerPhoto } from '../../../../api/services/aiScan.api';
 import { pickPhotoWithBase64, takePhotoWithBase64 } from '../../../../utils/pickVideo';
 import { parseOdometerKm } from '../../../../vendor/selfInspectionLogic';
 
 // "Read it from a photo" for the odometer (the web's OdoExtractCard): a
-// dashboard photo is read by AI, the user confirms or corrects the km, and
+// dashboard photo is read by AI on Turag's server, the user confirms or corrects the km, and
 // only a confirmed number is saved (onConfirmKm). Unreadable -> type it in.
 function OdometerScan({ disabled, onConfirmKm }) {
   const t = useT();
@@ -35,9 +35,9 @@ function OdometerScan({ disabled, onConfirmKm }) {
     setPhase('reading');
     setError('');
     try {
-      const res = await analyzeOdometerWithOpenAI(asset.base64);
+      const reading = await readOdometerPhoto(asset.base64);
       if (id !== run.current) return;
-      const km = res?.isOdometerVisible ? parseOdometerKm(res.kilometers) : null;
+      const km = reading == null ? null : parseOdometerKm(String(reading));
       if (km == null) {
         // Unreadable: never a guess - type it in.
         setPhase('manual');

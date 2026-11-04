@@ -9,9 +9,9 @@ import MissingList from '../components/MissingList';
 import SectionCard from '../components/SectionCard';
 import { useInspectorMode } from '../inspectorMode';
 
-// Estimate (the web's reviewStep): the live estimate (the web's own pricing
-// engine over what's confirmed), each step's progress, photos still to take,
-// and "Before you can submit" - every entry jumps to where it's done.
+// Estimate (the web's reviewStep): the value from Evaluate (an inspector sees the
+// pricing engine's read of what's confirmed), each step's progress, photos still
+// to take, and "Before you can submit" - every entry jumps to where it's done.
 function EstimateStep({ si, vehicleLabel, onGoStep, onGoMissing }) {
   const t = useT();
   // The inspector's estimate is advisory - the value is set after Turag's QC.
@@ -22,15 +22,28 @@ function EstimateStep({ si, vehicleLabel, onGoStep, onGoMissing }) {
 
   return (
     <View style={styles.wrap}>
-      <EstimateCard
-        valueMinor={pricing.estimatedPriceMinor}
-        lowerMinor={pricing.lowerPriceMinor}
-        upperMinor={pricing.upperPriceMinor}
-        confidenceLevel={pricing.confidence?.level ?? null}
-        vehicleLabel={vehicleLabel || t(inspector ? 'selfInspection.inspector.vehicle' : 'selfInspection.yourVehicle')}
-        emptyText={t(si.canonicalReady ? 'selfInspection.estimate.needMore' : 'selfInspection.estimate.confirmFirst')}
-        footnote={t(inspector ? 'selfInspection.inspector.estimateFootnote' : 'selfInspection.estimate.liveFootnote')}
-      />
+      {inspector ? (
+        <EstimateCard
+          valueMinor={pricing.estimatedPriceMinor}
+          lowerMinor={pricing.lowerPriceMinor}
+          upperMinor={pricing.upperPriceMinor}
+          confidenceLevel={pricing.confidence?.level ?? null}
+          vehicleLabel={vehicleLabel || t('selfInspection.inspector.vehicle')}
+          emptyText={t(si.canonicalReady ? 'selfInspection.estimate.needMore' : 'selfInspection.estimate.confirmFirst')}
+          footnote={t('selfInspection.inspector.estimateFootnote')}
+        />
+      ) : (
+        <EstimateCard
+          valueMinor={si.liveEstimateMinor ?? null}
+          lowerMinor={null}
+          upperMinor={null}
+          confidenceLevel={null}
+          loading={si.liveEstimateMinor === undefined}
+          vehicleLabel={vehicleLabel || t('selfInspection.yourVehicle')}
+          emptyText={t('selfInspection.estimate.emptyMore')}
+          footnote={t('selfInspection.estimate.liveFootnote')}
+        />
+      )}
       <SectionCard title={t('selfInspection.review.title')} subtitle={t('selfInspection.review.subtitle')}>
         <View style={styles.steps}>
           {['photos', 'documents', 'checklist'].map(key => {

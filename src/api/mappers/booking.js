@@ -3,6 +3,7 @@
 import { toRupees, toTime } from './money';
 import { mapValuation } from './valuation';
 import { mapChallans } from './challans';
+import { mediaUrl } from '../../utils/mediaUrl';
 
 const titleCase = value =>
   value
@@ -130,6 +131,13 @@ export const mapReport = r => {
     valuation: r.valuation?.status === 'READY' ? mapValuation(r.valuation) : null,
     inspectorName: r.inspector?.name ?? null,
     odometerKm: r.odometer_km ?? null,
+    // Previous owners as declared on the inspection.
+    ownersDeclared: r.owners_declared ?? null,
+    // Redacted thumbnails, dents left out (as the public gallery).
+    photos: (r.evidence ?? [])
+      .filter(e => e.thumb_url && !String(e.shot_code ?? '').startsWith('DENT_'))
+      .slice(0, 12)
+      .map(e => ({ id: e.media_id, uri: mediaUrl(e.thumb_url) })),
     disclaimer: r.disclaimer ?? null,
     generatedAt: r.generated_at ?? null,
     // Traffic challans from the latest check, or null (never checked).

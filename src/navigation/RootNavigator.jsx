@@ -43,12 +43,15 @@ import PlacementDetail from '../screens/business/PlacementDetail/PlacementDetail
 import BulkImport from '../screens/business/BulkImport/BulkImport';
 import ImportJob from '../screens/business/ImportJob/ImportJob';
 import CreateListing from '../screens/listing/CreateListing/CreateListing';
+import ListVehicleStart from '../screens/selling/ListVehicleStart/ListVehicleStart';
 import PersonalInfo from '../screens/profile/PersonalInfo/PersonalInfo';
 import CarAlerts from '../screens/profile/CarAlerts/CarAlerts';
 import IdentityVerification from '../screens/profile/IdentityVerification/IdentityVerification';
 import DigiLocker from '../screens/profile/DigiLocker/DigiLocker';
 import Language from '../screens/profile/Language/Language';
+import AboutYou from '../screens/auth/AboutYou/AboutYou';
 import VehicleCamera from '../screens/valuation/VehicleCamera/VehicleCamera';
+import VideoRecorder from '../screens/selfInspection/VideoRecorder/VideoRecorder';
 import ValuationResult from '../screens/valuation/ValuationResult/ValuationResult';
 import GarageVehicle from '../screens/garage/GarageVehicle/GarageVehicle';
 import WebPage from '../screens/common/WebPage/WebPage';
@@ -151,6 +154,7 @@ function RootNavigator({ initialRoute = { name: ROUTES.INTRO } }) {
         component={CompleteProfile}
         initialParams={initialRoute.name === ROUTES.COMPLETE_PROFILE ? initialRoute.params : undefined}
       />
+      <Stack.Screen name={ROUTES.ABOUT_YOU} component={AboutYou} options={fade} />
       <Stack.Screen name={ROUTES.AUTH_SUCCESS} component={AuthSuccess} options={fade} />
       <Stack.Screen name={ROUTES.MAIN_TABS} component={MainTabs} options={fade} />
       <Stack.Screen name={ROUTES.INSPECTOR_TABS} component={InspectorTabs} options={fade} />
@@ -169,6 +173,11 @@ function RootNavigator({ initialRoute = { name: ROUTES.INTRO } }) {
       <Stack.Screen
         name={ROUTES.VEHICLE_CAMERA}
         component={VehicleCamera}
+        options={{ animation: 'slide_from_bottom', contentStyle: { backgroundColor: colors.black } }}
+      />
+      <Stack.Screen
+        name={ROUTES.VIDEO_RECORDER}
+        component={VideoRecorder}
         options={{ animation: 'slide_from_bottom', contentStyle: { backgroundColor: colors.black } }}
       />
       <Stack.Screen name={ROUTES.VALUATION_RESULT} component={ValuationResult} />
@@ -211,6 +220,7 @@ function RootNavigator({ initialRoute = { name: ROUTES.INTRO } }) {
       <Stack.Screen name={ROUTES.BULK_INTAKE_IMPORT} component={BulkImport} />
       <Stack.Screen name={ROUTES.INTAKE_IMPORT_JOB} component={ImportJob} />
       <Stack.Screen name={ROUTES.CREATE_LISTING} component={CreateListing} />
+      <Stack.Screen name={ROUTES.LIST_VEHICLE_START} component={ListVehicleStart} />
       <Stack.Screen name={ROUTES.PERSONAL_INFO} component={AccountPersonalInfo} />
       <Stack.Screen name={ROUTES.CAR_ALERTS} component={AccountCarAlerts} />
       <Stack.Screen name={ROUTES.IDENTITY_VERIFICATION} component={AccountIdentityVerification} />

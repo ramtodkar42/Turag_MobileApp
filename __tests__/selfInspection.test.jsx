@@ -5,26 +5,31 @@
 import React from 'react';
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import fixture from './fixtures/passengerChecklist.json';
+import fixture from './fixtures/passengerChecklistCurrent.json';
+import olderFixture from './fixtures/passengerChecklist.json';
 import {
+  activeItemsFor,
   buildMissingList,
-  buildProgress,
   parseOdometerKm,
   parseOwnerCount,
   partitionItems,
   photoGroups,
+  photoSections,
 } from '../src/vendor/selfInspectionLogic';
 import { ROUTES } from '../src/navigation/routes';
 
-// The real passenger checklist (version 2) for self-inspection (M1), filtered
-// as the web does.
-const m1Sections = fixture.checklist.sections
-  .map(s => ({
-    group_code: s.group_code,
-    label: s.label,
-    items: s.items.filter(it => it.applicable_modes.includes('M1') && !(it.gate && it.evidence_requirement?.shots)),
-  }))
-  .filter(s => s.items.length > 0);
+// The web's current passenger checklist for self-inspection (M1), filtered as the
+// web does. (fixtures/passengerChecklist.json: the older one, for inspections
+// already pinned to it.)
+const sectionsFor = (source, mode) =>
+  source.checklist.sections
+    .map(s => ({
+      group_code: s.group_code,
+      label: s.label,
+      items: s.items.filter(it => it.applicable_modes.includes(mode) && !(it.gate && it.evidence_requirement?.shots)),
+    }))
+    .filter(s => s.items.length > 0);
+const m1Sections = sectionsFor(fixture, 'M1');
 const m1Items = m1Sections.flatMap(s => s.items);
 
 const inspection = {
@@ -41,6 +46,7 @@ const inspection = {
 jest.mock('../src/api/services/selfInspection.api', () => ({
   USABLE_MEDIA: new Set(['UPLOADED', 'PROCESSING', 'PROCESSED', 'INTEGRITY_FLAGGED', 'REDACTION_HELD']),
   getSelfInspection: jest.fn(),
+  getReferenceValuation: jest.fn(async () => null),
   listSelfInspectionMedia: jest.fn(async () => []),
   recordSelfAnswer: jest.fn(async () => ({})),
   uploadSelfEvidence: jest.fn(async ({ shotCode }) => ({ mediaId: `med_${shotCode}`, status: 'UPLOADED' })),
@@ -52,8 +58,8 @@ jest.mock('../src/api/services/selfInspection.api', () => ({
   estimateFinalValue: jest.fn(async () => ({ card: { valueMinor: 45000000, confidenceLevel: 'MEDIUM' }, valuation: null, reason: null })),
 }));
 
-jest.mock('../src/api/services/visionScan', () => ({
-  analyzeDamageWithOpenAI: jest.fn(async () => ({
+jest.mock('../src/api/services/aiScan.api', () => ({
+  scanDamagePhoto: jest.fn(async () => ({
     hasDamage: true,
     part: 'FRONT_BUMPER',
     type: 'SCRATCH',
@@ -67,8 +73,8 @@ jest.mock('../src/api/services/visionScan', () => ({
     cosmetic: [],
     promptVersion: 'm1-dent-v4',
   })),
-  analyzeOdometerWithOpenAI: jest.fn(),
-  scanIdentityWithOpenAI: jest.fn(),
+  readOdometerPhoto: jest.fn(),
+  readIdentityPhoto: jest.fn(),
 }));
 
 jest.mock('../src/utils/fileToBase64', () => ({ fileToBase64: jest.fn(async () => 'BASE64') }));
@@ -76,7 +82,7 @@ jest.mock('../src/utils/photoDhash', () => ({ photoDhash: jest.fn(async () => nu
 jest.mock('../src/utils/pickImage', () => ({ pickImageFromGallery: jest.fn(async () => null) }));
 
 const api = require('../src/api/services/selfInspection.api');
-const vision = require('../src/api/services/visionScan');
+const vision = require('../src/api/services/aiScan.api');
 const { photoDhash } = require('../src/utils/photoDhash');
 const { pickImageFromGallery } = require('../src/utils/pickImage');
 // The jest location mock: Baner, Pune.
@@ -133,6 +139,27 @@ const texts = root =>
 const hasText = (root, text) => texts(root).some(s => s.includes(text));
 const pressable = (root, label) => root.findAll(n => n.props.accessibilityLabel === label && n.props.onPress)[0];
 const tab = (root, label) => root.findAll(n => n.props.accessibilityRole === 'tab' && n.props.accessibilityLabel === label && n.props.onPress)[0];
+// A pill of the Photos / Documents step, by its name.
+const pill = (root, name) =>
+  root.findAll(
+    n =>
+      n.props.accessibilityRole === 'tab' &&
+      n.props.onPress &&
+      n.findAll(c => typeof c.props.children !== 'undefined' && [c.props.children].flat().join('').startsWith(name)).length,
+  )[0];
+const openPill = async (root, name) => {
+  await act(async () => pill(root, name).props.onPress());
+};
+const openPhotos = async (params) => {
+  const root = await render(params);
+  await act(async () => tab(root, 'Photos').props.onPress());
+  return root;
+};
+const openExterior = async () => {
+  const root = await openPhotos();
+  await openPill(root, 'Exterior');
+  return root;
+};
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -144,24 +171,37 @@ afterEach(() => {
 });
 
 describe('web logic (the same functions as turag.ai)', () => {
-  test('51 tasks: 33 required photos + 7 documents + 11 questions', () => {
-    const p = buildProgress(m1Items, {}, {});
-    expect(p.photos.total).toBe(33);
-    expect(p.documents.total).toBe(7);
-    expect(p.checklist.total).toBe(11);
-    const part = partitionItems(m1Items);
-    expect(part.documents.map(i => i.item_code)).toEqual(['P1', 'A1', 'O1', 'O2', 'P2', 'P3', 'P4']);
-    // Photo-only items (interior, engine, tyres ...) are NOT condition questions.
-    expect(part.checklist.map(i => i.item_code)).toEqual(['B1', 'B2', 'D1', 'D2', 'E1', 'F1', 'G1', 'H1', 'I1', 'J1', 'K1']);
-    expect(photoGroups(m1Items).map(g => `${g.item.item_code}:${g.slots.length}/${g.minCount}`)).toEqual([
-      'B1:11/11', 'XINT_M1:15/8', 'XENG:5/5', 'XTYRE:9/9', 'XEXTRA_M1:4/0', 'XDENT:6/0',
+  test('the current checklist: documents, one page of questions, then photos with odometer and VIN', () => {
+    const active = activeItemsFor(m1Items, {});
+    const part = partitionItems(active);
+    expect(part.documents.map(i => i.item_code)).toEqual(['P1', 'O2', 'P2', 'P3']);
+    expect(part.photoDetails.map(i => i.item_code)).toEqual(['O1', 'A1']);
+    // Facts first in the config; the servicing follow-ups only join after "Yes".
+    expect(part.checklist.map(i => i.item_code)).toEqual([
+      'RC_ORIG_M1', 'PUC_M1', 'FLOOD_M1', 'KEYS_M1', 'SVC_M1',
+      'B1', 'B2', 'D1', 'D2', 'E1', 'F1', 'G1', 'H1', 'I1', 'J1', 'K1',
+    ]);
+    // Every photo required; underbody shows with the exterior, front seats with the interior.
+    expect(photoSections(photoGroups(m1Items)).map(g => `${g.item.item_code}:${g.slots.length}/${g.minCount}`)).toEqual([
+      'B1:14/14', 'XINT_M1:19/19', 'XENG:5/5', 'XTYRE:9/9', 'XEXTRA_M1:1/1', 'XDENT:6/0',
     ]);
   });
 
-  test('required photos block submit even with no answer (the server gate)', () => {
-    const parse = (c, r) => (c === 'O2' ? parseOwnerCount(r) : parseOdometerKm(r));
-    const missing = buildMissingList({ items: m1Items, answers: {}, evidenceCount: {}, parseNumeric: parse });
-    expect(missing.filter(m => m.step === 'photos').map(m => m.itemCode)).toEqual(['XINT_M1', 'XENG', 'XTYRE']);
+  test('servicing follow-ups apply only after a saved "Yes"', () => {
+    const codes = answers => activeItemsFor(m1Items, answers).map(i => i.item_code).filter(c => c.startsWith('SVC'));
+    expect(codes({})).toEqual(['SVC_M1']);
+    expect(codes({ SVC_M1: { saved: true, value: 'NO' } })).toEqual(['SVC_M1']);
+    expect(codes({ SVC_M1: { saved: true, value: 'YES' } })).toEqual(['SVC_M1', 'SVC_DATE_M1', 'SVC_PLACE_M1', 'SVC_RECEIPT_M1']);
+  });
+
+  test('required photos and both videos block submit even with no answer (the server gate)', () => {
+    const parse = (c, r2) => (c === 'O2' ? parseOwnerCount(r2) : parseOdometerKm(r2));
+    const missing = buildMissingList({ items: activeItemsFor(m1Items, {}), answers: {}, evidenceCount: {}, parseNumeric: parse });
+    const photos = missing.filter(m => m.step === 'photos').map(m => m.itemCode);
+    ['O1', 'A1', 'XUB_M1', 'XINT_M1', 'XSEAT_M1', 'XENG', 'XTYRE', 'XEXTRA_M1', 'XWALK_M1', 'XENGVID_M1'].forEach(code =>
+      expect(photos).toContain(code),
+    );
+    expect(photos).not.toContain('XDENT');
   });
 });
 
@@ -191,23 +231,30 @@ describe('removing a photo the server is still checking', () => {
 });
 
 describe('Self-inspection screen', () => {
-  test('header shows "0 of 51 done", the 4 steps; photos one at a time, by group', async () => {
+  test('opens on Documents; the 4 steps in the new order; RC first', async () => {
     const root = await render();
-    expect(hasText(root, '0 of 51 done')).toBe(true);
-    ['Photos', 'Documents', 'Checklist', 'Estimate'].forEach(label => expect(tab(root, label)).toBeTruthy());
-    // Group pills (required first, with min counts), then the current angle.
-    ['Exterior', 'Interior', 'Engine', 'Tyres', '0/11', '0/8', '0/5', '0/9'].forEach(text => expect(hasText(root, text)).toBe(true));
-    expect(hasText(root, 'Photo 1 of 11')).toBe(true);
-    expect(hasText(root, 'Front')).toBe(true);
-    expect(root.findAll(n => n.props.title === 'Take photo' && n.props.onPress).length).toBe(1);
+    ['Documents', 'Checklist', 'Photos', 'Estimate'].forEach(label => expect(tab(root, label)).toBeTruthy());
+    expect(hasText(root, 'Document 1 of 4')).toBe(true);
+    expect(hasText(root, 'Registration certificate (RC)')).toBe(true);
     expect(hasText(root, 'Step 1 of 4')).toBe(true);
   });
 
+  test('photos: odometer and VIN first, then groups with underbody and seats merged', async () => {
+    const root = await openPhotos();
+    ['Odometer', 'VIN', 'Exterior', 'Interior', 'Engine', 'Tyres', 'Walkaround video', 'Engine video', '0/14', '0/19', '0/5', '0/9'].forEach(text =>
+      expect(hasText(root, text)).toBe(true),
+    );
+    await openPill(root, 'Exterior');
+    expect(hasText(root, 'Photo 1 of 14')).toBe(true);
+    expect(hasText(root, 'Front')).toBe(true);
+    expect(root.findAll(n => n.props.title === 'Take photo' && n.props.onPress).length).toBe(1);
+  });
+
   test('after a photo uploads it moves on to the next angle by itself', async () => {
-    const root = await render();
+    const root = await openExterior();
     await act(async () => pressable(root, 'Add Front photo').props.onPress());
     await rerender({ captured: { key: 'B1:WALK_FRONT', file: { uri: 'file:///f.jpg', type: 'image/jpeg' } } });
-    expect(hasText(root, 'Photo 2 of 11')).toBe(true);
+    expect(hasText(root, 'Photo 2 of 14')).toBe(true);
     expect(hasText(root, 'Front-left corner')).toBe(true);
   });
 
@@ -219,7 +266,7 @@ describe('Self-inspection screen', () => {
       media: [{ id: 'med_old', item_code: 'B1', shot_code: 'WALK_FRONT', kind: 'PHOTO', status: 'PROCESSING', derivatives: [], created_at: '2026-10-19T10:00:00Z' }],
     });
     api.deleteSelfMedia.mockRejectedValue(new ApiError({ status: 409, code: 'INVALID_TRANSITION', message: 'processing' }));
-    const root = await render();
+    const root = await openExterior();
     const front = root.findAll(n => n.props.accessibilityLabel === 'Front' && n.props.onPress)[0];
     await act(async () => front.props.onPress());
     await act(async () => pressable(root, 'Retake Front photo').props.onPress());
@@ -236,7 +283,7 @@ describe('Self-inspection screen', () => {
   });
 
   test('a tile opens the camera; the photo is uploaded and the AI checks walkaround photos', async () => {
-    const root = await render();
+    const root = await openExterior();
     await act(async () => pressable(root, 'Add Front photo').props.onPress());
     expect(navigation.navigate).toHaveBeenCalledWith(ROUTES.VEHICLE_CAMERA, {
       shot: { key: 'B1:WALK_FRONT', title: 'Front' },
@@ -252,16 +299,15 @@ describe('Self-inspection screen', () => {
       file,
       gps: BANER, // where it was taken (best effort, as the web)
     });
-    expect(vision.analyzeDamageWithOpenAI).toHaveBeenCalledWith('BASE64', expect.objectContaining({ itemCode: 'B1', shotHint: 'WALK_FRONT' }));
+    expect(vision.scanDamagePhoto).toHaveBeenCalledWith('BASE64', expect.objectContaining({ itemCode: 'B1', shotHint: 'WALK_FRONT' }));
     expect(api.saveAiFinding).toHaveBeenCalledWith(
       'med_WALK_FRONT',
       expect.objectContaining({ shot_code: 'WALK_FRONT', has_damage: true, damage_type: 'SCRATCH', repair_cost_minor: 200000 }),
     );
-    expect(hasText(tree.root, '1 of 51 done')).toBe(true);
   });
 
   test('photos are camera only: no Gallery option, Take photo opens the camera', async () => {
-    const root = await render();
+    const root = await openExterior();
     expect(root.findAll(n => n.props.title === 'Gallery').length).toBe(0);
     const take = root.findAll(n => n.props.title === 'Take photo' && n.props.onPress)[0];
     await act(async () => take.props.onPress());
@@ -274,7 +320,7 @@ describe('Self-inspection screen', () => {
 
   test('a photo that looks like another angle gets a hint and stays on that angle', async () => {
     photoDhash.mockResolvedValue('ffff0000ffff0000');
-    const root = await render();
+    const root = await openExterior();
     await act(async () => pressable(root, 'Add Front photo').props.onPress());
     await rerender({ captured: { key: 'B1:WALK_FRONT', file: { uri: 'file:///a.jpg', type: 'image/jpeg' } } });
     // The first photo has nothing to look like: moved on.
@@ -284,28 +330,124 @@ describe('Self-inspection screen', () => {
     // Uploaded anyway (advisory only), but the hint is shown and it waits there.
     expect(api.uploadSelfEvidence).toHaveBeenCalledTimes(2);
     expect(hasText(root, 'This looks a lot like your Front photo')).toBe(true);
-    expect(hasText(root, 'Photo 2 of 11')).toBe(true);
+    expect(hasText(root, 'Photo 2 of 14')).toBe(true);
     photoDhash.mockResolvedValue(null);
   });
 
-  test('checklist: 11 questions; an answer saves with the web body', async () => {
+  const radio = (root, label, within) =>
+    (within ?? root).findAll(n => n.props.accessibilityRole === 'radio' && n.props.onPress).find(n => n.findAll(c => c.props.children === label).length);
+  // The card of one question on the checklist page.
+  const question = (root, title) =>
+    root
+      .findAll(n => n.props.collapsable === false && n.findAll(c => [c.props.children].flat().includes(title)).length)
+      .slice(-1)[0];
+
+  test('checklist: every question on one page, facts first; an answer saves with the web body', async () => {
     const root = await render();
     await act(async () => tab(root, 'Checklist').props.onPress());
-    expect(hasText(root, 'Question 1 of 11')).toBe(true);
-    const good = root.findAll(n => n.props.accessibilityRole === 'radio' && n.props.onPress).find(n => n.findAll(c => c.props.children === 'Good').length);
-    await act(async () => good.props.onPress());
+    ['About your vehicle', 'Condition check', 'Has the vehicle ever been flooded?', 'Body panel condition', 'Interior condition'].forEach(text =>
+      expect(hasText(root, text)).toBe(true),
+    );
+    expect(hasText(root, 'Last servicing date')).toBe(false); // only after "Yes"
+    await act(async () => radio(root, 'Good', question(root, 'Body panel condition')).props.onPress());
     expect(api.recordSelfAnswer).toHaveBeenCalledWith('insp_1', 'B1', { severity: 'OK' });
   });
 
-  test('documents one at a time: RC first, Next moves on, pills jump', async () => {
+  test('Yes / No facts save as OK / MAJOR, with no grade and no "can\'t check"', async () => {
     const root = await render();
-    await act(async () => tab(root, 'Documents').props.onPress());
-    expect(hasText(root, 'Document 1 of 7')).toBe(true);
-    expect(hasText(root, 'Registration certificate (RC)')).toBe(true);
-    expect(hasText(root, 'Chassis / VIN number')).toBe(false); // only the current one is shown
+    await act(async () => tab(root, 'Checklist').props.onPress());
+    const card = question(root, 'Is the PUC document available?');
+    expect(radio(root, 'Good', card)).toBeUndefined();
+    await act(async () => radio(root, 'No', card).props.onPress());
+    expect(api.recordSelfAnswer).toHaveBeenCalledWith('insp_1', 'PUC_M1', { severity: 'MAJOR' });
+    await act(async () => radio(root, 'Yes', question(root, 'Is the PUC document available?')).props.onPress());
+    expect(api.recordSelfAnswer).toHaveBeenLastCalledWith('insp_1', 'PUC_M1', { severity: 'OK' });
+  });
+
+  test('flood "Yes" waits for its details and saves them with the value; "No" saves at once', async () => {
+    const root = await render();
+    await act(async () => tab(root, 'Checklist').props.onPress());
+    const title = 'Has the vehicle ever been flooded?';
+    await act(async () => radio(root, 'Yes', question(root, title)).props.onPress());
+    expect(api.recordSelfAnswer).not.toHaveBeenCalled();
+    const save = () => root.findAll(n => n.props.title === 'Save answer' && n.props.onPress)[0];
+    expect(save().props.disabled).toBe(true);
+    const details = root.findAll(n => n.props.label === 'Please describe what happened' && n.props.onChangeText)[0];
+    await act(async () => details.props.onChangeText('Water up to the seats in 2023'));
+    await act(async () => save().props.onPress());
+    expect(api.recordSelfAnswer).toHaveBeenCalledWith('insp_1', 'FLOOD_M1', {
+      severity: 'OK',
+      text_note: 'Water up to the seats in 2023',
+      value_text: 'YES',
+    });
+    await act(async () => radio(root, 'No', question(root, title)).props.onPress());
+    expect(api.recordSelfAnswer).toHaveBeenLastCalledWith('insp_1', 'FLOOD_M1', { severity: 'OK', value_text: 'NO' });
+  });
+
+  test('servicing "Yes" brings its follow-ups: date (value_text), place, optional receipt', async () => {
+    const { DatePickerField } = require('../src/components');
+    const root = await render();
+    await act(async () => tab(root, 'Checklist').props.onPress());
+    await act(async () => radio(root, 'Yes', question(root, 'Has the vehicle been serviced recently?')).props.onPress());
+    expect(api.recordSelfAnswer).toHaveBeenCalledWith('insp_1', 'SVC_M1', { severity: 'OK', value_text: 'YES' });
+    ['Last servicing date', 'Where was it serviced?', 'Servicing receipt'].forEach(text => expect(hasText(root, text)).toBe(true));
+    await act(async () => root.findByType(DatePickerField).props.onChange('2026-09-15'));
+    expect(api.recordSelfAnswer).toHaveBeenCalledWith('insp_1', 'SVC_DATE_M1', { severity: 'OK', value_text: '2026-09-15' });
+    await act(async () => radio(root, 'Showroom').props.onPress());
+    expect(api.recordSelfAnswer).toHaveBeenCalledWith('insp_1', 'SVC_PLACE_M1', { severity: 'OK', value_text: 'SHOWROOM' });
+  });
+
+  test('the number of keys: a quick pick saves as a number', async () => {
+    const root = await render();
+    await act(async () => tab(root, 'Checklist').props.onPress());
+    await act(async () => radio(root, '2', question(root, 'How many keys are available with the vehicle?')).props.onPress());
+    expect(api.recordSelfAnswer).toHaveBeenCalledWith('insp_1', 'KEYS_M1', { severity: 'OK', numeric_value: 2 });
+  });
+
+  test('a saved answer comes back from the server (value_text) and follow-ups show', async () => {
+    api.getSelfInspection.mockResolvedValue({
+      inspection: { ...inspection, items: [{ item_code: 'SVC_M1', severity: 'OK', value_text: 'YES' }] },
+      sections: m1Sections,
+      media: [],
+    });
+    const root = await render();
+    await act(async () => tab(root, 'Checklist').props.onPress());
+    expect(hasText(root, 'Last servicing date')).toBe(true);
+  });
+
+  test('documents one at a time: RC, owners, papers; no PUC, odometer or VIN here', async () => {
+    const root = await render();
+    expect(hasText(root, 'Document 1 of 4')).toBe(true);
+    expect(pill(root, 'Odometer')).toBeUndefined();
+    expect(pill(root, 'PUC')).toBeUndefined();
     await act(async () => root.findAll(n => n.props.title === 'Next document' && n.props.onPress)[0].props.onPress());
-    expect(hasText(root, 'Document 2 of 7')).toBe(true);
-    expect(hasText(root, 'Chassis / VIN number')).toBe(true);
+    expect(hasText(root, 'Document 2 of 4')).toBe(true);
+    expect(hasText(root, 'How many owners has this vehicle had before you?')).toBe(true);
+  });
+
+  test('owners come from the RC record: saved by themselves, nothing to type', async () => {
+    api.getSelfInspection.mockResolvedValue({
+      inspection: { ...inspection, vehicle: { ...inspection.vehicle, registry_owner_count: 2 } },
+      sections: m1Sections,
+      media: [],
+    });
+    const root = await render();
+    await act(async () => {});
+    expect(api.recordSelfAnswer).toHaveBeenCalledWith('insp_1', 'O2', { severity: 'OK', numeric_value: 1 });
+    await openPill(root, 'Owners');
+    expect(hasText(root, '1 previous owner(s)')).toBe(true);
+    expect(root.findAll(n => n.props.placeholder === 'Number of previous owners' && n.props.onChangeText).length).toBe(0);
+  });
+
+  test('an uploaded document is its own answer: no condition choices, saved as OK', async () => {
+    const root = await render();
+    await openPill(root, 'Insurance');
+    expect(radio(root, 'Good')).toBeUndefined();
+    const EvidenceList = require('../src/screens/selfInspection/SelfInspection/components/EvidenceList').default;
+    await act(async () => root.findByType(EvidenceList).props.onAdd('camera'));
+    const { key } = navigation.navigate.mock.calls.at(-1)[1].shot;
+    await rerender({ captured: { key, file: { uri: 'file:///policy.jpg', type: 'image/jpeg' } } });
+    expect(api.recordSelfAnswer).toHaveBeenCalledWith('insp_1', 'P3', { severity: 'OK' });
   });
 
   test('the phone back button steps back through the process instead of closing it', async () => {
@@ -315,17 +457,15 @@ describe('Self-inspection screen', () => {
       await act(async () => listeners.beforeRemove(event));
       return event;
     };
-    // Checklist question 2 -> question 1 -> Documents -> previous document ... -> Photos -> leaves.
-    await act(async () => tab(root, 'Checklist').props.onPress());
-    await act(async () => root.findAll(n => n.props.title === 'Next question' && n.props.onPress)[0].props.onPress());
-    expect(hasText(root, 'Question 2 of 11')).toBe(true);
+    // Estimate -> Photos -> Checklist -> Documents -> previous document -> leaves.
+    await act(async () => tab(root, 'Estimate').props.onPress());
     expect((await back()).preventDefault).toHaveBeenCalled();
-    expect(hasText(root, 'Question 1 of 11')).toBe(true);
+    expect(hasText(root, 'One photo at a time')).toBe(true);
     await back();
-    expect(hasText(root, 'Document 1 of 7')).toBe(true);
+    expect(hasText(root, 'About your vehicle')).toBe(true);
     await back();
-    expect(hasText(root, 'Photo 1 of 11')).toBe(true);
-    // On Photos, back really leaves (the action is let through).
+    expect(hasText(root, 'Document 1 of 4')).toBe(true);
+    // On the first document, back really leaves (the action is let through).
     expect(navigation.dispatch).not.toHaveBeenCalled();
     await back();
     expect(navigation.dispatch).toHaveBeenCalledWith({ type: 'GO_BACK' });
@@ -338,33 +478,104 @@ describe('Self-inspection screen', () => {
     };
     const entry = label =>
       root.findAll(n => n.props.accessibilityRole === 'button' && n.props.onPress && n.findAll(c => c.props.children === label).length)[0];
+    const settle = async () => {
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 200));
+      });
+    };
     await act(async () => tab(root, 'Estimate').props.onPress());
 
-    // A missing photo group opens that group (Interior), not the first one.
+    // A missing photo group opens that group (Interior, with the front seats), not the first one.
     await act(async () => entry('Add photos for Interior photos').props.onPress());
-    expect(hasText(root, 'Photo 1 of 15')).toBe(true);
+    await settle();
+    expect(hasText(root, 'Photo 1 of 19')).toBe(true);
     await back();
     expect(hasText(root, 'Before you can submit (')).toBe(true);
     expect(navigation.dispatch).not.toHaveBeenCalled(); // didn't leave the screen
 
+    // Front seats sit inside Interior: their entry opens the same group.
+    await act(async () => entry('Add photos for Front seat photos').props.onPress());
+    await settle();
+    expect(hasText(root, 'Photo 1 of 19')).toBe(true);
+    await back();
+
     // A missing document opens that document; back returns to Estimate too.
     await act(async () => entry('Number of previous owners').props.onPress());
-    expect(hasText(root, 'Document 4 of 7')).toBe(true);
+    await settle();
+    expect(hasText(root, 'Document 2 of 4')).toBe(true);
     await back();
     expect(hasText(root, 'Before you can submit (')).toBe(true);
   });
 
-  test('documents: the odometer saves as a number with OK', async () => {
-    const root = await render();
-    await act(async () => tab(root, 'Documents').props.onPress());
-    const odometerPill = root.findAll(
-      n => n.props.accessibilityRole === 'tab' && n.props.onPress && n.findAll(c => c.props.children === 'Odometer').length,
-    )[0];
-    await act(async () => odometerPill.props.onPress());
+  test('photos: the odometer is first there and saves as a number with OK', async () => {
+    const root = await openPhotos();
     const field = root.findAll(n => n.props.placeholder === 'Kilometres, e.g. 52340' && n.props.onChangeText)[0];
     await act(async () => field.props.onChangeText('52340'));
     await act(async () => field.props.onBlur());
     expect(api.recordSelfAnswer).toHaveBeenCalledWith('insp_1', 'O1', { severity: 'OK', numeric_value: 52340 });
+  });
+
+  describe('guided videos', () => {
+    const openWalkaround = async () => {
+      const root = await openPhotos();
+      await openPill(root, 'Walkaround video');
+      return root;
+    };
+    const walk = { key: 'XWALK_M1:WALK_INT_EXT_VIDEO', minS: undefined, maxS: 120 };
+    const clip = duration => ({ uri: 'file:///walk.mp4', type: 'video/mp4', fileName: 'walk.mp4', duration });
+
+    test('what to film, the length, and Record opens the in-app recorder', async () => {
+      const root = await openWalkaround();
+      expect(hasText(root, 'Start outside: walk slowly around the car')).toBe(true);
+      expect(hasText(root, 'Maximum length: 120 seconds')).toBe(true);
+      await act(async () => root.findAll(n => n.props.title === 'Record video' && n.props.onPress)[0].props.onPress());
+      expect(navigation.navigate).toHaveBeenCalledWith(ROUTES.VIDEO_RECORDER, {
+        slot: { key: walk.key, title: 'Interior & exterior walkaround video', minS: undefined, maxS: 120 },
+        returnTo: ROUTES.SELF_INSPECTION,
+      });
+    });
+
+    test('nothing is sent until the clip is accepted; then it uploads as a VIDEO', async () => {
+      const root = await openWalkaround();
+      await rerender({ recorded: { ...walk, file: clip(90) } });
+      expect(api.uploadSelfEvidence).not.toHaveBeenCalled();
+      expect(hasText(root, 'Watch your video, then use it or retake it.')).toBe(true);
+      expect(hasText(root, 'A Turag reviewer will check')).toBe(true);
+      await act(async () => root.findAll(n => n.props.title === 'Use this video' && n.props.onPress)[0].props.onPress());
+      expect(api.uploadSelfEvidence).toHaveBeenCalledWith(
+        expect.objectContaining({ itemCode: 'XWALK_M1', shotCode: 'WALK_INT_EXT_VIDEO', kind: 'VIDEO' }),
+      );
+      expect(hasText(root, 'Your saved video')).toBe(true);
+    });
+
+    test('a clip that is too long or too short is refused, with the reason', async () => {
+      const root = await openPhotos();
+      await openPill(root, 'Engine video');
+      await rerender({ recorded: { key: 'XENGVID_M1:ENG_START_VIDEO', minS: 30, maxS: 45, file: { ...clip(10), uri: 'file:///e.mp4' } } });
+      expect(hasText(root, 'This video is only 10 seconds long. Please record at least 30 seconds.')).toBe(true);
+      expect(root.findAll(n => n.props.title === 'Use this video').length).toBe(0);
+      await rerender({ recorded: { key: 'XENGVID_M1:ENG_START_VIDEO', minS: 30, maxS: 45, file: { ...clip(80), uri: 'file:///e2.mp4' } } });
+      expect(hasText(root, 'This video is 80 seconds long. Please record it again in 45 seconds or less.')).toBe(true);
+    });
+  });
+
+  test('the live estimate is the value from Evaluate', async () => {
+    api.getReferenceValuation.mockResolvedValueOnce(45000000);
+    const root = await render();
+    await act(async () => {});
+    expect(api.getReferenceValuation).toHaveBeenCalledWith('insp_1');
+    expect(hasText(root, '₹4,50,000')).toBe(true);
+  });
+
+  test('an inspection pinned to the older checklist still opens (PUC upload, dashboard video)', async () => {
+    const older = sectionsFor(olderFixture, 'M1');
+    api.getSelfInspection.mockResolvedValue({ inspection, sections: older, media: [] });
+    const root = await render();
+    expect(pill(root, 'PUC')).toBeTruthy();
+    await act(async () => tab(root, 'Photos').props.onPress());
+    await openPill(root, 'Video');
+    expect(root.findAll(n => n.props.title === 'Record video').length).toBe(0);
+    expect(hasText(root, 'Tap to add a short dashboard video')).toBe(true);
   });
 
   test('estimate: lists what is left and keeps Submit disabled', async () => {
@@ -381,6 +592,7 @@ describe('Self-inspection screen', () => {
     await act(async () => {});
     expect(hasText(root, 'AI Self Inspection submitted')).toBe(true);
     expect(api.estimateFinalValue).toHaveBeenCalledWith({ vehicle_id: 'veh_1', stage: 'DECLARED', inspection_id: 'insp_1' });
+    expect(hasText(root, 'Dealer will pay about')).toBe(true);
     expect(hasText(root, '₹4,50,000')).toBe(true);
   });
 });
@@ -388,13 +600,7 @@ describe('Self-inspection screen', () => {
 // The inspection officer's doorstep inspection (M2) uses the same screen, as
 // the web's inspector capture is the M1 flow's M2 equivalent.
 describe('inspector (M2) on the same capture screen', () => {
-  const m2Sections = fixture.checklist.sections
-    .map(s => ({
-      group_code: s.group_code,
-      label: s.label,
-      items: s.items.filter(it => it.applicable_modes.includes('M2') && !(it.gate && it.evidence_requirement?.shots)),
-    }))
-    .filter(s => s.items.length > 0);
+  const m2Sections = sectionsFor(fixture, 'M2');
   const m2 = { ...inspection, mode: 'M2' };
 
   test('inspector wording: title and badge', async () => {

@@ -1,5 +1,6 @@
 // hi - Login, OTP, Create Account and sign-in success.
 export default {
+  'auth.skip': 'छोड़ें',
   'auth.welcome': 'Turag.ai में आपका स्वागत है',
   'auth.tagline': 'वाहन से जुड़े बेहतर फ़ैसलों के लिए सत्यापित जानकारी।',
   'auth.phonePlaceholder': 'अपना नंबर दर्ज करें',

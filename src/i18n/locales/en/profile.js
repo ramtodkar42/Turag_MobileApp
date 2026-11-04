@@ -136,4 +136,6 @@ export default {
   'profile.item.payoutAccounts': 'Payout accounts',
   'profile.item.business': 'Business accounts',
   'profile.photo.saved': 'Photo updated',
+  'profile.item.verified': 'Turag Verified',
+  'profile.item.about': 'About',
 };

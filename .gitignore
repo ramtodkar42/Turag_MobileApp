@@ -75,5 +75,5 @@ yarn-error.log
 !.yarn/versions
 
 
-# Local keys (OpenAI etc.) - never commit; see src/api/secrets.example.js
+# Old local key file (the app no longer uses it; the AI scans run on the server) - never commit
 src/api/secrets.js

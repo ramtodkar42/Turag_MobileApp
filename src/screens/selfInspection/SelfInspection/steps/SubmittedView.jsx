@@ -63,6 +63,7 @@ function SubmittedView({
 
       {!failed ? (
         <EstimateCard
+          label={inspector ? undefined : t('selfInspection.estimate.dealerPays')}
           valueMinor={si.final.card?.valueMinor ?? null}
           lowerMinor={null}
           upperMinor={null}

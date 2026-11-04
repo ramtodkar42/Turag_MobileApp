@@ -177,4 +177,9 @@ export default {
   'verify.dl.result.expired.body': 'Please start the verification again.',
   'verify.dl.result.failed.title': 'Verification not completed',
   'verify.dl.result.failed.body': 'DigiLocker didn’t share your Aadhaar. You can try again or upload your documents instead.',
+  'booking.paused.eyebrow': 'Coming soon',
+  'booking.paused.heading': 'Booking an inspector is coming soon',
+  'booking.paused.body': 'For now, check your vehicle yourself with AI Self Inspection. Get an estimate, then follow the guided steps for documents, a quick checklist and photos.',
+  'booking.paused.selfInspect': 'Start AI Self Inspection',
+  'booking.paused.garage': 'Go to my garage',
 };

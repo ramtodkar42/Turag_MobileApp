@@ -22,7 +22,7 @@ const nextId = () => `m${Date.now()}_${(counter += 1)}`;
 
 // The Evaluate flow as a guided chat with TURAG.AI - the same steps and API
 // calls as the web's /evaluate: registration number -> "Is this your
-// vehicle?" -> instant estimate -> km / owners / accident history -> updated
+// vehicle?" -> instant estimate -> km / accident history -> updated
 // estimate -> Save Vehicle / Inspect Vehicle -> self-inspection or an inspector.
 // messages: oldest first - { id, role: 'bot' | 'user', kind, ... }:
 //   text { text }  vehicle { vehicle }  estimate { vehicle, valuation, label, description }
@@ -160,22 +160,11 @@ export default function useEvaluateChat({ navigation }) {
     );
   });
 
-  // 3. Km driven, number of owners, accident history.
+  // 3. Km driven and accident history. (Owners aren't asked: the server reads them
+  // from the RC record, as the web.)
   const submitKm = once(km => {
     data.current.odometerKm = km;
     user(tNow('valuation.chat.kmAnswer', { km: formatNumber(String(km)) }));
-    turn(
-      async () => null,
-      () => {
-        bot({ text: tNow('valuation.chat.askOwners') });
-        setStep(STEPS.OWNERS);
-      },
-    );
-  });
-
-  const submitOwners = once(count => {
-    data.current.ownerCount = count;
-    user(tNow('valuation.chat.ownersAnswer', { count }));
     turn(
       async () => null,
       () => {
@@ -190,10 +179,9 @@ export default function useEvaluateChat({ navigation }) {
   const pickAccident = once(value => {
     const option = ACCIDENT_OPTIONS.find(o => o.value === value);
     user(tNow(option.labelKey));
-    const { vehicle, odometerKm, ownerCount } = data.current;
+    const { vehicle, odometerKm } = data.current;
     const condition = {
       odometerKm,
-      ownerCount,
       accident: option.value,
       condition: option.condition,
       bodySeverity: option.bodySeverity,
@@ -204,7 +192,6 @@ export default function useEvaluateChat({ navigation }) {
           vehicleId: vehicle.vehicleId,
           stage: 'DECLARED',
           odometerKm,
-          ownerCount,
           condition: option.condition,
         }),
       declared => {
@@ -222,7 +209,10 @@ export default function useEvaluateChat({ navigation }) {
             kind: 'estimate',
             vehicle,
             valuation,
-            label: declared.ready ? tNow('valuation.estimate.updatedLabel') : undefined,
+            label: tNow('valuation.estimate.dealerPays'),
+            askAccuracy: declared.ready,
+            showTier: valuation?.estimatedValue != null,
+            summary: valuation?.estimatedValue != null ? tNow('valuation.estimate.notFinal') : undefined,
             description,
           },
           { role: 'bot', kind: 'text', text: tNow('valuation.estimate.verifyNote') },
@@ -333,7 +323,6 @@ export default function useEvaluateChat({ navigation }) {
     submitReg,
     confirm,
     submitKm,
-    submitOwners,
     pickAccident,
     inspect,
     chooseSelf,

@@ -196,6 +196,7 @@ function InspectionReport({ navigation, route }) {
         {/* Value */}
         {report.valuation ? (
           <EstimateSummary
+            bands
             vehicle={vehicle}
             valuation={report.valuation}
             label={t('account.report.value')}

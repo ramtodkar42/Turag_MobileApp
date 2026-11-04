@@ -24,6 +24,7 @@ import FilterChips from '../src/screens/business/components/FilterChips';
 import RowCard from '../src/screens/business/components/RowCard';
 import MetricTile from '../src/screens/business/ImportJob/components/MetricTile';
 import { BUSINESS_ROUTES } from '../src/screens/business/routes';
+import { ROUTES } from '../src/navigation/routes';
 
 // Pages reload when they come back into view; here, once after mounting.
 jest.mock('@react-navigation/native', () => {
@@ -427,11 +428,16 @@ describe('Dealer portal', () => {
     expect(badges(root)).toEqual(expect.arrayContaining(['Withdrawn', 'Sold']));
     expect(button(root, 'Withdraw')).toBeUndefined();
 
+    // A dealer lists like any seller (the dealer-only marketplace is the next phase).
+    expect(root.findByType(ChipTabs).props.tabs.map(tab => tab.id)).toEqual(['overview', 'offers', 'sales', 'mine']);
+    expect(hasText(root, 'List a car the same way any seller does')).toBe(true);
     await press(button(root, 'List a vehicle').props.onPress);
-    expect(navigation.navigate).toHaveBeenCalledWith(BUSINESS_ROUTES.DEALER_CREATE, { org: dealerOrg });
+    expect(navigation.navigate).toHaveBeenCalledWith(ROUTES.LIST_VEHICLE_START);
   });
 
-  test('browse dealer stock: filters re-query; empty message', async () => {
+  test('browse dealer stock (behind its switch): filters re-query; empty message', async () => {
+    const { FEATURES } = require('../src/api/config');
+    FEATURES.dealerMarketplace = true;
     serve({
       'GET /dealer/orgs/org_dealer/listings': { listings: [], request_id: 'r' },
       'GET /dealer/listings': url => ({ listings: url.includes('fuel=DIESEL') ? [] : [stock()], request_id: 'r' }),
@@ -448,6 +454,7 @@ describe('Dealer portal', () => {
     await press(root.findByType(FilterChips).props.onChange, 'fuel', 'DIESEL');
     expect(calls('GET', '/dealer/listings?fuel=DIESEL')).toHaveLength(1);
     expect(hasText(root, 'No approved dealer listings match your filters.')).toBe(true);
+    FEATURES.dealerMarketplace = false;
   });
 
   const dashboard = (summary = {}) => ({

@@ -43,6 +43,8 @@ export const PROFILE_MENU = [
       // Turag's support chat (the TURAG.AI assistant), as the web's support widget.
       { labelKey: 'profile.item.chatSupport', route: ROUTES.CHAT },
       { labelKey: 'profile.item.helpCentre', web: '/how-it-works' },
+      { labelKey: 'profile.item.verified', web: '/verified' },
+      { labelKey: 'profile.item.about', web: '/about' },
       { labelKey: 'profile.item.faqs', web: '/faq' },
       { labelKey: 'profile.item.contactSupport', web: '/contact' },
     ],

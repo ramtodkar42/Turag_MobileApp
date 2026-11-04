@@ -3,8 +3,9 @@ import { Button } from '../../../../components';
 import { spacing } from '../../../../theme';
 
 // Tappable answers above the chat's input. options: [{ key, label, onPress,
-// primary?, loading? }]. Two or three share a row; more wrap.
-function QuickReplies({ options, style }) {
+// primary?, loading? }]. Two or three share a row; more wrap. stacked: one above the
+// other, for labels too long to share a row.
+function QuickReplies({ options, stacked = false, style }) {
   return (
     <View style={[styles.row, style]}>
       {options.map(option => (
@@ -15,7 +16,7 @@ function QuickReplies({ options, style }) {
           variant={option.primary ? 'primary' : 'outline'}
           onPress={option.onPress}
           loading={option.loading}
-          style={[styles.option, options.length > 3 && styles.small]}
+          style={[styles.option, options.length > 3 && styles.small, stacked && styles.full]}
         />
       ))}
     </View>
@@ -35,6 +36,9 @@ const styles = StyleSheet.create({
   },
   small: {
     flexBasis: '20%',
+  },
+  full: {
+    flexBasis: '100%',
   },
 });
 

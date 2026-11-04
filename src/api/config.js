@@ -73,6 +73,18 @@ export const REQUEST_TIMEOUT_MS = isLocalBackend ? 60000 : 20000;
 // "complete" call, and the first upload after a quiet spell also pays the
 // server's cold start, so the upload steps get longer than a normal request.
 export const UPLOAD_TIMEOUT_MS = 60000;
+export const VIDEO_UPLOAD_TIMEOUT_MS = 10 * 60000;
+
+// Switched off for now, as the web:
+// inspectorBooking: customers can't book an inspector while the product focuses on
+//   AI Self Inspection (decision 2026-11-03); Book an inspector says "coming soon".
+//   Inspector and Ops flows aren't affected. (The Evaluate chat says so in its own message.)
+// dealerMarketplace: the dealer-only marketplace is the next phase; a dealer lists
+//   through the normal seller flow.
+export const FEATURES = {
+  inspectorBooking: false,
+  dealerMarketplace: false,
+};
 
 // Which parts of the app talk to the real backend. Everything else still uses
 // the mock data in src/api/mock until its backend is connected.
@@ -89,22 +101,3 @@ export const USE_REAL_API = {
   // the same as `valuation`.
   inspector: true,
 };
-
-// ─────────────────────────────────────────────────────────────────────────────
-// ⚠️ DEV / TEST ONLY — direct OpenAI RC/VIN scan (mirrors the web's gpt-4o-mini
-// extraction). Staging has no /identity-extract endpoint, so when this is on the
-// app reads the VIN/RC photo by calling OpenAI DIRECTLY.
-//
-// The key SHIPS INSIDE THE APP — an installed APK can be decompiled and the key
-// extracted. NEVER keep this enabled for a public production release; move the
-// scan to a backend endpoint first. Approved for internal testing only.
-// The key lives in src/api/secrets.js, which is git-ignored (never commit it -
-// GitHub blocks pushes that contain it). No key = the scans fall back to the backend.
-// ─────────────────────────────────────────────────────────────────────────────
-import { OPENAI_API_KEY as LOCAL_OPENAI_KEY } from './secrets';
-
-export const OPENAI_API_KEY = LOCAL_OPENAI_KEY;
-export const DIRECT_OPENAI_SCAN = !!OPENAI_API_KEY;
-
-
-

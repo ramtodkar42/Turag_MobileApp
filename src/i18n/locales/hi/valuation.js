@@ -19,7 +19,6 @@ export default {
   'valuation.band.retail': 'रिटेल',
 
   'valuation.condition.kmPlaceholder': 'जैसे 12,000',
-  'valuation.condition.ownersPlaceholder': 'जैसे 1',
 
 
 
@@ -96,13 +95,12 @@ export default {
   // The full self-inspection checklist (same wizard as the inspector's)
   'valuation.self.title': 'AI सेल्फ़-इंस्पेक्शन',
   'valuation.self.partDocs': 'दस्तावेज़',
-  'valuation.self.partDocsText': 'RC, बीमा और PUC',
+  'valuation.self.partDocsText': 'RC और बीमा',
   'valuation.self.partPhotos': 'फ़ोटो',
-  'valuation.self.partPhotosText': 'वाहन के चारों ओर के सभी 8 कोण',
+  'valuation.self.partPhotosText': 'ओडोमीटर, VIN, वाहन का हर कोण और दो छोटे वीडियो',
   'valuation.self.partChecks': 'स्थिति की जाँच',
-  'valuation.self.partChecksText': 'ओडोमीटर, बॉडी, इंजन, ब्रेक, टायर, AC और इंटीरियर',
-  'valuation.self.introNote':
-    'लगभग 10 मिनट लगते हैं और आपके जवाब साथ-साथ सेव होते हैं। AI सेल्फ़-इंस्पेक्शन स्व-घोषित है, Turag Verified नहीं।',
+  'valuation.self.partChecksText': 'बाढ़ का इतिहास, चाबियाँ, सर्विसिंग, बॉडी, इंजन, ब्रेक, टायर, AC और इंटीरियर',
+  'valuation.self.introNote': 'आपके जवाब साथ-साथ सेव होते हैं। AI सेल्फ़-इंस्पेक्शन स्व-घोषित है, Turag Verified नहीं।',
   'valuation.self.start': 'AI सेल्फ़-इंस्पेक्शन शुरू करें',
   'valuation.self.submit': 'इंस्पेक्शन जमा करें',
   'valuation.self.submittedTitle': 'AI सेल्फ़-इंस्पेक्शन जमा हो गया',
@@ -112,11 +110,10 @@ export default {
   'valuation.result.reviewNote': 'Turag आपके AI सेल्फ़-इंस्पेक्शन की समीक्षा कर रहा है। इसकी स्थिति आपके गैराज में दिखेगी।',
   'valuation.result.noValue': 'अभी उपलब्ध नहीं',
   'valuation.result.noValueNote': 'अभी मूल्य का अनुमान नहीं लग सका। वाहन सहेजें, तैयार होते ही यह आपके गैराज में दिखेगा।',
-  'valuation.estimate.updatedLabel': 'अपडेटेड अनुमान',
   'valuation.estimate.declaredNote': 'यह आपके जवाबों पर आधारित अनुमानित कीमत है, अंतिम कीमत नहीं। अंतिम कीमत इंस्पेक्शन में जाँची गई आपके वाहन की असली स्थिति पर निर्भर करती है।',
   'valuation.estimate.instantNote': 'यह वाहन की जानकारी पर आधारित अनुमानित कीमत है, अंतिम कीमत नहीं। अंतिम कीमत इंस्पेक्शन में जाँची गई आपके वाहन की असली स्थिति पर निर्भर करती है।',
   'valuation.estimate.noValueNote': 'हम अभी मूल्य का अनुमान नहीं लगा सके। आप फिर भी वाहन सेव या वेरिफ़ाई कर सकते हैं।',
-  'valuation.estimate.verifyNote': 'मुफ़्त AI सेल्फ-इंस्पेक्शन से रेंज कम होती है, या इसे Turag वेरिफ़ाइड बनाने के लिए इंस्पेक्टर बुक करें।',
+  'valuation.estimate.verifyNote': 'रेंज को और सटीक बनाने के लिए खुद निरीक्षण करें, या इसे Turag Verified बनाने के लिए इंस्पेक्टर बुक करें।',
   'valuation.save.viewGarage': 'गैराज में देखें',
   'valuation.estimate.inspect': 'वाहन इंस्पेक्ट करें',
 
@@ -127,9 +124,6 @@ export default {
   'valuation.chat.reenter': 'कोई बात नहीं। कृपया सही रजिस्ट्रेशन नंबर लिखें।',
   'valuation.chat.askKm': 'बढ़िया! यह कितने km चल चुका है?',
   'valuation.chat.kmAnswer': '{km} km',
-  'valuation.chat.askOwners': 'आपको मिलाकर इसके कितने मालिक रहे हैं?',
-  'valuation.chat.ownersAnswer_one': '{count} मालिक',
-  'valuation.chat.ownersAnswer_other': '{count} मालिक',
   'valuation.chat.askAccident': 'क्या कोई एक्सीडेंट हुआ है?',
   'valuation.chat.howVerify': 'आप अपने वाहन को कैसे वेरिफ़ाई करना चाहेंगे?',
   'valuation.chat.selfIntro': 'AI सेल्फ़-इंस्पेक्शन में ये सब एक-एक करके होता है:',
@@ -140,4 +134,14 @@ export default {
   'valuation.chat.startOver': 'फिर से शुरू करें',
   'valuation.chat.moreDetails': 'और जानकारी',
   'valuation.chat.lessDetails': 'कम जानकारी',
+  'valuation.estimate.notFinal': 'यह अनुमान है, अंतिम कीमत नहीं। इंस्पेक्शन से इसकी पुष्टि होती है।',
+  'valuation.estimate.dealerPays': 'डीलर लगभग इतना देगा',
+  'valuation.estimate.range': 'आम तौर पर {low} से {high}',
+  'valuation.estimate.privateSale': 'किसी निजी खरीदार को लगभग इतने में बेचें',
+  'valuation.estimate.privateHelp': 'निजी खरीदार आम तौर पर डीलर से ज़्यादा देते हैं, लेकिन निजी तौर पर बेचने में ज़्यादा समय लगता है।',
+  'valuation.tier.today': 'आज का Turag टियर',
+  'valuation.tier.assured1': 'ग्रेड B या उससे बेहतर और 7/10 या उससे ज़्यादा कंडीशन स्कोर वाला Turag Verified निरीक्षण इसे इस रूप में लिस्ट करता है:',
+  'valuation.tier.assured2': '।',
+  'valuation.tier.premiumHere': 'इस कीमत पर, ग्रेड A और 8.5/10 या उससे ज़्यादा स्कोर इसे Turag Premium बनाता है।',
+  'valuation.tier.premiumNeeds': 'Turag Premium के लिए ग्रेड A, 8.5/10 या उससे ज़्यादा स्कोर और Rs 10 लाख या उससे अधिक की माँगी गई कीमत ज़रूरी है।',
 };

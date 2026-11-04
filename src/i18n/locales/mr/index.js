@@ -22,6 +22,7 @@ import selling from './selling';
 import payouts from './payouts';
 import business from './business';
 import guest from './guest';
+import insights from './insights';
 
 export default {
   ...common,
@@ -47,4 +48,5 @@ export default {
   ...payouts,
   ...business,
   ...guest,
+  ...insights,
 };

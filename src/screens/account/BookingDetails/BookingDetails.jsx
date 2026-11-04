@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { StyleSheet } from 'react-native';
 import {
   AppRefreshControl,
@@ -22,6 +22,7 @@ import useConfirmDialog from '../../../hooks/useConfirmDialog';
 import { cancelMyBooking, getMyBooking } from '../../../api/services/booking.api';
 import { ROUTES } from '../../../navigation/routes';
 import { useT } from '../../../i18n';
+import CancelReasonPicker, { sendCancelReason } from '../../insights/CancelReasonPicker';
 import { BOOKING_STATUS, BOOKING_STEPS } from '../statuses';
 import ActionPanel from './components/ActionPanel';
 import BookingHero from './components/BookingHero';
@@ -52,6 +53,7 @@ function BookingDetails({ navigation, route }) {
     useRemoteData(load, [bookingId]);
   const { confirm, dialog } = useConfirmDialog();
   const [actionError, setActionError] = useState('');
+  const cancelReason = useRef(null);
   const payment = usePayAgain({ booking, onPaid: reload, pending: !!route.params.paymentPending });
 
   const header = <Header onBack={navigation.goBack} title={t('account.booking.title')} />;
@@ -97,12 +99,14 @@ function BookingDetails({ navigation, route }) {
     confirm({
       title: t('account.booking.cancel.title'),
       message: t('account.booking.cancel.message'),
+      body: <CancelReasonPicker onChange={reason => (cancelReason.current = reason)} />,
       confirmLabel: t('account.booking.cancel.confirm'),
       cancelLabel: t('account.booking.cancel.keep'),
       onConfirm: async () => {
         setActionError('');
         try {
           setData(await cancelMyBooking(booking.id));
+          sendCancelReason(booking.id, cancelReason.current);
         } catch (e) {
           setActionError(e.message || t('account.booking.cancel.error'));
           reload();

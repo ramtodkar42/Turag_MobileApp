@@ -70,6 +70,7 @@ export { default as SkeletonPulse } from './feedback/SkeletonPulse';
 export { default as Spinner } from './feedback/Spinner';
 export { default as StatusView } from './feedback/StatusView';
 export { default as PaymentNotice } from './feedback/PaymentNotice';
+export { default as Snackbar } from './feedback/Snackbar';
 export { default as SuccessSheet } from './feedback/SuccessSheet';
 
 // icons

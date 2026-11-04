@@ -102,7 +102,7 @@ export default {
   'inspector.identity.reading': 'फ़ोटो पढ़ रहे हैं…',
   'inspector.identity.notVin': 'यह VIN/चेसिस प्लेट जैसी नहीं लगती — मैन्युअल जाँच के लिए फ़्लैग किया गया। फिर से लें या जानकारी खुद दर्ज करें।',
   'inspector.identity.notRc': 'यह RC जैसी नहीं लगती — मैन्युअल जाँच के लिए फ़्लैग किया गया। फिर से लें या RC के जवाब दें।',
-  'inspector.identity.photoError': 'फ़ोटो चुन नहीं पाए। फिर से कोशिश करें।',
+  'inspector.identity.photoError': 'फ़ोटो नहीं ली जा सकी। फिर कोशिश करें।',
   'inspector.identity.readError': 'फ़ोटो पढ़ नहीं पाए। फिर से कोशिश करें या जानकारी खुद दर्ज करें।',
   'inspector.identity.confirmSave': 'पुष्टि करके सेव करें',
   'inspector.identity.retake': 'फिर से लें',

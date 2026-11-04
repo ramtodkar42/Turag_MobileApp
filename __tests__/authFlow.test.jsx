@@ -12,6 +12,7 @@ import CompleteProfile from '../src/screens/auth/CompleteProfile/CompleteProfile
 import AuthSuccess from '../src/screens/auth/AuthSuccess/AuthSuccess';
 import CheckRow from '../src/components/common/CheckRow';
 import { ROUTES } from '../src/navigation/routes';
+import * as appPrefs from '../src/utils/appPrefs';
 import { clearUser, getUser, setUser } from '../src/store/userStore';
 import { endSession } from '../src/api/session';
 import { loadSession } from '../src/api/tokenStorage';
@@ -130,6 +131,42 @@ afterEach(async () => {
 test('Login says why after the session ran out (not a random sign-out)', async () => {
   const root = await render(<Login navigation={makeNavigation()} route={{ params: { sessionExpired: true } }} />);
   expect(root.findAll(n => n.props.children === 'Your session has expired. Please log in again.').length).toBeGreaterThan(0);
+});
+
+test('Login says the account was deleted for a few seconds, then it goes', async () => {
+  jest.useFakeTimers();
+  const shown = root => root.findAll(n => n.props.children === 'Your account has been deleted.').length > 0;
+  const root = await render(<Login navigation={makeNavigation()} route={{ params: { accountDeleted: true } }} />);
+  expect(shown(root)).toBe(true);
+  await act(async () => jest.advanceTimersByTime(5000));
+  expect(shown(root)).toBe(true);
+  await act(async () => jest.advanceTimersByTime(2000));
+  expect(shown(root)).toBe(false);
+  jest.useRealTimers();
+});
+
+test('Login: the account deleted message closes with its X', async () => {
+  jest.useFakeTimers();
+  const shown = root => root.findAll(n => n.props.children === 'Your account has been deleted.').length > 0;
+  const root = await render(<Login navigation={makeNavigation()} route={{ params: { accountDeleted: true } }} />);
+  const close = root.findAll(n => n.props.accessibilityLabel === 'Close' && n.props.onPress)[0];
+  await act(async () => close.props.onPress());
+  await act(async () => jest.advanceTimersByTime(300));
+  expect(shown(root)).toBe(false);
+  jest.useRealTimers();
+});
+
+test('Login: Skip goes to the marketplace as a guest; not offered to a guest who came to log in', async () => {
+  const chosen = jest.spyOn(appPrefs, 'markGuestChosen').mockImplementation(() => {});
+  const navigation = makeNavigation();
+  let root = await render(<Login navigation={navigation} />);
+  const skip = r2 => r2.findAll(n => n.props.title === 'Skip' && n.props.onPress)[0];
+  await act(async () => skip(root).props.onPress());
+  expect(chosen).toHaveBeenCalled();
+  chosen.mockRestore();
+  expect(navigation.reset).toHaveBeenCalledWith({ index: 0, routes: [{ name: ROUTES.MAIN_TABS }] });
+  root = await render(<Login navigation={makeNavigation()} route={{ params: { fromGuest: true } }} />);
+  expect(skip(root)).toBeUndefined();
 });
 
 test('Login blocks an invalid mobile number', async () => {
@@ -405,13 +442,19 @@ test('Create Account: saves consents, then name, then email, and opens Home', as
   expect(profileApi.acceptConsents).toHaveBeenCalledWith({ terms: true, privacy: true, marketing: false });
   expect(profileApi.updateMyName).toHaveBeenCalledWith('Raj Sonawane', { phone: '9876543210' });
   expect(profileApi.saveMyEmail).toHaveBeenCalledWith('raj@gmail.com');
+  // A new account: the optional questions first, then the success screen, which says
+  // the verification link was emailed.
   expect(navigation.reset).toHaveBeenCalledWith({
     index: 0,
     routes: [
       {
-        name: ROUTES.AUTH_SUCCESS,
-        // The success screen says the verification link was emailed.
-        params: { titleKey: 'auth.accountCreated', next: ROUTES.MAIN_TABS, emailNotice: { email: 'raj@gmail.com', sent: true } },
+        name: ROUTES.ABOUT_YOU,
+        params: {
+          then: [
+            ROUTES.AUTH_SUCCESS,
+            { titleKey: 'auth.accountCreated', next: ROUTES.MAIN_TABS, emailNotice: { email: 'raj@gmail.com', sent: true } },
+          ],
+        },
       },
     ],
   });

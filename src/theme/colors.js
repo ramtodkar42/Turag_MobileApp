@@ -1,6 +1,7 @@
 const colors = {
   // Brand palette
   primary: '#E82127',
+  primaryDark: '#B3151A', // a bar on the red screens (Snackbar)
   heading: '#111827',
   body: '#374151',
   placeholder: '#9CA3AF',

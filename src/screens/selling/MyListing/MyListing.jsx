@@ -33,6 +33,7 @@ import {
 import { loadGarage } from '../../../store/garageStore';
 import { ROUTES } from '../../../navigation/routes';
 import { useT } from '../../../i18n';
+import NpsCard from '../../insights/NpsCard';
 import CounterSheet from '../../offers/components/CounterSheet';
 import TransferChecklist from '../../offers/components/TransferChecklist';
 import { LISTING_STATUS, ORDER_STEPS } from '../../account/statuses';
@@ -40,7 +41,8 @@ import ReceivedOfferRow from './components/ReceivedOfferRow';
 
 // The seller's own listing (My listings, a new listing, offer notifications),
 // as the web's listing page: status, asking price (change it while draft /
-// live), Submit for review (draft), Withdraw, the offers it received -
+// live / sent back), Submit for review (draft), Resubmit (sent back by Turag, with
+// the reason), Withdraw, the offers it received -
 // Accept / Counter / Decline - and, once one is accepted, the order's progress;
 // after the buyer pays the token: the transfer forms and "Confirm handover".
 // params: { listingId }
@@ -165,16 +167,16 @@ function MyListing({ navigation, route }) {
       onPress={onWithdraw}
       loading={listingBusy === 'withdraw'}
       disabled={!!listingBusy}
-      style={listing.canSubmit ? styles.flex : null}
+      style={listing.canSubmit || listing.canResubmit ? styles.flex : null}
     />
   ) : null;
   let footer = withdrawButton;
-  if (listing.canSubmit) {
+  if (listing.canSubmit || listing.canResubmit) {
     footer = (
       <ButtonRow>
         {withdrawButton}
         <Button
-          title={t('selling.submit')}
+          title={t(listing.canResubmit ? 'selling.changes.resubmit' : 'selling.submit')}
           onPress={() => changeListing('submit', () => submitListing(listing.id))}
           loading={listingBusy === 'submit'}
           disabled={!!listingBusy}
@@ -222,6 +224,16 @@ function MyListing({ navigation, route }) {
               {t('selling.liveNote')}
             </AppText>
           ) : null}
+          {listing.canResubmit ? (
+            <AppText variant="caption" style={styles.liveNote}>
+              {t('selling.changes.priceNote')}
+            </AppText>
+          ) : null}
+          {listing.valuationValue != null && listing.status !== 'LIVE' ? (
+            <AppText variant="caption" style={styles.liveNote}>
+              {t('selling.valuationRef', { value: formatINR(listing.valuationValue) })}
+            </AppText>
+          ) : null}
           <AppText variant="caption">
             {[
               listing.publishedAt
@@ -244,6 +256,19 @@ function MyListing({ navigation, route }) {
             style={styles.preview}
           />
         </Card>
+
+        {listing.canResubmit ? (
+          <TitledCard title={t('selling.changes.title')} style={styles.card}>
+            {listing.moderationReason ? (
+              <AppText variant="subtitle" color={colors.heading} style={styles.noteText}>
+                {t('selling.changes.reason', { reason: listing.moderationReason })}
+              </AppText>
+            ) : null}
+            <AppText variant="caption" style={styles.noteText}>
+              {t('selling.changes.body')}
+            </AppText>
+          </TitledCard>
+        ) : null}
 
         {listing.status === 'REJECTED' ? (
           <InfoNote style={styles.card}>
@@ -303,6 +328,8 @@ function MyListing({ navigation, route }) {
             {t(`selling.statusNote.${LISTING_STATUS[listing.status] ? listing.status : 'DRAFT'}`)}
           </InfoNote>
         )}
+
+        {order?.status === 'COMPLETED' ? <NpsCard orderId={order.id} style={styles.card} /> : null}
 
         {order ? (
           <TitledCard title={t('selling.order.title')} style={styles.card}>

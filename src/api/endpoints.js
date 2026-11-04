@@ -51,9 +51,16 @@ export const ENDPOINTS = {
   BOOKING_QUEUE: '/inspection-bookings/queue', // inspector: my jobs
   VEHICLE_IDENTIFY: '/vehicles/identify', // inspector: identify by make / model when the RC lookup can't
   inspection: id => `/inspections/${encodeURIComponent(id)}`,
-  inspectionIdentityExtract: id => `/inspections/${encodeURIComponent(id)}/identity-extract`,
+  // Customer insights
+  PROFILE_ANSWERS: '/me/profile-answers',
+  FEEDBACK: '/feedback',
+
+  // AI photo scans, read on the server (the OpenAI key never ships in the app).
+  AI_IDENTITY_EXTRACT: '/ai/identity-extract', // RC / VIN plate
+  AI_DAMAGE_SCAN: '/ai/damage-scan', // one walkaround photo's damage
   inspectionIdentityVerify: id => `/inspections/${encodeURIComponent(id)}/identity-verify`,
   inspectionMedia: id => `/inspections/${encodeURIComponent(id)}/media`,
+  inspectionReferenceValuation: id => `/inspections/${encodeURIComponent(id)}/reference-valuation`,
   inspectionResume: id => `/inspections/${encodeURIComponent(id)}/resume`,
   inspectionReopen: id => `/inspections/${encodeURIComponent(id)}/reopen`,
   checklist: (category, version) =>

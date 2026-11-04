@@ -5,7 +5,7 @@
 import { toRupees, toTime } from './money';
 
 // A dealer can take back a listing only before it is sold / ended (as the web).
-const WITHDRAWABLE = new Set(['DRAFT', 'PENDING_REVIEW', 'LIVE']);
+const WITHDRAWABLE = new Set(['DRAFT', 'PENDING_REVIEW', 'CHANGES_REQUESTED', 'LIVE']);
 
 // ResolvedMembershipView -> { membershipId, id, name, type, status, role,
 //   active, portal ('DEALER' | 'INSTITUTIONAL') }

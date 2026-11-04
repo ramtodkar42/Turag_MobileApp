@@ -31,6 +31,7 @@ import { OFFER_STATUS, ORDER_STATUS } from '../../account/statuses';
 import CounterSheet from '../components/CounterSheet';
 import TransferChecklist from '../components/TransferChecklist';
 import { expiresLabel, vehicleName } from '../offerTime';
+import NpsCard from '../../insights/NpsCard';
 import OfferTimeline from './components/OfferTimeline';
 import { buildOfferTimeline } from './offerTimeline';
 import { cancelQuoteText, refundOutcomeText } from './tokenRefund';
@@ -287,6 +288,8 @@ function OfferDetails({ navigation, route }) {
             </View>
           </View>
         ) : null}
+
+        {completed && order?.id ? <NpsCard orderId={order.id} style={styles.card} /> : null}
 
         <TitledCard title={t('offers.detail.progress')} style={styles.card}>
           <OfferTimeline steps={buildOfferTimeline(offer, order)} style={styles.timeline} />

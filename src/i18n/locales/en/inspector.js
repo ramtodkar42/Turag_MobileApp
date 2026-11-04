@@ -102,7 +102,7 @@ export default {
   'inspector.identity.reading': 'Reading the photo…',
   'inspector.identity.notVin': 'This doesn’t look like a VIN/chassis plate — flagged for manual review. Retake or enter the values manually.',
   'inspector.identity.notRc': 'This doesn’t look like an RC — flagged for manual review. Retake or answer the RC question manually.',
-  'inspector.identity.photoError': 'Could not select the photo. Try again.',
+  'inspector.identity.photoError': 'Could not take the photo. Try again.',
   'inspector.identity.readError': 'Could not read the photo. Try again or enter the details manually.',
   'inspector.identity.confirmSave': 'Confirm & save',
   'inspector.identity.retake': 'Retake',

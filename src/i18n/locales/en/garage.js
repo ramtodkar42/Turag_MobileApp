@@ -20,8 +20,7 @@ export default {
   'garage.vehicle.savedOn': 'Saved on',
   'garage.vehicle.valueNote':
     'This is a pre-estimated value. Complete the inspection to get a more accurate valuation for your vehicle.',
-  'garage.vehicle.inspectNote':
-    'A free AI self-inspection narrows the range, or book an inspector to make it Turag verified.',
+  'garage.vehicle.inspectNote': 'Inspect it yourself to narrow the range, or book an inspector to make it Turag Verified.',
   'garage.vehicle.createListing': 'Create Listing',
   'garage.vehicle.bookInspector': 'Book an Inspector',
   'garage.status.not_inspected': 'Not inspected',
@@ -79,4 +78,5 @@ export default {
   'garage.card.viewSummary': 'View summary',
   'garage.card.viewDetails': 'View details',
   'garage.card.rejected': 'Inspection needs attention',
+  'garage.vehicle.bookSoon': 'Booking an inspector is coming soon. For now, use AI Self Inspection to check your vehicle.',
 };

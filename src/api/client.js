@@ -156,7 +156,8 @@ async function send(path, { method, body, headers, token, timeoutMs }) {
       : null;
   let res;
   try {
-    res = await fetch(`${API_BASE_URL}${path}`, {
+    // A full URL is used as it is (the few routes outside /api/v1, e.g. /api/ai/*).
+    res = await fetch(/^https?:\/\//.test(path) ? path : `${API_BASE_URL}${path}`, {
       method,
       headers: {
         Accept: 'application/json',

@@ -9,10 +9,10 @@ const MAX_BADGE = 9;
 const BUTTON = ms(42);
 const LOGO_WIDTH = ms(68);
 
-// TURAG logo + "Hello Name" + location; round search and notification buttons
+// TURAG logo + "Hello Name"; round search and notification buttons
 // (the bell with the unread count). searchOpen: the search bar is showing.
 // (The language picker is the first pill of the filter row - LanguagePill.)
-function HomeHeader({ name, location, unreadCount = 0, searchOpen, onSearchPress, onNotificationsPress }) {
+function HomeHeader({ name, unreadCount = 0, searchOpen, onSearchPress, onNotificationsPress }) {
   const t = useT();
   return (
     <View style={styles.row}>
@@ -22,12 +22,6 @@ function HomeHeader({ name, location, unreadCount = 0, searchOpen, onSearchPress
         <AppText variant="h3" numberOfLines={1} style={styles.greeting}>
           {t('home.hello', { name })}
         </AppText>
-        <View style={styles.location}>
-          <Icon name="navigation" size={ms(11)} color={colors.body} />
-          <AppText variant="caption" numberOfLines={1}>
-            {location}
-          </AppText>
-        </View>
       </View>
 
       <IconButton
@@ -76,11 +70,6 @@ const styles = StyleSheet.create({
   greeting: {
     fontSize: fs(19),
     lineHeight: fs(25),
-  },
-  location: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
   },
   badge: {
     position: 'absolute',

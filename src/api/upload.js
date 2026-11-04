@@ -67,9 +67,9 @@ const absolute = url => (url.startsWith('/') ? `${BACKEND_URL}${url}` : url);
 
 // PUT the bytes to the upload target the backend handed out (it carries its
 // own authorisation; no Bearer token).
-export const putToUploadTarget = async (target, blob) => {
+export const putToUploadTarget = async (target, blob, timeoutMs = UPLOAD_TIMEOUT_MS) => {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   let res;
   try {
     res = await fetch(absolute(target.url), {

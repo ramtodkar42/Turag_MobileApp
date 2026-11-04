@@ -6,7 +6,9 @@
 //
 // Run after the web's self-inspection logic changes:
 //   node scripts/build-self-inspection-logic.mjs "D:\TuragAI\turag-platform-main (6)\turag-platform-main"
-// (or set TURAG_PLATFORM_DIR). Needs the platform repo's node_modules installed.
+// (or set TURAG_PLATFORM_DIR). Needs the platform repo's node_modules installed,
+// or, to leave that folder untouched, TURAG_BUILD_TOOLS: a folder elsewhere with
+// esbuild and zod@3 installed (npm i esbuild zod@3).
 // The platform repo is only read - nothing is written there.
 import { createRequire } from 'node:module';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -24,7 +26,11 @@ const require = createRequire(path.join(webDir, 'package.json'));
 
 // esbuild comes with the platform's tooling: a direct dependency, or (pnpm)
 // inside node_modules/.pnpm - use the newest one there.
+const toolsDir = process.env.TURAG_BUILD_TOOLS;
 const loadEsbuild = () => {
+  if (toolsDir) {
+    return createRequire(path.join(toolsDir, 'package.json'))('esbuild');
+  }
   try {
     return require('esbuild');
   } catch {
@@ -42,8 +48,8 @@ const esbuild = loadEsbuild();
 
 // Everything the mobile self-inspection screen uses from the web.
 const entry = `
-export { STEP_ORDER, partitionItems, photoGroups, photoSlots, buildMissingList, buildProgress, isDocumentItem, isPhotoGridItem, isVideoItem, isEvidenceOnlyItem, shotLabel, stepForItem } from './self-inspection-steps';
-export { parseOdometerKm, parseOwnerCount } from './numeric-confirm';
+export { STEP_ORDER, activeItemsFor, partitionItems, photoGroups, photoSections, photoSlots, buildMissingList, buildProgress, isDocumentItem, isPhotoGridItem, isVideoItem, isEvidenceOnlyItem, shotLabel, stepForItem } from './self-inspection-steps';
+export { parseKeyCount, parseOdometerKm, parseOwnerCount, previousOwnersFromRegistry, totalOwnersFromPrevious } from './numeric-confirm';
 export { normalizeDamageResult, DAMAGE_TYPE_VALUES } from './damage-gate';
 export { M1_DENT_PROMPT_VERSION } from './m1-prompts';
 export { buildAiFinding, findingToShotRead } from './ai-finding';
@@ -59,6 +65,7 @@ export { explainIntegrityFailure } from '@/lib/integrity-reasons';
 export { buildFinalValuationRequest, selectFinalValuationCard } from '@/lib/final-valuation-card';
 export { COSMETIC_AREAS, COSMETIC_SEVERITIES } from '@/lib/condition';
 export { dhashGrayscale, findNearDuplicate, NEAR_DUPLICATE_DISTANCE } from '@/lib/photo-dhash';
+export { checkVideoDuration } from '@/lib/walkaround-coverage';
 export { PANEL_GROUPS, PANEL_LABELS } from '@turag/core/pricing';
 `;
 
@@ -73,6 +80,29 @@ const result = await esbuild.build({
   target: 'es2019',
   write: false,
   logLevel: 'warning',
+  // Without the platform's node_modules: its workspace packages are read from
+  // packages/*, everything else (zod) from the tools folder.
+  ...(toolsDir
+    ? {
+        nodePaths: [path.join(toolsDir, 'node_modules')],
+        plugins: [
+          {
+            name: 'turag-workspace',
+            setup(build) {
+              build.onResolve({ filter: /^@turag\// }, args => {
+                const [, pkg, ...rest] = args.path.split('/');
+                const dir = path.join(platformDir, 'packages', pkg);
+                const pkgJson = JSON.parse(readFileSync(path.join(dir, 'package.json'), 'utf8'));
+                const sub = rest.length ? `./${rest.join('/')}` : '.';
+                const target = pkgJson.exports?.[sub];
+                const file = typeof target === 'string' ? target : target?.import ?? target?.default ?? pkgJson.main ?? './src/index.ts';
+                return { path: path.resolve(dir, file) };
+              });
+            },
+          },
+        ],
+      }
+    : null),
 });
 
 const here = path.dirname(fileURLToPath(import.meta.url));

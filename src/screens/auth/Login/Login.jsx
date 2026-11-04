@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 import {
   AppText,
+  Button,
   FadeIn,
   Icon,
   IconButton,
   ScreenContainer,
+  Snackbar,
 } from '../../../components';
 import { colors, radius, spacing } from '../../../theme';
 import { fs, ms } from '../../../utils/responsive';
@@ -48,21 +50,18 @@ const getPhoneProblem = phone => {
 // Google (as the web): signs straight in when the Google email belongs to an
 // account; otherwise the mobile number is still needed (the account is the
 // phone) and the Google email is linked after the OTP.
-// Or "Browse cars without login": the marketplace as a guest (remembered, so
-// the app opens there next time).
+// Or "Skip" (top right): the marketplace as a guest (remembered, so the app
+// opens there next time).
 // params: { fromGuest? } - opened by a guest from inside the app: a close
 // button takes them back, and after logging in they return to that screen.
 function Login({ navigation, route }) {
   useStatusBarStyle('light-content');
   const t = useT();
   const fromGuest = !!route?.params?.fromGuest;
-  // Just deleted their account (Profile > Delete account): say so once.
-  const accountDeleted = !!route?.params?.accountDeleted;
+  // Just deleted their account (Profile > Delete account): say so for a few seconds.
+  const [showDeleted, setShowDeleted] = useState(!!route?.params?.accountDeleted);
   // Signed out because the session ran out (or was ended on another device).
   const sessionExpired = !!route?.params?.sessionExpired;
-  let notice = null;
-  if (accountDeleted) notice = { icon: 'check', textKey: 'auth.accountDeleted' };
-  else if (sessionExpired) notice = { icon: 'clock', textKey: 'auth.sessionExpired' };
   // Typing: the extra choices step aside (smoothly, from the moment the number
   // box is tapped) so the logo and the number stay above the keyboard.
   // (No layout animation: nothing is added / removed, only faded - see KeyboardFade.)
@@ -170,137 +169,143 @@ function Login({ navigation, route }) {
     navigation.navigate(ROUTES.WEB_PAGE, { title: t(titleKey), path });
 
   return (
-    <ScreenContainer
-      scroll
-      // The content stays put while typing: no layout animation to run (on
-      // Android one can flicker the whole screen for a frame).
-      animateKeyboard={false}
-      // The number box sits high, above the keyboard on every phone: no
-      // automatic scroll to it (that only pushed the content up).
-      followFocus={false}
-      // No room made for the keyboard: nothing moves; what it covers (the
-      // faded choices) is simply under it. On phones that also shrink the
-      // screen, that room was counted twice and the page scrolled up.
-      keyboardRoom={false}
-      backgroundColor={colors.primary}
-      header={
-        fromGuest ? (
-          <View style={styles.header}>
-            <IconButton
-              onPress={navigation.goBack}
-              size={ms(40)}
-              backgroundColor={colors.whiteTranslucent}
-              accessibilityLabel={t('common.close')}
-            >
-              <Icon name="close" size={ms(20)} color={colors.white} />
-            </IconButton>
-          </View>
-        ) : null
-      }
-    >
-      <View
-        style={[styles.area, top != null ? { paddingTop: top } : styles.areaMeasuring]}
-        onLayout={onAreaLayout}
-        testID="login-area"
+    <>
+      <ScreenContainer
+        scroll
+        // The content stays put while typing: no layout animation to run (on
+        // Android one can flicker the whole screen for a frame).
+        animateKeyboard={false}
+        // The number box sits high, above the keyboard on every phone: no
+        // automatic scroll to it (that only pushed the content up).
+        followFocus={false}
+        // No room made for the keyboard: nothing moves; what it covers (the
+        // faded choices) is simply under it. On phones that also shrink the
+        // screen, that room was counted twice and the page scrolled up.
+        keyboardRoom={false}
+        backgroundColor={colors.primary}
+        header={
+          fromGuest ? (
+            <View style={styles.header}>
+              <IconButton
+                onPress={navigation.goBack}
+                size={ms(40)}
+                backgroundColor={colors.whiteTranslucent}
+                accessibilityLabel={t('common.close')}
+              >
+                <Icon name="close" size={ms(20)} color={colors.white} />
+              </IconButton>
+            </View>
+          ) : (
+            <View style={[styles.header, styles.headerEnd]}>
+              <Button title={t('auth.skip')} variant="lightOutline" size="sm" onPress={browseAsGuest} />
+            </View>
+          )
+        }
       >
-      <View onLayout={onBlockLayout} testID="login-block">
-        <Image
-          source={logo}
-          resizeMode="contain"
-          style={styles.logo}
-          accessibilityLabel="Turag"
-        />
-
-        <AppText
-          variant="h3"
-          align="center"
-          color={colors.white}
-          style={styles.title}
+        <View
+          style={[styles.area, top != null ? { paddingTop: top } : styles.areaMeasuring]}
+          onLayout={onAreaLayout}
+          testID="login-area"
         >
-          {t('auth.welcome')}
-        </AppText>
-        <AppText
-          variant="subtitle"
-          align="center"
-          color={colors.white}
-          style={styles.subtitle}
-        >
-          {t('auth.tagline')}
-        </AppText>
+        <View onLayout={onBlockLayout} testID="login-block">
+          <Image
+            source={logo}
+            resizeMode="contain"
+            style={styles.logo}
+            accessibilityLabel="Turag"
+          />
 
-        {notice && !google.google ? (
-          <FadeIn offset={0} style={styles.deletedNote}>
-            <Icon
-              name={notice.icon}
-              size={ms(16)}
-              color={colors.white}
-              strokeWidth={3}
+          <AppText
+            variant="h3"
+            align="center"
+            color={colors.white}
+            style={styles.title}
+          >
+            {t('auth.welcome')}
+          </AppText>
+          <AppText
+            variant="subtitle"
+            align="center"
+            color={colors.white}
+            style={styles.subtitle}
+          >
+            {t('auth.tagline')}
+          </AppText>
+
+          {sessionExpired && !google.google ? (
+            <FadeIn offset={0} style={styles.notice}>
+              <Icon
+                name="clock"
+                size={ms(16)}
+                color={colors.white}
+                strokeWidth={3}
+              />
+              <AppText
+                variant="caption"
+                color={colors.white}
+                style={styles.noticeText}
+              >
+                {t('auth.sessionExpired')}
+              </AppText>
+            </FadeIn>
+          ) : null}
+
+          {google.google ? (
+            <GooglePhoneNote
+              email={google.google.email}
+              onCancel={google.cancelGoogle}
+              style={styles.googleNote}
             />
-            <AppText
-              variant="caption"
-              color={colors.white}
-              style={styles.deletedText}
-            >
-              {t(notice.textKey)}
-            </AppText>
-          </FadeIn>
-        ) : null}
+          ) : null}
 
-        {google.google ? (
-          <GooglePhoneNote
-            email={google.google.email}
-            onCancel={google.cancelGoogle}
-            style={styles.googleNote}
+          <PhoneField
+            value={phone}
+            onChangeText={onChangePhone}
+            error={error}
+            onSubmitEditing={() => onGetOtp(defaultChannel)}
+            onFocus={onPhoneFocus}
+            style={styles.phone}
           />
-        ) : null}
-
-        <PhoneField
-          value={phone}
-          onChangeText={onChangePhone}
-          error={error}
-          onSubmitEditing={() => onGetOtp(defaultChannel)}
-          onFocus={onPhoneFocus}
-          style={styles.phone}
-        />
-        <AgeConfirm
-          checked={ageOk}
-          onToggle={toggleAge}
-          error={ageNeeded}
-          style={styles.age}
-        />
-        <SignInMethods
-          channels={channels}
-          ready={ageOk}
-          sending={sendingVia}
-          onCode={onGetOtp}
-          google={{
-            show: googleSignInConfigured && !google.google,
-            busy: google.busy,
-            error: google.error,
-            onPress: google.start,
-          }}
-          // Keyboard open: everything under the main button fades away in place
-          // (nothing re-lays out, so nothing moves or blinks) and fades back.
-          compact={keyboardOpen}
-          style={styles.button}
-        />
-        <KeyboardFade hidden={keyboardOpen}>
-          <TrustNote style={styles.trust} />
-          {/* One quiet bottom: browse | email sign-in (accounts Turag created,
-              e.g. dealers), and the website's Terms / Privacy Policy under it. */}
-          <LoginFooter
-            onBrowse={fromGuest ? null : browseAsGuest}
-            onEmail={() =>
-              navigation.navigate(ROUTES.EMAIL_LOGIN, fromGuest ? { fromGuest } : undefined)
-            }
-            onTerms={() => openPage('profile.item.terms', '/terms')}
-            onPrivacy={() => openPage('profile.item.privacyPolicy', '/privacy_policy')}
-            style={styles.footer}
+          <AgeConfirm
+            checked={ageOk}
+            onToggle={toggleAge}
+            error={ageNeeded}
+            style={styles.age}
           />
-        </KeyboardFade>
-      </View>
-      </View>
-    </ScreenContainer>
+          <SignInMethods
+            channels={channels}
+            ready={ageOk}
+            sending={sendingVia}
+            onCode={onGetOtp}
+            google={{
+              show: googleSignInConfigured && !google.google,
+              busy: google.busy,
+              error: google.error,
+              onPress: google.start,
+            }}
+            // Keyboard open: everything under the main button fades away in place
+            // (nothing re-lays out, so nothing moves or blinks) and fades back.
+            compact={keyboardOpen}
+            style={styles.button}
+          />
+          <KeyboardFade hidden={keyboardOpen}>
+            <TrustNote style={styles.trust} />
+            {/* One quiet bottom: email sign-in (accounts Turag created, e.g. dealers),
+                and the website's Terms / Privacy Policy under it. */}
+            <LoginFooter
+              onEmail={() =>
+                navigation.navigate(ROUTES.EMAIL_LOGIN, fromGuest ? { fromGuest } : undefined)
+              }
+              onTerms={() => openPage('profile.item.terms', '/terms')}
+              onPrivacy={() => openPage('profile.item.privacyPolicy', '/privacy_policy')}
+              style={styles.footer}
+            />
+          </KeyboardFade>
+        </View>
+        </View>
+      </ScreenContainer>
+      {showDeleted ? <Snackbar text={t('auth.accountDeleted')} onDone={() => setShowDeleted(false)} /> : null}
+    </>
   );
 }
 
@@ -342,7 +347,7 @@ const styles = StyleSheet.create({
   trust: {
     marginTop: spacing.lg,
   },
-  deletedNote: {
+  notice: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
@@ -351,7 +356,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     backgroundColor: colors.whiteTranslucent,
   },
-  deletedText: {
+  noticeText: {
     flex: 1,
   },
   googleNote: {
@@ -360,6 +365,9 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
+  },
+  headerEnd: {
+    alignItems: 'flex-end',
   },
   footer: {
     marginTop: spacing.xl,

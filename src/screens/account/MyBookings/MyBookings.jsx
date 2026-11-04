@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { FlatList, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -13,6 +13,7 @@ import {
   StatusView,
 } from '../../../components';
 import { colors, spacing } from '../../../theme';
+import CancelReasonPicker, { sendCancelReason } from '../../insights/CancelReasonPicker';
 import useRemoteData from '../../../hooks/useRemoteData';
 import useConfirmDialog from '../../../hooks/useConfirmDialog';
 import useListFilters from '../../../hooks/useListFilters';
@@ -47,11 +48,13 @@ function MyBookings({ navigation }) {
   const [busyId, setBusyId] = useState(null);
   const [actionError, setActionError] = useState('');
 
+  const cancelReason = useRef(null);
   const onCancel = useCallback(
     booking =>
       confirm({
         title: t('account.booking.cancel.title'),
         message: t('account.booking.cancel.message'),
+        body: <CancelReasonPicker onChange={reason => (cancelReason.current = reason)} />,
         confirmLabel: t('account.booking.cancel.confirm'),
         cancelLabel: t('account.booking.cancel.keep'),
         onConfirm: async () => {
@@ -59,6 +62,7 @@ function MyBookings({ navigation }) {
           setActionError('');
           try {
             const updated = await cancelMyBooking(booking.id);
+            sendCancelReason(booking.id, cancelReason.current);
             setData(list => list.map(b => (b.id === updated.id ? updated : b)));
           } catch (e) {
             setActionError(e.message || t('account.booking.cancel.error'));

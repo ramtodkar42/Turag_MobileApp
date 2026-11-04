@@ -59,6 +59,7 @@ export const ORDER_STEPS = ['CREATED', 'TOKEN_PAID', 'HANDED_OVER', 'COMPLETED']
 export const LISTING_STATUS = {
   DRAFT: { labelKey: 'selling.status.DRAFT', tone: 'neutral' },
   PENDING_REVIEW: { labelKey: 'selling.status.PENDING_REVIEW', tone: 'warning' },
+  CHANGES_REQUESTED: { labelKey: 'selling.status.CHANGES_REQUESTED', tone: 'warning' },
   REJECTED: { labelKey: 'selling.status.REJECTED', tone: 'warning' },
   LIVE: { labelKey: 'selling.status.LIVE', tone: 'success' },
   RESERVED: { labelKey: 'selling.status.RESERVED', tone: 'warning' },

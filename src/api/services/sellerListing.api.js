@@ -36,7 +36,7 @@ const findMock = listingId => {
   }
   return raw;
 };
-const ACTIVE = new Set(['PENDING_REVIEW', 'LIVE']);
+const ACTIVE = new Set(['PENDING_REVIEW', 'CHANGES_REQUESTED', 'LIVE']);
 const touch = raw => {
   raw.version += 1;
   raw.updated_at = new Date().toISOString();
@@ -90,7 +90,8 @@ export const getMyListing = async listingId => {
 
 // Creates the listing (a DRAFT) from a valued vehicle.
 // draft: { vehicleId, valuationId (required), inspectionId?, askPrice (₹), sellerNote?,
-//          location ({ city, state, ... } - required), idempotencyKey, vehicle? (name for the mock) }
+//          location ({ city, state, ... } - required), sellerOrgId? (the dealership, only
+//          needed when the seller belongs to several), idempotencyKey, vehicle? (name for the mock) }
 // ownership is attested by the seller on the form (required by the backend).
 // Errors: 422 VALUATION_REQUIRED / VALUATION_EXPIRED / OWNERSHIP_ATTESTATION_REQUIRED,
 //         409 LISTING_ALREADY_ACTIVE (the vehicle is already listed).
@@ -101,6 +102,7 @@ export const createListing = async ({
   askPrice,
   sellerNote,
   location,
+  sellerOrgId,
   idempotencyKey,
   vehicle,
 }) => {
@@ -115,6 +117,7 @@ export const createListing = async ({
     // address_line?, building?, landmark?, geo_lat?, geo_lng? }. Buyers see
     // the area, city and state; the rest stays private with the listing.
     location,
+    ...(sellerOrgId ? { seller_org_id: sellerOrgId } : null),
   };
   if (!real()) {
     await wait(800);
@@ -146,7 +149,7 @@ export const createListing = async ({
   return mapMyListing(data.listing);
 };
 
-// DRAFT -> PENDING_REVIEW (a Turag moderator checks it, usually within 4 hours).
+// DRAFT or CHANGES_REQUESTED -> PENDING_REVIEW (a Turag moderator checks it, usually within 4 hours).
 export const submitListing = async listingId => {
   if (!real()) {
     await wait(600);
@@ -159,7 +162,7 @@ export const submitListing = async listingId => {
   return mapMyListing(data.listing);
 };
 
-// New asking price (₹) - allowed while DRAFT or LIVE (a live listing stays live).
+// New asking price (₹) - allowed while DRAFT, CHANGES_REQUESTED or LIVE (a live listing stays live).
 // `version`: the listing's current version (a stale one is refused - reload).
 export const updateListingPrice = async (listingId, askPrice, version) => {
   if (!real()) {
@@ -176,7 +179,7 @@ export const updateListingPrice = async (listingId, askPrice, version) => {
   return mapMyListing(data.listing);
 };
 
-// Withdraws the listing (from DRAFT / PENDING_REVIEW / LIVE). Final.
+// Withdraws the listing (from DRAFT / PENDING_REVIEW / CHANGES_REQUESTED / LIVE). Final.
 export const withdrawListing = async (listingId, version) => {
   if (!real()) {
     await wait(500);

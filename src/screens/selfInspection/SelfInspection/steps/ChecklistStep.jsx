@@ -1,29 +1,44 @@
+import { useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { AppText, Button, ButtonRow, FadeIn, FillImage } from '../../../../components';
+import { AppText, FillImage } from '../../../../components';
 import { colors, fonts, radius, spacing } from '../../../../theme';
 import { fs, ms } from '../../../../utils/responsive';
 import { useT } from '../../../../i18n';
-import { isPhotoGridItem, mapAiSeverityToAnswer, newestFindingFor } from '../../../../vendor/selfInspectionLogic';
+import { isDocumentItem, isPhotoGridItem, mapAiSeverityToAnswer, newestFindingFor } from '../../../../vendor/selfInspectionLogic';
 import { slotKey, uploadKindFor } from '../useSelfInspection';
 import { groupName, itemName } from '../labels';
 import AiSuggestion from '../components/AiSuggestion';
 import EvidenceList from '../components/EvidenceList';
+import FactAnswer, { isFactItem } from '../components/FactAnswer';
 import ItemAnswer from '../components/ItemAnswer';
 import SectionCard from '../components/SectionCard';
 import StatusPill from '../components/StatusPill';
 
-// The condition questions, one per screen (the web's checklistStep):
-// "Question n of N", numbered dots to jump (green when answered), the group
-// and question, its photos (the body-panel walkaround links to Photos), the
-// AI suggestion on the body-panel question, the answer, Previous / Next.
-function ChecklistStep({ si, qIndex, onQuestion, onGoStep, onAddDocument }) {
+// All the questions on one page (the web's checklistStep): the owner's facts first
+// (original RC, PUC, flood, keys, servicing and its follow-ups), then the condition
+// questions, one card each. Follow-ups join only after their question's matching
+// answer. focusItem: scroll to that question (a jump from the "what's left" list).
+function ChecklistStep({ si, focusItem, scrollRef, onGoStep, onAddDocument }) {
   const t = useT();
   const questions = si.partition.checklist;
-  const qi = Math.min(Math.max(qIndex, 0), Math.max(questions.length - 1, 0));
-  const q = questions[qi];
-  const group = q ? si.sections.find(s => s.items.some(x => x.item_code === q.item_code)) : null;
+  const sections = [
+    { key: 'facts', titleKey: 'selfInspection.checklist.sectionFacts', items: questions.filter(q => q.gate === true) },
+    { key: 'condition', titleKey: 'selfInspection.checklist.sectionCondition', items: questions.filter(q => q.gate !== true) },
+  ].filter(s => s.items.length > 0);
 
-  const photosSummary = () => {
+  // Bring the asked-for question into view.
+  const cards = useRef({});
+  useEffect(() => {
+    if (!focusItem) return;
+    const card = cards.current[focusItem];
+    const list = scrollRef?.current;
+    const host = list?.getInnerViewNode?.() ?? list?.getNativeScrollRef?.();
+    if (card?.measureLayout && host) {
+      card.measureLayout(host, (_x, y) => list.scrollTo({ y: Math.max(0, y - spacing.lg), animated: true }), () => {});
+    }
+  }, [focusItem, scrollRef]);
+
+  const photosSummary = q => {
     const shots = q.evidence_requirement?.shot_codes ?? [];
     const files = si.mediaFiles[q.item_code] ?? [];
     const have = (si.mediaShots[q.item_code] ?? []).filter(s => shots.includes(s)).length;
@@ -46,7 +61,7 @@ function ChecklistStep({ si, qIndex, onQuestion, onGoStep, onAddDocument }) {
     );
   };
 
-  const singleEvidence = () => {
+  const singleEvidence = q => {
     const kind = uploadKindFor(q);
     const shot = q.evidence_requirement?.shot_codes?.[0] ?? q.item_code;
     const key = slotKey(q.item_code, shot);
@@ -65,7 +80,7 @@ function ChecklistStep({ si, qIndex, onQuestion, onGoStep, onAddDocument }) {
     );
   };
 
-  const aiSuggestion = () => {
+  const aiSuggestion = q => {
     const entry = newestFindingFor(si.persisted, q.evidence_requirement?.shot_codes ?? []);
     if (!entry) return null;
     const aiAnswer = mapAiSeverityToAnswer(entry.finding.has_damage ? entry.finding.severity : 'NONE');
@@ -86,43 +101,24 @@ function ChecklistStep({ si, qIndex, onQuestion, onGoStep, onAddDocument }) {
     );
   };
 
-  return (
-    <SectionCard>
-      <View style={styles.top}>
-        <AppText style={styles.counter}>
-          {t('selfInspection.checklist.question', { n: questions.length === 0 ? 0 : qi + 1, total: questions.length })}
-        </AppText>
-        <StatusPill
-          done={si.progress.checklist.done >= si.progress.checklist.total}
-          doneText={t('selfInspection.checklist.allAnswered')}
-          todoText={t('selfInspection.checklist.progress', { done: si.progress.checklist.done, total: si.progress.checklist.total })}
-        />
-      </View>
-      <View style={styles.dots}>
-        {questions.map((item, i) => {
-          const answered = si.local[item.item_code]?.saved;
-          return (
-            <Pressable
-              key={item.item_code}
-              onPress={() => onQuestion(i)}
-              accessibilityRole="button"
-              accessibilityLabel={t('selfInspection.checklist.jump', { n: i + 1, name: itemName(t, item) })}
-              accessibilityState={{ selected: i === qi }}
-              style={[styles.dot, answered && styles.dotDone, i === qi && styles.dotCurrent]}
-            >
-              <AppText style={[styles.dotText, (answered || i === qi) && styles.dotTextOn]}>{i + 1}</AppText>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      {q ? (
-        <FadeIn key={q.item_code} offset={ms(8)} style={styles.question}>
-          <View>
+  const question = q => {
+    const done = si.local[q.item_code]?.saved === true;
+    const group = si.sections.find(s => s.items.some(x => x.item_code === q.item_code));
+    return (
+      <View
+        key={q.item_code}
+        ref={node => {
+          cards.current[q.item_code] = node;
+        }}
+        collapsable={false}
+        style={[styles.question, done && styles.questionDone, focusItem === q.item_code && styles.questionFocus]}
+      >
+        <View style={styles.head}>
+          <View style={styles.flex}>
             <AppText style={styles.group}>{group ? groupName(t, group.group_code, group.label) : ''}</AppText>
-            <AppText variant="h3" style={styles.title}>
+            <AppText style={styles.title}>
               {itemName(t, q)}
-              {q.mandatory ? <AppText variant="h3" color={colors.primary}>{' *'}</AppText> : null}
+              {q.mandatory ? <AppText style={styles.required}>{' *'}</AppText> : null}
             </AppText>
             {q.dynamic ? (
               <AppText variant="caption" style={styles.dynamic}>
@@ -130,98 +126,90 @@ function ChecklistStep({ si, qIndex, onQuestion, onGoStep, onAddDocument }) {
               </AppText>
             ) : null}
           </View>
-          {isPhotoGridItem(q) ? photosSummary() : q.evidence_requirement ? singleEvidence() : null}
-          {q.item_code === 'B1' ? aiSuggestion() : null}
-          <ItemAnswer si={si} item={q} />
-          <ButtonRow style={styles.nav}>
-            <Button
-              title={t('selfInspection.checklist.previous')}
-              variant="outline"
-              size="md"
-              fullWidth={false}
-              disabled={qi === 0}
-              onPress={() => onQuestion(qi - 1)}
-              style={styles.flex}
-            />
-            {qi < questions.length - 1 ? (
-              <Button title={t('selfInspection.checklist.next')} size="md" fullWidth={false} onPress={() => onQuestion(qi + 1)} style={styles.flex} />
-            ) : (
-              <Button title={t('selfInspection.checklist.seeEstimate')} size="md" fullWidth={false} onPress={() => onGoStep('review')} style={styles.flex} />
-            )}
-          </ButtonRow>
-        </FadeIn>
-      ) : (
-        <AppText variant="subtitle">{t('selfInspection.checklist.none')}</AppText>
-      )}
+          <StatusPill done={done} />
+        </View>
+        {isPhotoGridItem(q) ? photosSummary(q) : q.evidence_requirement ? singleEvidence(q) : null}
+        {q.item_code === 'B1' ? aiSuggestion(q) : null}
+        {isFactItem(q) ? <FactAnswer si={si} item={q} /> : isDocumentItem(q) ? null : <ItemAnswer si={si} item={q} />}
+      </View>
+    );
+  };
+
+  return (
+    <SectionCard
+      title={t('selfInspection.step.checklist')}
+      subtitle={t('selfInspection.checklist.pageSubtitle')}
+      right={
+        <StatusPill
+          done={si.progress.checklist.done >= si.progress.checklist.total}
+          doneText={t('selfInspection.checklist.allAnswered')}
+          todoText={t('selfInspection.checklist.progress', { done: si.progress.checklist.done, total: si.progress.checklist.total })}
+        />
+      }
+    >
+      {sections.map(s => (
+        <View key={s.key} style={styles.section}>
+          <AppText variant="h3" style={styles.sectionTitle}>
+            {t(s.titleKey)}
+          </AppText>
+          {s.items.map(question)}
+        </View>
+      ))}
+      {questions.length === 0 ? <AppText variant="subtitle">{t('selfInspection.checklist.none')}</AppText> : null}
     </SectionCard>
   );
 }
 
-const DOT = ms(32);
 const THUMB = ms(38);
 
 const styles = StyleSheet.create({
-  top: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
+  section: {
+    gap: spacing.md,
   },
-  counter: {
-    fontFamily: fonts.subtitle.medium,
-    fontSize: fs(12.5),
-    lineHeight: fs(17),
-    color: colors.body,
+  sectionTitle: {
+    fontSize: fs(17),
+    lineHeight: fs(23),
   },
-  dots: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs + 2,
-  },
-  dot: {
-    width: DOT,
-    height: DOT,
-    borderRadius: DOT / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
+  question: {
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.white,
   },
-  dotDone: {
-    borderColor: colors.success,
-    backgroundColor: colors.success,
+  questionDone: {
+    borderColor: colors.successLight,
   },
-  dotCurrent: {
+  questionFocus: {
     borderColor: colors.primary,
-    borderWidth: 2,
-    backgroundColor: colors.primary,
   },
-  dotText: {
-    fontFamily: fonts.subtitle.medium,
-    fontSize: fs(12),
-    lineHeight: fs(16),
-    color: colors.body,
+  head: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
   },
-  dotTextOn: {
-    color: colors.white,
-  },
-  question: {
-    gap: spacing.lg,
+  flex: {
+    flex: 1,
   },
   group: {
     fontFamily: fonts.title.bold,
-    fontSize: fs(11.5),
+    fontSize: fs(11),
     lineHeight: fs(15),
-    letterSpacing: 1.4,
+    letterSpacing: 1.2,
     textTransform: 'uppercase',
     color: colors.muted,
   },
   title: {
-    marginTop: spacing.xs,
-    fontSize: fs(21),
-    lineHeight: fs(27),
+    marginTop: spacing.xxs,
+    fontFamily: fonts.title.bold,
+    fontSize: fs(16),
+    lineHeight: fs(22),
+    color: colors.heading,
+  },
+  required: {
+    fontFamily: fonts.title.bold,
+    color: colors.primary,
   },
   dynamic: {
     marginTop: spacing.xs,
@@ -252,14 +240,6 @@ const styles = StyleSheet.create({
     fontSize: fs(13.5),
     lineHeight: fs(18),
     color: colors.primary,
-  },
-  nav: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.xs,
-  },
-  flex: {
-    flex: 1,
   },
 });
 

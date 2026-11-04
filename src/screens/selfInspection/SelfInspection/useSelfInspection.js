@@ -4,6 +4,7 @@ import {
   USABLE_MEDIA,
   deleteSelfMedia,
   estimateFinalValue,
+  getReferenceValuation,
   getSelfInspection,
   getThumbUrl,
   listSelfInspectionMedia,
@@ -15,7 +16,7 @@ import {
   SELF_INSPECTION_FEE_REQUIRED,
   uploadSelfEvidence,
 } from '../../../api/services/selfInspection.api';
-import { analyzeDamageWithOpenAI } from '../../../api/services/visionScan';
+import { scanDamagePhoto } from '../../../api/services/aiScan.api';
 import { DUPLICATE_FILE } from '../../../api/services/valuation.api';
 import { fileToBase64 } from '../../../utils/fileToBase64';
 import { photoDhash } from '../../../utils/photoDhash';
@@ -24,6 +25,7 @@ import { tNow } from '../../../i18n';
 import { getUser } from '../../../store/userStore';
 import { shotName } from './labels';
 import {
+  activeItemsFor,
   buildAiFinding,
   buildCanonicalProfile,
   buildFinalValuationRequest,
@@ -40,12 +42,16 @@ import {
   humanizeSubmitError,
   isPhotoGridItem,
   newestFindingFor,
+  parseKeyCount,
   parseOdometerKm,
   parseOwnerCount,
   partitionItems,
   photoGroups,
+  photoSections,
   photoSlots,
+  previousOwnersFromRegistry,
   toDamageVehicleContext,
+  totalOwnersFromPrevious,
 } from '../../../vendor/selfInspectionLogic';
 
 // The web's /inspect/[id] screen state, ported one to one (SelfInspectionCaptureView):
@@ -58,7 +64,7 @@ import {
 const DOCUMENT_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp']);
 const DOCUMENT_MAX_BYTES = 20 * 1024 * 1024;
 
-export const blankAnswer = () => ({ note: '', cost: '', num: '', naReason: '' });
+export const blankAnswer = () => ({ note: '', cost: '', num: '', naReason: '', value: '' });
 export const slotKey = (itemCode, shotCode) => `${itemCode}:${shotCode}`;
 
 // A typed answer saves this long after the last key.
@@ -68,8 +74,12 @@ const TYPED_SAVE_DELAY_MS = 800;
 // rule: risk score above 70) - it has to be taken again.
 const failedIntegrity = mv => (mv.integrity?.risk_score ?? 0) > 70;
 
-// O2 counts owners; every other number reads km-like units (as the web).
-export const numericParserFor = itemCode => (itemCode === 'O2' ? parseOwnerCount : parseOdometerKm);
+// O2 counts owners, KEYS_M1 counts keys; every other number reads km-like units (as the web).
+export const numericParserFor = itemCode => {
+  if (itemCode === 'O2') return parseOwnerCount;
+  if (itemCode === 'KEYS_M1') return parseKeyCount;
+  return parseOdometerKm;
+};
 
 // 'PHOTO' | 'DOCUMENT' | 'VIDEO' for an item's evidence.
 export const uploadKindFor = item => {
@@ -150,6 +160,9 @@ export default function useSelfInspection(inspectionId) {
   const [payPhase, setPayPhase] = useState(null);
   const [finalStatus, setFinalStatus] = useState(null);
   const [final, setFinal] = useState({ loading: false, card: null, valuation: null, note: '', error: '' });
+  // The value the owner saw in Evaluate, shown as the live estimate (as the web):
+  // undefined while loading, null when the vehicle has none yet.
+  const [liveEstimateMinor, setLiveEstimateMinor] = useState(undefined);
   const finalFetchRef = useRef(null);
   // Photos waiting to be removed in the background (replaced by a retake while
   // the server was still checking them). Stops when the screen closes.
@@ -185,6 +198,8 @@ export default function useSelfInspection(inspectionId) {
       const ins = data.inspection;
       setInspection(ins);
       setSections(data.sections);
+      // Best effort: a failure only hides the live estimate, never the inspection.
+      getReferenceValuation(inspectionId).then(setLiveEstimateMinor, () => setLiveEstimateMinor(null));
 
       const seed = {};
       const verdicts = {};
@@ -195,6 +210,7 @@ export default function useSelfInspection(inspectionId) {
           cost: it.refurb_cost_minor != null ? String(Math.round(it.refurb_cost_minor / 100)) : '',
           num: it.numeric_value != null ? String(it.numeric_value) : '',
           naReason: it.na_reason ?? '',
+          value: it.value_text ?? '',
           saved: true,
         };
         // Previously recorded verdicts stay recorded - never re-attached.
@@ -330,6 +346,10 @@ export default function useSelfInspection(inspectionId) {
         const n = numericParserFor(code)(cur.num);
         if (n != null) body.numeric_value = n;
       }
+      // Choice / date facts carry their value (the server checks it against the pinned checklist).
+      if ((spec?.answer_type === 'CHOICE' || spec?.answer_type === 'DATE') && cur.severity !== 'NOT_ASSESSABLE' && cur.value) {
+        body.value_text = cur.value;
+      }
       if (cur.severity === 'NOT_ASSESSABLE') body.na_reason = cur.naReason;
       // The B1 answer judges a persisted AI finding: its suggestion + the verdict
       // ride along (advisory lineage only; scoring never reads it).
@@ -416,7 +436,7 @@ export default function useSelfInspection(inspectionId) {
         const base64 = await fileToBase64(file);
         if (!base64) throw new Error('unreadable');
         const spec = allItems.find(i => i.item_code === code);
-        const res = await analyzeDamageWithOpenAI(base64, {
+        const res = await scanDamagePhoto(base64, {
           vehicle: toDamageVehicleContext(inspectionVehicle),
           itemCode: code,
           itemLabel: spec?.label,
@@ -424,6 +444,7 @@ export default function useSelfInspection(inspectionId) {
           shotHint: shotCode,
         });
         if (!alive()) return;
+        if (!res) throw new Error('no result');
         if (res.hasDamage) {
           // Pre-fill only an empty cost - never what the user typed (not saved until they answer).
           updateLocal(code, c => (c.cost.trim() ? c : { ...c, cost: String(Math.round(res.repairCostMinor / 100)) }));
@@ -555,14 +576,15 @@ export default function useSelfInspection(inspectionId) {
     [mediaFiles, removeAssets, setMsg],
   );
 
-  // Uploads one file for an (item, shot). replace = Retake (and always for a
+  // Uploads one file for an (item, shot); resolves true once it's stored.
+  // replace = Retake (and always for a
   // photo the photo check flagged): the new photo goes up FIRST and only then
   // is the old one removed, so a failed retake never loses the good photo.
   // If the server is still checking the old one, it's removed in the
   // background as soon as it's allowed (a retake never gets stuck).
   const addEvidence = useCallback(
     async (code, file, kind, shotCode, replaceAsked = false) => {
-      if (!file) return;
+      if (!file) return false;
       const key = slotKey(code, shotCode);
       const replace = replaceAsked || !!retake[key];
       setMsg(key, undefined);
@@ -570,7 +592,7 @@ export default function useSelfInspection(inspectionId) {
         const type = String(file.type ?? '').toLowerCase();
         if ((type && !DOCUMENT_TYPES.has(type)) || (file.fileSize ?? 0) > DOCUMENT_MAX_BYTES) {
           setMsg(key, { kind: 'error', text: tNow('selfInspection.error.documentType') });
-          return;
+          return false;
         }
       }
       setUploading(u => ({ ...u, [key]: true }));
@@ -628,21 +650,28 @@ export default function useSelfInspection(inspectionId) {
         setLastUpload(prev => ({ key, n: (prev?.n ?? 0) + 1 }));
         const isImage = String(file.type ?? 'image/jpeg').startsWith('image/');
         if (isImage && file.uri) setThumbs(t => ({ ...t, [mv.mediaId]: file.uri }));
+        // A document isn't graded: a successful upload IS its "present" answer (as
+        // the web), so the mandatory item counts as answered. Once only.
+        if (kind === 'DOCUMENT' && localRef.current[code]?.severity !== 'OK') {
+          record(code, { severity: 'OK', naReason: '' });
+        }
         // The advisory damage read for each walkaround photo (never saved as an answer).
         if (kind === 'PHOTO' && code === 'B1' && isImage) {
           suggestDamage(code, shotCode, file, mv.mediaId);
         }
+        return true;
       } catch (err) {
         const text =
           err?.code === DUPLICATE_FILE
             ? tNow('selfInspection.error.duplicate', { noun: noun(kind) })
             : err?.message || tNow('selfInspection.error.uploadFailed', { noun: noun(kind) });
         setMsg(key, { kind: 'error', text });
+        return false;
       } finally {
         setUploading(u => ({ ...u, [key]: false }));
       }
     },
-    [inspectionId, mediaFiles, retake, forgetAsset, removeInBackground, setMsg, suggestDamage],
+    [inspectionId, mediaFiles, retake, record, forgetAsset, removeInBackground, setMsg, suggestDamage],
   );
 
   // --- Identity (RC / VIN cards): the confirmed values feed the live estimate --------
@@ -775,7 +804,25 @@ export default function useSelfInspection(inspectionId) {
   const has = code => allItems.some(i => i.item_code === code);
   const numericOf = code => numericParserFor(code)(local[code]?.num ?? '');
   const odometerKm = has('O1') ? numericOf('O1') : null;
-  const ownerCount = has('O2') ? numericOf('O2') : null;
+  // Owners come from the official RC record whenever it has a count; the owner
+  // only types them when it hasn't (as the web). O2 asks for PREVIOUS owners;
+  // the valuation counts owners in total.
+  const registryOwners = inspectionVehicle?.registry_owner_count;
+  const registryPrevOwners = previousOwnersFromRegistry(registryOwners);
+  const ownerCount = has('O2') ? registryOwners ?? totalOwnersFromPrevious(numericOf('O2')) : null;
+  const previousOwners = has('O2') ? numericOf('O2') : null;
+
+  // The RC's owner count is saved as the O2 answer, so the required item is
+  // done without asking. Again only if the saved answer differs.
+  const ownersSynced = useRef(null);
+  useEffect(() => {
+    if (screen !== 'ready' || registryPrevOwners == null || !has('O2')) return;
+    const want = String(registryPrevOwners);
+    const cur = localRef.current.O2;
+    if ((cur?.saved && cur.num === want) || ownersSynced.current === want) return;
+    ownersSynced.current = want;
+    record('O2', { num: want, severity: 'OK', naReason: '' });
+  });
 
   // The final estimated value after submit: one backend request per input set.
   useEffect(() => {
@@ -794,12 +841,15 @@ export default function useSelfInspection(inspectionId) {
   }, [screen, finalStatus, inspectionId, vehicleId, odometerKm, ownerCount]);
 
   const derived = useMemo(() => {
-    const partition = partitionItems(allItems);
-    const groups = photoGroups(allItems);
+    // Follow-up questions (show_if) count only once their question has a matching
+    // saved answer, as the server's submit rule.
+    const activeItems = activeItemsFor(allItems, local);
+    const partition = partitionItems(activeItems);
+    const groups = photoSections(photoGroups(allItems));
     const slots = photoSlots(allItems);
-    const progress = buildProgress(allItems, local, mediaShots);
+    const progress = buildProgress(activeItems, local, mediaShots);
     const missing = buildMissingList({
-      items: allItems,
+      items: activeItems,
       answers: local,
       evidenceCount: mediaCount,
       parseNumeric: (code, raw) => numericParserFor(code)(raw),
@@ -839,7 +889,7 @@ export default function useSelfInspection(inspectionId) {
       rc: rc ? { make: rc.make, model: rc.model, variant: rc.variant } : undefined,
       rcMfgYear: rc?.mfgYear ?? null,
       odometerKm,
-      previousOwners: ownerCount,
+      previousOwners,
     });
     let pricing = { estimatedPriceMinor: null, lowerPriceMinor: null, upperPriceMinor: null, confidence: null };
     try {
@@ -862,7 +912,7 @@ export default function useSelfInspection(inspectionId) {
       canonicalReady: canonical.status === 'READY',
       pricing,
     };
-  }, [allItems, local, mediaShots, mediaCount, inspectionVehicle, identity, odometerKm, ownerCount, persisted]);
+  }, [allItems, local, mediaShots, mediaCount, inspectionVehicle, identity, odometerKm, previousOwners, persisted]);
 
   return {
     screen,
@@ -902,6 +952,9 @@ export default function useSelfInspection(inspectionId) {
     // Photos the photo check flagged that still need taking again ([{ code, shotCode }]).
     retakeShots: Object.values(retake),
     final,
+    liveEstimateMinor,
+    // Previous owners from the RC record (null: the owner types them).
+    registryPrevOwners,
     ...derived,
   };
 }

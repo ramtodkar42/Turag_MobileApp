@@ -177,4 +177,9 @@ export default {
   'verify.dl.result.expired.body': 'कृपया सत्यापन फिर से शुरू करें।',
   'verify.dl.result.failed.title': 'सत्यापन पूरा नहीं हुआ',
   'verify.dl.result.failed.body': 'DigiLocker ने आपका आधार साझा नहीं किया। आप फिर से कोशिश कर सकते हैं या दस्तावेज़ अपलोड कर सकते हैं।',
+  'booking.paused.eyebrow': 'जल्द आ रहा है',
+  'booking.paused.heading': 'इंस्पेक्टर बुकिंग जल्द आ रही है',
+  'booking.paused.body': 'अभी के लिए, AI सेल्फ इंस्पेक्शन से अपनी गाड़ी खुद जाँचें। अनुमान पाएँ, फिर दस्तावेज़, छोटी चेकलिस्ट और फ़ोटो के आसान चरणों का पालन करें।',
+  'booking.paused.selfInspect': 'AI सेल्फ इंस्पेक्शन शुरू करें',
+  'booking.paused.garage': 'मेरे गैराज पर जाएँ',
 };

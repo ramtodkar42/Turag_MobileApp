@@ -6,8 +6,8 @@ import { useT } from '../../../i18n';
 
 const PARTS = [
   { icon: 'document', titleKey: 'valuation.self.partDocs', textKey: 'valuation.self.partDocsText' },
-  { icon: 'camera', titleKey: 'valuation.self.partPhotos', textKey: 'valuation.self.partPhotosText' },
   { icon: 'shieldCheck', titleKey: 'valuation.self.partChecks', textKey: 'valuation.self.partChecksText' },
+  { icon: 'camera', titleKey: 'valuation.self.partPhotos', textKey: 'valuation.self.partPhotosText' },
 ];
 
 // "Inspect it yourself": what the step-by-step checklist covers before it starts.

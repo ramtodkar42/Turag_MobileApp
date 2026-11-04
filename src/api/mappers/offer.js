@@ -115,8 +115,10 @@ export const mapTransferChecklist = c => ({
 });
 
 // What the seller can do with a listing in each status (backend state machine).
-const PRICE_EDITABLE = new Set(['DRAFT', 'LIVE']);
-const WITHDRAWABLE = new Set(['DRAFT', 'PENDING_REVIEW', 'LIVE']);
+// CHANGES_REQUESTED: Turag sent it back (e.g. "price too high"); the seller edits
+// and resubmits the same listing. REJECTED stays final.
+const PRICE_EDITABLE = new Set(['DRAFT', 'CHANGES_REQUESTED', 'LIVE']);
+const WITHDRAWABLE = new Set(['DRAFT', 'PENDING_REVIEW', 'CHANGES_REQUESTED', 'LIVE']);
 
 // ListingView (the seller's own) -> the My listing screen's listing.
 export const mapMyListing = l => ({
@@ -140,6 +142,8 @@ export const mapMyListing = l => ({
   turagVerified: !!l.verification?.turag_verified,
   verificationLabel: l.verification?.verification_label ?? null,
   moderationReason: l.moderation?.reason ?? null,
+  // Turag's valuation of the vehicle, shown beside the asking price.
+  valuationValue: l.valuation_context?.status === 'READY' ? toRupees(l.valuation_context.headline?.value) : null,
   publishedAt: toTime(l.published_at),
   expiresAt: toTime(l.expires_at),
   createdAt: toTime(l.created_at),
@@ -149,6 +153,7 @@ export const mapMyListing = l => ({
   // Offers exist (and can be answered) only while live / reserved.
   takesOffers: l.status === 'LIVE' || l.status === 'RESERVED',
   canSubmit: l.status === 'DRAFT',
+  canResubmit: l.status === 'CHANGES_REQUESTED',
   canEditPrice: PRICE_EDITABLE.has(l.status),
   canWithdraw: WITHDRAWABLE.has(l.status),
 });

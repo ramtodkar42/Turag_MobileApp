@@ -3,7 +3,7 @@ import ConfirmDialog from '../components/feedback/ConfirmDialog';
 
 // Show an app-styled confirmation from any screen:
 //   const { confirm, dialog } = useConfirmDialog();
-//   confirm({ title, message, confirmLabel, onConfirm: async () => {...} });
+//   confirm({ title, message, body?, confirmLabel, onConfirm: async () => {...} });
 //   ...render {dialog} once in the screen.
 // The confirm button shows a spinner while `onConfirm` runs, then closes.
 export default function useConfirmDialog() {
@@ -34,7 +34,9 @@ export default function useConfirmDialog() {
       onConfirm={onConfirm}
       onCancel={close}
       loading={loading}
-    />
+    >
+      {options?.body}
+    </ConfirmDialog>
   );
 
   return { confirm, dialog };

@@ -55,7 +55,14 @@ var WALKAROUND_ANGLE_NAMES = {
   INT_LEFT_REAR_DOOR_OPEN: "Left rear door open",
   INT_DICKY_DOOR_OPEN: "Dicky door open",
   INT_DASHBOARD_VIDEO: "Dashboard video",
+  SERVICE_RECEIPT: "Servicing receipt",
+  INT_FRONT_DRIVER_SEAT: "Front driver seat",
+  INT_FRONT_PASSENGER_SEAT: "Front passenger seat",
+  INT_FRONT_DRIVER_SEAT_BACK: "Back of front driver seat",
+  INT_FRONT_PASSENGER_SEAT_BACK: "Back of front passenger seat",
+  WALK_INT_EXT_VIDEO: "Interior & exterior walkaround video",
   // Engine
+  ENG_START_VIDEO: "Engine start video",
   ENG_BONNET_FRONT: "Engine & bonnet (front)",
   ENG_LEFT: "Engine left side",
   ENG_RIGHT: "Engine right side",
@@ -105,13 +112,17 @@ function humanizeSubmitError(message, labels) {
   });
 }
 
-// src/app/inspect/[id]/self-inspection-steps.ts
-var STEP_ORDER = ["photos", "documents", "checklist", "review"];
-var DETAIL_ITEM_CODES = ["P1", "A1", "O1", "O2"];
+// src/app/inspect/[id]/answer-logic.ts
 function isDocumentItem(item) {
   var _a, _b;
   return (_b = (_a = item.evidence_requirement) == null ? void 0 : _a.kinds.includes("DOCUMENT")) != null ? _b : false;
 }
+
+// src/app/inspect/[id]/self-inspection-steps.ts
+var STEP_ORDER = ["documents", "checklist", "photos", "review"];
+var DOCUMENT_DETAIL_CODES = ["P1", "O2"];
+var PHOTO_DETAIL_CODES = ["O1", "A1"];
+var DETAIL_ITEM_CODES = [...DOCUMENT_DETAIL_CODES, ...PHOTO_DETAIL_CODES];
 function isEvidenceOnlyItem(item) {
   return item.evidence_only === true;
 }
@@ -124,21 +135,20 @@ function isPhotoGridItem(item) {
   if (!req || req.kinds.includes("DOCUMENT") || req.kinds.includes("VIDEO")) return false;
   return isEvidenceOnlyItem(item) ? req.shot_codes.length >= 1 : req.shot_codes.length > 1;
 }
+function pick(items, codes) {
+  return codes.flatMap((code) => items.filter((i) => i.item_code === code));
+}
 function partitionItems(items) {
-  const details = [];
-  for (const code of DETAIL_ITEM_CODES) {
-    const it = items.find((i) => i.item_code === code);
-    if (it) details.push(it);
-  }
-  const docs = items.filter(
-    (i) => isDocumentItem(i) && !DETAIL_ITEM_CODES.includes(i.item_code)
-  );
-  const inDocs = new Set([...details, ...docs].map((i) => i.item_code));
+  const details = pick(items, DOCUMENT_DETAIL_CODES);
+  const photoDetails = pick(items, PHOTO_DETAIL_CODES);
+  const docs = items.filter((i) => isDocumentItem(i) && !i.show_if && !DETAIL_ITEM_CODES.includes(i.item_code));
+  const placed = new Set([...details, ...photoDetails, ...docs].map((i) => i.item_code));
   return {
     documents: [...details, ...docs],
-    // Evidence-only photo/video items (Interior, Engine, Tyres, Extra, Dents, Dashboard video) have no
+    photoDetails,
+    // Evidence-only photo/video items (Interior, Engine, Tyres, Extra, Underbody, Dents, videos) have no
     // condition answer — they live in the Photos step, so they are excluded from the condition checklist.
-    checklist: items.filter((i) => !inDocs.has(i.item_code) && !isEvidenceOnlyItem(i))
+    checklist: items.filter((i) => !placed.has(i.item_code) && !isEvidenceOnlyItem(i))
   };
 }
 var SHOT_LABELS = {
@@ -186,9 +196,45 @@ function photoGroups(items) {
   }
   return groups;
 }
+var SHOWN_WITH = {
+  XUB_M1: { host: "B1", titleKey: "field.self.photos.exteriorWalkaround" },
+  XSEAT_M1: { host: "XINT_M1", titleKey: "field.self.photos.interior" }
+};
+function photoSections(groups) {
+  const present2 = new Set(groups.map((g) => g.item.item_code));
+  const sections = [];
+  for (const g of groups) {
+    const rule = SHOWN_WITH[g.item.item_code];
+    if (rule && present2.has(rule.host)) continue;
+    const companions = groups.filter((c) => {
+      var _a;
+      return ((_a = SHOWN_WITH[c.item.item_code]) == null ? void 0 : _a.host) === g.item.item_code;
+    });
+    if (companions.length === 0) {
+      sections.push(g);
+      continue;
+    }
+    sections.push({
+      item: g.item,
+      slots: [...g.slots, ...companions.flatMap((c) => c.slots)],
+      minCount: g.minCount + companions.reduce((n, c) => n + c.minCount, 0),
+      titleKey: SHOWN_WITH[companions[0].item.item_code].titleKey
+    });
+  }
+  return sections;
+}
+function activeItemsFor(items, answers) {
+  return items.filter((it) => {
+    if (!it.show_if) return true;
+    const ctrl = answers[it.show_if.item_code];
+    return (ctrl == null ? void 0 : ctrl.saved) === true && ctrl.value === it.show_if.equals;
+  });
+}
 var MODERATE_PLUS = /* @__PURE__ */ new Set(["MODERATE", "MAJOR", "CRITICAL"]);
 function stepForItem(item, partition) {
-  return partition.documents.some((d) => d.item_code === item.item_code) ? "documents" : "checklist";
+  if (partition.documents.some((d) => d.item_code === item.item_code)) return "documents";
+  if (partition.photoDetails.some((d) => d.item_code === item.item_code)) return "photos";
+  return "checklist";
 }
 function buildMissingList(input) {
   var _a, _b, _c;
@@ -208,18 +254,18 @@ function buildMissingList(input) {
     seen.add(key);
     out.push(e);
   };
-  if (has("P1") && !saved("P1")) push({ step: "documents", itemCode: "P1", label: "RC details" });
+  if (has("P1") && !saved("P1")) push({ step: "documents", itemCode: "P1", label: "RC details", labelKey: "field.inspect.missing.rc" });
   if (has("A1") && !saved("A1"))
-    push({ step: "documents", itemCode: "A1", label: "Chassis / VIN number" });
-  for (const [code, label] of [
-    ["O1", "Odometer reading"],
-    ["O2", "Number of previous owners"]
+    push({ step: "photos", itemCode: "A1", label: "Chassis / VIN number", labelKey: "field.inspect.missing.vin" });
+  for (const [code, label, labelKey, step] of [
+    ["O1", "Odometer reading", "field.inspect.missing.odometer", "photos"],
+    ["O2", "Number of previous owners", "field.inspect.missing.owners", "documents"]
   ]) {
     if (!has(code)) continue;
     const a = answers[code];
     const notAssessable = (a == null ? void 0 : a.severity) === "NOT_ASSESSABLE";
     if (!saved(code) || !notAssessable && parseNumeric(code, (_a = a == null ? void 0 : a.num) != null ? _a : "") == null)
-      push({ step: "documents", itemCode: code, label });
+      push({ step, itemCode: code, label, labelKey });
   }
   for (const item of items) {
     if (isEvidenceOnlyItem(item)) {
@@ -228,7 +274,9 @@ function buildMissingList(input) {
         push({
           step: "photos",
           itemCode: item.item_code,
-          label: isVideoItem(item) ? `Add the ${item.label.toLowerCase()}` : `Add photos for ${item.label}`
+          label: isVideoItem(item) ? `Add the ${item.label.toLowerCase()}` : `Add photos for ${item.label}`,
+          labelKey: isVideoItem(item) ? "field.inspect.missing.addVideo" : "field.inspect.missing.addPhotos",
+          labelArg: isVideoItem(item) ? item.label.toLowerCase() : item.label
         });
       }
       continue;
@@ -246,15 +294,23 @@ function buildMissingList(input) {
       push({
         step: docs ? "documents" : isPhotoGridItem(item) ? "photos" : step,
         itemCode: item.item_code,
-        label: docs ? `Upload ${item.label}` : `Add a photo for ${item.label}`
+        label: docs ? `Upload ${item.label}` : `Add a photo for ${item.label}`,
+        labelKey: docs ? "field.inspect.missing.upload" : "field.inspect.missing.addPhoto",
+        labelArg: item.label
       });
     }
     if ((req == null ? void 0 : req.severity_escalation) && MODERATE_PLUS.has(a.severity)) {
       const cost = Number(a.cost);
       if (!a.cost.trim() || !Number.isFinite(cost) || cost < 0)
-        push({ step, itemCode: item.item_code, label: `Repair cost for ${item.label}` });
+        push({
+          step,
+          itemCode: item.item_code,
+          label: `Repair cost for ${item.label}`,
+          labelKey: "field.inspect.missing.repairCost",
+          labelArg: item.label
+        });
       if (a.severity === "CRITICAL" && !a.note.trim())
-        push({ step, itemCode: item.item_code, label: `Note for ${item.label}` });
+        push({ step, itemCode: item.item_code, label: `Note for ${item.label}`, labelKey: "field.inspect.missing.note", labelArg: item.label });
     }
   }
   return out;
@@ -272,11 +328,14 @@ function buildProgress(items, answers, uploadedShots) {
     ptotal += min;
     pdone += Math.min(have, min);
   }
-  const photos = { done: pdone, total: ptotal };
   const savedCount = (list) => list.filter((i) => {
     var _a2;
     return (_a2 = answers[i.item_code]) == null ? void 0 : _a2.saved;
   }).length;
+  const photos = {
+    done: pdone + savedCount(partition.photoDetails),
+    total: ptotal + partition.photoDetails.length
+  };
   const documents = { done: savedCount(partition.documents), total: partition.documents.length };
   const checklist = { done: savedCount(partition.checklist), total: partition.checklist.length };
   const total = photos.total + documents.total + checklist.total;
@@ -287,33 +346,48 @@ function buildProgress(items, answers, uploadedShots) {
 // src/app/inspect/[id]/numeric-confirm.ts
 var MAX_ODOMETER_KM = 9999999;
 var MAX_OWNER_COUNT = 50;
-function parseOdometerKm(raw) {
-  if (raw == null) return null;
-  const text = String(raw).toUpperCase().replace(/KM/g, "").replace(/,/g, "").trim();
-  if (text === "") return null;
-  if (!/^\d+(\.\d+)?$/.test(text)) return null;
-  const n = Number(text);
+function parseOdometerKm(raw2) {
+  if (raw2 == null) return null;
+  const text2 = String(raw2).toUpperCase().replace(/KM/g, "").replace(/,/g, "").trim();
+  if (text2 === "") return null;
+  if (!/^\d+(\.\d+)?$/.test(text2)) return null;
+  const n = Number(text2);
   if (!Number.isFinite(n) || n < 0 || n > MAX_ODOMETER_KM) return null;
   return Math.floor(n);
 }
-function parseOwnerCount(raw) {
-  if (raw == null) return null;
-  const text = String(raw).replace(/,/g, "").trim();
-  if (text === "") return null;
-  if (!/^\d+$/.test(text)) return null;
-  const n = Number(text);
+function parseOwnerCount(raw2) {
+  if (raw2 == null) return null;
+  const text2 = String(raw2).replace(/,/g, "").trim();
+  if (text2 === "") return null;
+  if (!/^\d+$/.test(text2)) return null;
+  const n = Number(text2);
   if (!Number.isFinite(n) || n < 0 || n > MAX_OWNER_COUNT) return null;
   return n;
+}
+function totalOwnersFromPrevious(previousOwners) {
+  return previousOwners == null ? null : previousOwners + 1;
+}
+var MAX_KEY_COUNT = 10;
+function parseKeyCount(raw2) {
+  if (raw2 == null) return null;
+  const text2 = String(raw2).trim();
+  if (!/^\d+$/.test(text2)) return null;
+  const n = Number(text2);
+  return n <= MAX_KEY_COUNT ? n : null;
+}
+function previousOwnersFromRegistry(registryOwnerCount) {
+  if (registryOwnerCount == null || !Number.isInteger(registryOwnerCount) || registryOwnerCount < 1) return null;
+  return registryOwnerCount - 1;
 }
 
 // src/app/inspect/[id]/damage-gate.ts
 var DAMAGE_TYPE_VALUES = ["DENT", "SCRATCH", "CRACK", "RUST", "MISSING", "NONE"];
 var VALID_SEVERITIES = ["NONE", "MINOR", "MODERATE", "MAJOR", "CRITICAL"];
-function toSeverity(raw) {
-  return VALID_SEVERITIES.includes(raw) ? raw : "NONE";
+function toSeverity(raw2) {
+  return VALID_SEVERITIES.includes(raw2) ? raw2 : "NONE";
 }
-function normalizeDamageResult(raw) {
-  if (!raw.hasDamage) {
+function normalizeDamageResult(raw2) {
+  if (!raw2.hasDamage) {
     return {
       hasDamage: false,
       severity: "NONE",
@@ -323,12 +397,12 @@ function normalizeDamageResult(raw) {
       repairCostMinor: 0
     };
   }
-  const partMinor = Math.max(0, Math.floor(raw.partMinor));
-  const labourMinor = Math.max(0, Math.floor(raw.labourMinor));
-  const paintMinor = Math.max(0, Math.floor(raw.paintMinor));
+  const partMinor = Math.max(0, Math.floor(raw2.partMinor));
+  const labourMinor = Math.max(0, Math.floor(raw2.labourMinor));
+  const paintMinor = Math.max(0, Math.floor(raw2.paintMinor));
   return {
     hasDamage: true,
-    severity: toSeverity(raw.severity),
+    severity: toSeverity(raw2.severity),
     partMinor,
     labourMinor,
     paintMinor,
@@ -339,7 +413,7 @@ function normalizeDamageResult(raw) {
 // src/app/inspect/[id]/m1-prompts.ts
 var M1_DENT_PROMPT_VERSION = "m1-dent-v4";
 
-// ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/external.js
+// C:/Users/RAMTOD~1/AppData/Local/Temp/claude/d--TuragAI/b51370cb-2bae-47ea-90aa-0acf1eb4230c/scratchpad/tools/node_modules/zod/v3/external.js
 var external_exports = {};
 __export(external_exports, {
   BRAND: () => BRAND,
@@ -451,7 +525,7 @@ __export(external_exports, {
   void: () => voidType
 });
 
-// ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/helpers/util.js
+// C:/Users/RAMTOD~1/AppData/Local/Temp/claude/d--TuragAI/b51370cb-2bae-47ea-90aa-0acf1eb4230c/scratchpad/tools/node_modules/zod/v3/helpers/util.js
 var util;
 (function(util2) {
   util2.assertEqual = (_) => {
@@ -585,7 +659,7 @@ var getParsedType = (data) => {
   }
 };
 
-// ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/ZodError.js
+// C:/Users/RAMTOD~1/AppData/Local/Temp/claude/d--TuragAI/b51370cb-2bae-47ea-90aa-0acf1eb4230c/scratchpad/tools/node_modules/zod/v3/ZodError.js
 var ZodIssueCode = util.arrayToEnum([
   "invalid_type",
   "invalid_literal",
@@ -703,7 +777,7 @@ ZodError.create = (issues) => {
   return error;
 };
 
-// ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/locales/en.js
+// C:/Users/RAMTOD~1/AppData/Local/Temp/claude/d--TuragAI/b51370cb-2bae-47ea-90aa-0acf1eb4230c/scratchpad/tools/node_modules/zod/v3/locales/en.js
 var errorMap = (issue, _ctx) => {
   let message;
   switch (issue.code) {
@@ -806,7 +880,7 @@ var errorMap = (issue, _ctx) => {
 };
 var en_default = errorMap;
 
-// ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/errors.js
+// C:/Users/RAMTOD~1/AppData/Local/Temp/claude/d--TuragAI/b51370cb-2bae-47ea-90aa-0acf1eb4230c/scratchpad/tools/node_modules/zod/v3/errors.js
 var overrideErrorMap = en_default;
 function setErrorMap(map) {
   overrideErrorMap = map;
@@ -815,7 +889,7 @@ function getErrorMap() {
   return overrideErrorMap;
 }
 
-// ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/helpers/parseUtil.js
+// C:/Users/RAMTOD~1/AppData/Local/Temp/claude/d--TuragAI/b51370cb-2bae-47ea-90aa-0acf1eb4230c/scratchpad/tools/node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
   const { data, path, errorMaps, issueData } = params;
   const fullPath = [...path, ...issueData.path || []];
@@ -925,14 +999,14 @@ var isDirty = (x) => x.status === "dirty";
 var isValid = (x) => x.status === "valid";
 var isAsync = (x) => typeof Promise !== "undefined" && x instanceof Promise;
 
-// ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/helpers/errorUtil.js
+// C:/Users/RAMTOD~1/AppData/Local/Temp/claude/d--TuragAI/b51370cb-2bae-47ea-90aa-0acf1eb4230c/scratchpad/tools/node_modules/zod/v3/helpers/errorUtil.js
 var errorUtil;
 (function(errorUtil2) {
   errorUtil2.errToObj = (message) => typeof message === "string" ? { message } : message || {};
   errorUtil2.toString = (message) => typeof message === "string" ? message : message == null ? void 0 : message.message;
 })(errorUtil || (errorUtil = {}));
 
-// ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/types.js
+// C:/Users/RAMTOD~1/AppData/Local/Temp/claude/d--TuragAI/b51370cb-2bae-47ea-90aa-0acf1eb4230c/scratchpad/tools/node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
   constructor(parent, value, path, key) {
     this._cachedPath = [];
@@ -4533,6 +4607,22 @@ var aiEstimateDetail = external_exports.object({
   negative_factors: external_exports.array(external_exports.string()),
   rationale: external_exports.string()
 });
+var referenceGuard = external_exports.object({
+  version: external_exports.string(),
+  rule: external_exports.enum([
+    "WITHIN_REFERENCE_WINDOW",
+    "BLENDED_TOWARD_REFERENCE",
+    "NO_REFERENCE_HAIRCUT",
+    "NO_REFERENCE_UNCHANGED"
+  ]),
+  raw_ai_mean_minor: external_exports.number(),
+  reference_minor: external_exports.number().nullable(),
+  ai_confidence_level: external_exports.enum(["LOW", "MEDIUM", "HIGH"]),
+  window_low_minor: external_exports.number().nullable(),
+  window_high_minor: external_exports.number().nullable(),
+  final_minor: external_exports.number(),
+  change_pct: external_exports.number()
+});
 var reviewSummary = external_exports.object({
   verdict: external_exports.enum(["REASONABLE", "OVERVALUED", "UNDERVALUED", "ABSTAIN"]),
   cited_evidence: external_exports.array(external_exports.string()),
@@ -4548,7 +4638,9 @@ var finalEstimatedValue = external_exports.object({
   estimates: external_exports.array(aiEstimateDetail).optional(),
   run_id: external_exports.string().optional(),
   evidence_status: external_exports.enum(["NONE", "INSUFFICIENT", "ANCHORED"]).optional(),
-  review: reviewSummary.nullable().optional()
+  review: reviewSummary.nullable().optional(),
+  ai_mean_minor: external_exports.number().nullable().optional(),
+  guard: referenceGuard.nullable().optional()
 });
 var valuationOutput = external_exports.object({
   valuation_id: external_exports.string(),
@@ -4694,8 +4786,9 @@ var report = external_exports.object({
 
 // ../../packages/contracts/src/auth.ts
 var phone = external_exports.string().trim().min(8).max(20).regex(/^\+?[0-9\s-]+$/, "Enter a valid phone number.");
-var otpCode = external_exports.string().trim().regex(/^[0-9]{4,8}$/, "Enter the code from your SMS.");
-var otpStartRequest = external_exports.object({ phone });
+var otpCode = external_exports.string().trim().regex(/^[0-9]{4,8}$/, "Enter the 6-digit code we sent you.");
+var otpChannel = external_exports.enum(["whatsapp", "sms"]);
+var otpStartRequest = external_exports.object({ phone, channel: otpChannel.optional() });
 var otpStartResponse = external_exports.object({
   otp_token: external_exports.string(),
   expires_in: external_exports.number().int().positive(),
@@ -4704,6 +4797,7 @@ var otpStartResponse = external_exports.object({
   /** Dev/staging only: DevOtpProvider surfaces the code so testers can complete the flow. Never set in production. */
   dev_hint: external_exports.string().optional()
 });
+var otpChannelsResponse = external_exports.object({ channels: external_exports.array(otpChannel) });
 var otpVerifyRequest = external_exports.object({
   otp_token: external_exports.string().min(1),
   code: otpCode,
@@ -4714,6 +4808,38 @@ var passwordLoginRequest = external_exports.object({
   email: external_exports.string().trim().min(3).max(254),
   password: external_exports.string().min(1).max(200)
 });
+var passwordConfirmationRequired = external_exports.object({
+  confirmation_required: external_exports.literal(true),
+  otp_token: external_exports.string(),
+  /** Send back with the code: binds the confirmation to this password step. */
+  confirm_ticket: external_exports.string(),
+  /** The account's mobile, masked ("+91 98•••••210"). */
+  phone_hint: external_exports.string(),
+  expires_in: external_exports.number().int(),
+  /** Dev/staging only. */
+  dev_hint: external_exports.string().optional(),
+  request_id: external_exports.string()
+});
+var passwordConfirmRequest = external_exports.object({
+  email: external_exports.string().trim().min(3).max(254),
+  otp_token: external_exports.string().min(1).max(500),
+  confirm_ticket: external_exports.string().min(1).max(200),
+  code: external_exports.string().trim().min(4).max(10)
+});
+var passwordForgotRequest = external_exports.object({
+  identifier: external_exports.string().trim().min(3).max(254)
+});
+var passwordForgotResponse = external_exports.object({
+  otp_token: external_exports.string(),
+  expires_in: external_exports.number().int().positive(),
+  resend_after: external_exports.number().int().nonnegative(),
+  request_id: external_exports.string()
+});
+var passwordResetRequest = external_exports.object({
+  otp_token: external_exports.string().min(1).max(64),
+  code: otpCode,
+  password: external_exports.string().min(1).max(200)
+});
 var userSummary = external_exports.object({
   id: external_exports.string(),
   phone_masked: external_exports.string(),
@@ -4722,6 +4848,8 @@ var userSummary = external_exports.object({
   email: external_exports.string().nullable(),
   /** Whether that email is verified (via email OTP) and therefore usable to log in. */
   email_verified: external_exports.boolean(),
+  /** Whether the mobile number was proven by an OTP (sign-in or dealer confirmation). */
+  phone_verified: external_exports.boolean(),
   /** URL to the user's OWN profile photo (authenticated serving route), or null → initials monogram. */
   avatar_url: external_exports.string().nullable(),
   roles: external_exports.array(external_exports.string())
@@ -4780,10 +4908,21 @@ var meResponse = external_exports.object({
    *  kept out of the identity-only `userSummary` embedded in auth-token responses (PII minimisation, §32). */
   member_since: external_exports.string(),
   consents_summary: external_exports.array(consentSummaryItem),
+  /**
+   * The user still owes the required account consent (Terms + Privacy) — resolved server-side with the same rule
+   * as sign-in's `consent_required`, so clients never re-derive it from the summary. Additive field.
+   */
+  consent_required: external_exports.boolean(),
   request_id: external_exports.string()
 });
 var updateMeRequest = external_exports.object({
   name: external_exports.string().trim().min(1, "Enter your name.").max(80, "Name is too long.")
+});
+var deleteMeRequest = external_exports.object({ confirm: external_exports.literal("DELETE") });
+var businessInterestRequest = external_exports.object({ kind: external_exports.enum(["DEALER", "BANK"]) });
+var businessInterestResponse = external_exports.object({
+  whatsapp_queued: external_exports.boolean(),
+  request_id: external_exports.string()
 });
 var email = external_exports.string().trim().min(3).max(254);
 var emailVerifyStartRequest = external_exports.object({ email });
@@ -4801,17 +4940,234 @@ var emailConfirmResponse = external_exports.object({
   verified: external_exports.boolean(),
   request_id: external_exports.string()
 });
+var phoneVerifyStartRequest = external_exports.object({ channel: external_exports.enum(["whatsapp", "sms"]).optional() });
+var phoneVerifyStartResponse = external_exports.object({
+  /** True when the mobile is already verified (nothing was sent). */
+  already_verified: external_exports.boolean(),
+  otp_token: external_exports.string().optional(),
+  expires_in: external_exports.number().int().optional(),
+  resend_after: external_exports.number().int().optional(),
+  /** Dev/staging only. */
+  dev_hint: external_exports.string().optional(),
+  request_id: external_exports.string()
+});
+var phoneVerifyConfirmRequest = external_exports.object({ otp_token: external_exports.string().min(1).max(500), code: external_exports.string().trim().min(4).max(10) });
+var phoneVerifyConfirmResponse = external_exports.object({ phone_verified: external_exports.literal(true), request_id: external_exports.string() });
 
 // ../../packages/contracts/src/consent.ts
-var CONSENT_PURPOSES = ["ACCOUNT_TERMS", "PRIVACY_POLICY", "MARKETING"];
+var CONSENT_PURPOSES = ["ACCOUNT_TERMS", "PRIVACY_POLICY", "MARKETING", "WHATSAPP"];
 var consentPurpose = external_exports.enum(CONSENT_PURPOSES);
 var recordConsentRequest = external_exports.object({
-  accept_terms: external_exports.boolean(),
-  accept_privacy: external_exports.boolean(),
-  marketing: external_exports.boolean().optional()
-});
+  accept_terms: external_exports.boolean().optional(),
+  accept_privacy: external_exports.boolean().optional(),
+  marketing: external_exports.boolean().optional(),
+  /** WhatsApp opt-in (ADR-0044): true grants, false withdraws, omitted leaves it unchanged. */
+  whatsapp: external_exports.boolean().optional()
+}).refine(
+  (v) => v.accept_terms !== void 0 || v.accept_privacy !== void 0 || v.marketing !== void 0 || v.whatsapp !== void 0,
+  { message: "At least one consent purpose is required." }
+);
 var recordConsentResponse = external_exports.object({
   consents_summary: external_exports.array(consentSummaryItem),
+  request_id: external_exports.string()
+});
+
+// ../../packages/contracts/src/car-alerts.ts
+var carAlertScope = external_exports.enum(["MATCH", "ALL"]);
+var text = external_exports.string().trim().min(1).max(60);
+var paise = external_exports.number().int().nonnegative().max(1e10);
+var createCarAlertRequest = external_exports.object({
+  scope: carAlertScope.default("MATCH"),
+  make: text.optional(),
+  model: text.optional(),
+  body_type: text.optional(),
+  fuel: text.optional(),
+  transmission: text.optional(),
+  city: text.optional(),
+  price_min_minor: paise.optional(),
+  price_max_minor: paise.optional(),
+  year_min: external_exports.number().int().min(1980).max(2100).optional()
+}).refine((v) => v.price_min_minor === void 0 || v.price_max_minor === void 0 || v.price_min_minor <= v.price_max_minor, {
+  message: "Minimum price must not exceed maximum price.",
+  path: ["price_min_minor"]
+});
+var carAlertView = external_exports.object({
+  id: external_exports.string(),
+  scope: carAlertScope,
+  make: external_exports.string().nullable(),
+  model: external_exports.string().nullable(),
+  body_type: external_exports.string().nullable(),
+  fuel: external_exports.string().nullable(),
+  transmission: external_exports.string().nullable(),
+  city: external_exports.string().nullable(),
+  price_min_minor: external_exports.number().nullable(),
+  price_max_minor: external_exports.number().nullable(),
+  year_min: external_exports.number().nullable(),
+  created_at: external_exports.string()
+});
+var carAlertResponse = external_exports.object({ alert: carAlertView, request_id: external_exports.string() });
+var carAlertListResponse = external_exports.object({ alerts: external_exports.array(carAlertView), request_id: external_exports.string() });
+
+// ../../packages/contracts/src/insights.ts
+var heardFromOption = external_exports.enum([
+  "GOOGLE",
+  "INSTAGRAM",
+  "FACEBOOK",
+  "YOUTUBE",
+  "FRIEND_FAMILY",
+  "DEALER",
+  "CAR_PORTAL",
+  "WHATSAPP",
+  "NEWS_PRINT",
+  "OTHER"
+]);
+var intentOption = external_exports.enum(["BUY", "SELL", "VALUE", "INSPECTION", "EXPLORE"]);
+var timelineOption = external_exports.enum(["THIS_WEEK", "THIS_MONTH", "ONE_TO_THREE_MONTHS", "RESEARCHING"]);
+var feedbackKind = external_exports.enum(["VALUE_ACCURACY", "NPS", "BOOKING_CANCEL_REASON"]);
+var valueAccuracyChoice = external_exports.enum(["TOO_LOW", "ABOUT_RIGHT", "TOO_HIGH"]);
+var cancelReasonChoice = external_exports.enum(["PRICE", "TIMING", "SOLD_OR_BOUGHT_ELSEWHERE", "CHANGED_MIND", "BAD_EXPERIENCE", "OTHER"]);
+var profileAnswersView = external_exports.object({
+  status: external_exports.enum(["ANSWERED", "SKIPPED"]),
+  heard_from: heardFromOption.nullable(),
+  heard_from_other: external_exports.string().nullable(),
+  intents: external_exports.array(intentOption),
+  timeline: timelineOption.nullable(),
+  answered_at: external_exports.string().nullable()
+});
+var profileAnswersResponse = external_exports.object({ answers: profileAnswersView.nullable(), request_id: external_exports.string() });
+var answersBody = external_exports.object({
+  heard_from: heardFromOption.nullable().optional(),
+  heard_from_other: external_exports.string().max(80).nullable().optional(),
+  intents: external_exports.array(intentOption).max(5).default([]),
+  timeline: timelineOption.nullable().optional()
+}).strict();
+var saveProfileAnswersRequest = external_exports.union([external_exports.object({ skip: external_exports.literal(true) }).strict(), answersBody]);
+var raw = (max) => external_exports.string().max(max).nullable().optional();
+var recordAttributionRequest = external_exports.object({
+  utm_source: raw(300),
+  utm_medium: raw(300),
+  utm_campaign: raw(300),
+  utm_term: raw(300),
+  utm_content: raw(300),
+  gclid: raw(500),
+  fbclid: raw(500),
+  referrer_host: raw(300),
+  landing_path: raw(1e3),
+  first_seen_at: external_exports.string().datetime().nullable().optional()
+}).strict();
+var recordAttributionResponse = external_exports.object({ recorded: external_exports.boolean(), request_id: external_exports.string() });
+var submitFeedbackRequest = external_exports.object({
+  kind: feedbackKind,
+  subject_id: external_exports.string().min(1).max(64),
+  score: external_exports.number().int().min(0).max(10).nullable().optional(),
+  choice: external_exports.union([valueAccuracyChoice, cancelReasonChoice]).nullable().optional(),
+  comment: external_exports.string().max(500).nullable().optional()
+}).strict();
+var feedbackView = external_exports.object({
+  id: external_exports.string(),
+  kind: feedbackKind,
+  subject_type: external_exports.enum(["VALUATION", "ORDER", "BOOKING"]),
+  subject_id: external_exports.string(),
+  score: external_exports.number().nullable(),
+  choice: external_exports.string().nullable(),
+  comment: external_exports.string().nullable(),
+  created_at: external_exports.string()
+});
+var submitFeedbackResponse = external_exports.object({ feedback: feedbackView, created: external_exports.boolean(), request_id: external_exports.string() });
+var myFeedbackResponse = external_exports.object({ feedback: feedbackView.nullable(), request_id: external_exports.string() });
+var insightsRangeQuery = external_exports.enum(["30", "90", "365"]);
+var bucket = external_exports.object({ key: external_exports.string(), count: external_exports.number().int() });
+var insightsSummaryResponse = external_exports.object({
+  range_days: external_exports.number().int(),
+  since: external_exports.string(),
+  until: external_exports.string(),
+  signups: external_exports.number().int(),
+  answered: external_exports.number().int(),
+  skipped: external_exports.number().int(),
+  answered_pct: external_exports.number().int().nullable(),
+  heard_from: external_exports.array(bucket),
+  intents: external_exports.array(bucket),
+  timeline: external_exports.array(bucket),
+  top_utm_sources: external_exports.array(bucket),
+  top_referrers: external_exports.array(bucket),
+  value_accuracy: external_exports.array(bucket),
+  value_about_right_pct: external_exports.number().int().nullable(),
+  nps: external_exports.object({
+    count: external_exports.number().int(),
+    promoters: external_exports.number().int(),
+    passives: external_exports.number().int(),
+    detractors: external_exports.number().int(),
+    score: external_exports.number().int().nullable()
+  }),
+  cancel_reasons: external_exports.array(bucket),
+  /** Anonymous: no name, phone or user id. */
+  latest_comments: external_exports.array(
+    external_exports.object({
+      kind: feedbackKind,
+      score: external_exports.number().nullable(),
+      choice: external_exports.string().nullable(),
+      comment: external_exports.string(),
+      created_at: external_exports.string()
+    })
+  ),
+  request_id: external_exports.string()
+});
+
+// ../../packages/contracts/src/product-funnel.ts
+var consentChoiceRequest = external_exports.object({ choice: external_exports.enum(["granted", "denied"]) }).strict();
+var funnelRangeQuery = external_exports.enum(["7", "30", "90"]);
+var funnelStepKey = external_exports.enum([
+  "VALUATIONS_STARTED",
+  "VALUATIONS_COMPLETED",
+  "SIGNUPS",
+  "BOOKINGS_CREATED",
+  "BOOKINGS_PAID",
+  "INSPECTIONS_COMPLETED",
+  "LISTINGS_CREATED",
+  "LISTINGS_PUBLISHED",
+  "OFFERS_MADE",
+  "OFFERS_ACCEPTED",
+  "TOKENS_PAID",
+  "SALES_COMPLETED"
+]);
+var funnelStepView = external_exports.object({
+  key: funnelStepKey,
+  count: external_exports.number().int(),
+  /** % of the step before, one decimal; null for the first step or when the step before is 0. Can exceed 100. */
+  pct_of_previous: external_exports.number().nullable(),
+  /** % of the first step, one decimal; null when the first step is 0. */
+  pct_of_first: external_exports.number().nullable()
+});
+var funnelDailyPoint = external_exports.object({
+  /** IST calendar day, YYYY-MM-DD. */
+  day: external_exports.string(),
+  signups: external_exports.number().int(),
+  valuations_completed: external_exports.number().int(),
+  bookings_created: external_exports.number().int(),
+  offers_made: external_exports.number().int(),
+  sales_completed: external_exports.number().int()
+});
+var funnelSummaryResponse = external_exports.object({
+  range_days: external_exports.number().int(),
+  from_day: external_exports.string(),
+  to_day: external_exports.string(),
+  since: external_exports.string(),
+  until: external_exports.string(),
+  steps: external_exports.array(funnelStepView),
+  biggest_drop: funnelStepKey.nullable(),
+  bookings_cancelled: external_exports.number().int(),
+  saved_listings: external_exports.number().int(),
+  car_alerts_created: external_exports.number().int(),
+  signups_answered: external_exports.number().int(),
+  /** % of the range's sign-ups that answered the profile questions, one decimal; null with no sign-ups. */
+  profile_answer_rate: external_exports.number().nullable(),
+  consent: external_exports.object({
+    granted: external_exports.number().int(),
+    denied: external_exports.number().int(),
+    /** granted / (granted + denied) as a %, one decimal; null with no choices. */
+    acceptance_rate: external_exports.number().nullable()
+  }),
+  daily: external_exports.array(funnelDailyPoint),
   request_id: external_exports.string()
 });
 
@@ -4890,6 +5246,10 @@ var savedVehicleView = external_exports.object({
   /** ADR-0038: the vehicle has a report-ready inspection (self or inspector) → it may be listed. When false
    *  the garage offers "Self-inspect now" / "Book an inspector" instead of "List this vehicle". */
   inspection_eligible: external_exports.boolean().optional(),
+  /** Self-inspection paywall (ADR): the latest M1 inspection is captured but its ₹fee is not yet paid (a
+   *  non-captured SELF_INSPECTION_FEE payment exists). The garage then shows "Complete payment" and resumes
+   *  the SAME inspection at its pay step — never a fresh self-inspection. Absent/false when no fee is pending. */
+  self_inspection_payment_pending: external_exports.boolean().optional(),
   /** The vehicle's active listing (PENDING_REVIEW/LIVE), if any — so the garage can disable "List this
    *  vehicle" and link to the existing listing instead. Null when the vehicle isn't currently listed. */
   listing_id: external_exports.string().nullable().optional(),
@@ -4938,7 +5298,7 @@ var gradeCapReason = external_exports.enum([
   "AIRBAG_MISSING"
 ]);
 var evidenceKind = external_exports.enum(["PHOTO", "VIDEO", "AUDIO", "DOCUMENT", "MEASUREMENT"]);
-var answerType = external_exports.enum(["STATE", "NUMERIC", "BOOL"]);
+var answerType = external_exports.enum(["STATE", "NUMERIC", "BOOL", "CHOICE", "DATE"]);
 var shotCategory = external_exports.enum([
   "EXTERIOR",
   "INTERIOR",
@@ -4976,7 +5336,21 @@ var evidenceRequirement = external_exports.object({
   /** schema_version 2 — the enforced per-shot matrix for this item (spec §6.2). */
   shots: external_exports.array(shotSpec).optional(),
   /** When true, MODERATE+ requires a cost estimate and CRITICAL requires a note (severity escalation). */
-  severity_escalation: external_exports.boolean().default(false)
+  severity_escalation: external_exports.boolean().default(false),
+  /**
+   * VIDEO items only: the longest clip the capture client accepts, in seconds. A capture-UX limit that
+   * every client (web, future mobile) reads from config rather than hardcoding; the server enforces the
+   * byte ceiling (MEDIA_LIMITS), not duration. Absent ⇒ no duration limit.
+   */
+  max_duration_s: external_exports.number().int().positive().optional(),
+  /** VIDEO items only: the shortest clip the capture client accepts, in seconds (same UX-limit semantics). */
+  min_duration_s: external_exports.number().int().positive().optional(),
+  /**
+   * Evidence-only items: when true, submit requires a capture for EVERY listed `shot_codes` entry, not just
+   * `min_count` uploads (e.g. the four front-seat shots). Per item, so the globally relaxed angle-coverage
+   * rule stays as it is for every other item. Absent ⇒ count-only, as before.
+   */
+  require_all_shots: external_exports.boolean().optional()
 });
 var checklistItemSpec = external_exports.object({
   item_code: external_exports.string().min(1),
@@ -5009,7 +5383,17 @@ var checklistItemSpec = external_exports.object({
    */
   dynamic: external_exports.boolean().default(false),
   evidence_requirement: evidenceRequirement.optional(),
-  grade_cap: external_exports.object({ reason: gradeCapReason }).optional()
+  grade_cap: external_exports.object({ reason: gradeCapReason }).optional(),
+  /** CHOICE items: the allowed answers. `value` is stored; `label` is the default display text. */
+  choices: external_exports.array(external_exports.object({ value: external_exports.string().min(1).max(64), label: external_exports.string().min(1) })).min(2).optional(),
+  /**
+   * Conditional follow-up: the item applies only when another item's stored answer (`value_text`) equals
+   * `equals` (e.g. the servicing date only when "serviced recently" is YES). An inactive item is never
+   * required at submit and is hidden by capture clients.
+   */
+  show_if: external_exports.object({ item_code: external_exports.string().min(1), equals: external_exports.string().min(1) }).optional(),
+  /** CHOICE items: answers that also require a text note (e.g. flood YES → describe the damage). */
+  note_required_for: external_exports.array(external_exports.string().min(1)).optional()
 });
 var checklistSection = external_exports.object({
   group_code: external_exports.string().min(1),
@@ -5152,6 +5536,8 @@ var mlSuggestion = external_exports.object({
 var recordResponseRequest = external_exports.object({
   severity,
   numeric_value: external_exports.number().optional(),
+  /** CHOICE/DATE items: the chosen value or YYYY-MM-DD date (validated against the pinned checklist). */
+  value_text: external_exports.string().trim().min(1).max(64).optional(),
   unit: external_exports.string().optional(),
   text_note: external_exports.string().optional(),
   na_reason: naReason.optional(),
@@ -5183,6 +5569,8 @@ var inspectionItemView = external_exports.object({
   group_code: external_exports.string(),
   severity,
   numeric_value: external_exports.number().nullable(),
+  /** CHOICE/DATE answer. Optional so older views/fixtures stay valid. */
+  value_text: external_exports.string().nullable().optional(),
   unit: external_exports.string().nullable(),
   text_note: external_exports.string().nullable(),
   na_reason: naReason.nullable(),
@@ -5309,12 +5697,25 @@ var inspectionReport = external_exports.object({
   generated_at: external_exports.string()
 });
 var inspectionResponse = external_exports.object({ inspection: inspectionView, request_id: external_exports.string() });
+var inspectionReferenceValuationResponse = external_exports.object({
+  valuation: external_exports.object({
+    valuation_id: external_exports.string(),
+    stage: external_exports.string(),
+    /** The stored headline value (paise) — exactly what the evaluate result screen displayed. */
+    value_minor: external_exports.number().int(),
+    valid_until: external_exports.string(),
+    created_at: external_exports.string()
+  }).nullable(),
+  request_id: external_exports.string()
+});
 var qcQueueScope = external_exports.enum(["pending", "redaction", "passed", "self"]);
 var qcQueueItem = external_exports.object({
   inspection: inspectionView,
   // Present only for the post-QC scopes (redaction/passed); omitted for the pending queue (unchanged).
   photo_total: external_exports.number().int().nonnegative().optional(),
-  photo_redacted: external_exports.number().int().nonnegative().optional()
+  photo_redacted: external_exports.number().int().nonnegative().optional(),
+  /** The vehicle's make/model/year for the queue row (additive; null when the vehicle row is missing). */
+  vehicle: external_exports.object({ make: external_exports.string(), model: external_exports.string(), mfg_year: external_exports.number().int() }).nullable().optional()
 });
 var qcQueueResponse = external_exports.object({ items: external_exports.array(qcQueueItem), request_id: external_exports.string() });
 var identityFieldVerdict = external_exports.enum(["MATCH", "MISMATCH", "UNREADABLE", "NOT_AVAILABLE"]);
@@ -5346,6 +5747,31 @@ var identityVerifyVerdicts = external_exports.object({
 });
 var identityVerifyResponse = external_exports.object({
   verdicts: identityVerifyVerdicts,
+  request_id: external_exports.string()
+});
+var documentMatchRow = external_exports.object({
+  field: external_exports.enum([
+    "REGISTRATION_NUMBER",
+    "CHASSIS_NUMBER",
+    "ENGINE_NUMBER",
+    "MAKE_MODEL",
+    "FUEL",
+    "MFG_YEAR",
+    "INSURER",
+    "INSURANCE_VALID_UNTIL",
+    "PREVIOUS_OWNERS"
+  ]),
+  source: external_exports.enum(["RC_READ", "VIN_PLATE", "RC_DOCUMENT", "INSURANCE_DOCUMENT", "OWNERS"]),
+  against: external_exports.enum(["REGISTRY", "RC_READ"]),
+  expected: external_exports.string().nullable(),
+  expected_hidden: external_exports.boolean(),
+  detected: external_exports.string().nullable(),
+  verdict: identityFieldVerdict
+});
+var documentMatchResponse = external_exports.object({
+  has_registry: external_exports.boolean(),
+  mismatch_count: external_exports.number().int().nonnegative(),
+  rows: external_exports.array(documentMatchRow),
   request_id: external_exports.string()
 });
 var inspectionReportResponse = external_exports.object({ report: inspectionReport, request_id: external_exports.string() });
@@ -5531,6 +5957,12 @@ var derivativeUrlResponse = external_exports.object({
   expires_at: external_exports.string(),
   request_id: external_exports.string()
 });
+var documentOriginalUrlResponse = external_exports.object({
+  url: external_exports.string(),
+  content_type: external_exports.string(),
+  expires_at: external_exports.string(),
+  request_id: external_exports.string()
+});
 
 // ../../packages/contracts/src/report-data.ts
 var verificationLabel = external_exports.enum([
@@ -5653,6 +6085,24 @@ var reportChecklistItem = external_exports.object({
   note: external_exports.string().nullable(),
   scored: external_exports.boolean()
 });
+var reportChallan = external_exports.object({
+  challan_number: external_exports.string().nullable(),
+  violation: external_exports.string().nullable(),
+  date: external_exports.string().nullable(),
+  fine_minor: external_exports.number().int().nonnegative().nullable(),
+  status: external_exports.string().nullable(),
+  state: external_exports.string().nullable(),
+  issuing_authority: external_exports.string().nullable()
+});
+var reportChallans = external_exports.object({
+  outcome: external_exports.enum(["CLEAN", "FOUND", "NOT_FOUND", "UNAVAILABLE"]),
+  pending_count: external_exports.number().int().nonnegative().nullable(),
+  total_fine_minor: external_exports.number().int().nonnegative().nullable(),
+  currency: external_exports.literal("INR"),
+  /** When the check ran — challans change often, so readers show this "as of" time. */
+  checked_at: external_exports.string(),
+  challans: external_exports.array(reportChallan)
+});
 var reportData = external_exports.object({
   identity: external_exports.object({
     inspection_id: external_exports.string(),
@@ -5691,6 +6141,8 @@ var reportData = external_exports.object({
   //     Backward compatible: absent on older payloads, populated by the current assembler. ---
   /** RTO/Vahan section from the linked registry snapshot (non-PII). null when no snapshot is linked. */
   registry: reportRegistry.nullable().optional(),
+  /** Traffic challans from the latest check (ADR-0050). null/absent when the vehicle was never checked. */
+  challans: reportChallans.nullable().optional(),
   /** Identity-gate outcome (persisted signal; live per-field verdicts are ephemeral by DPDP design). */
   identity_check: reportIdentityCheck.nullable().optional(),
   /** Every assessed item with its real label + Turag severity — the detailed inspection breakdown. */
@@ -5731,10 +6183,31 @@ var publicVerificationResponse = external_exports.object({ verification: publicV
 var shareResponse = external_exports.object({ share_url: external_exports.string(), verify_url: external_exports.string(), expires_at: external_exports.string(), request_id: external_exports.string() });
 
 // ../../packages/contracts/src/listings.ts
-var listingStatus = external_exports.enum(["DRAFT", "PENDING_REVIEW", "REJECTED", "LIVE", "RESERVED", "WITHDRAWN", "EXPIRED"]);
+var listingStatus = external_exports.enum([
+  "DRAFT",
+  "PENDING_REVIEW",
+  "CHANGES_REQUESTED",
+  "REJECTED",
+  "LIVE",
+  "RESERVED",
+  "WITHDRAWN",
+  "EXPIRED"
+]);
 var listingChannel = external_exports.enum(["PUBLIC", "INSTITUTIONAL"]);
 var listingType = external_exports.enum(["FIXED", "AUCTION"]);
 var money = external_exports.object({ amount_minor: external_exports.number().int().positive(), currency: external_exports.literal("INR") });
+var listingLocation = external_exports.object({
+  state: external_exports.string().min(1).max(60),
+  city: external_exports.string().min(1).max(60),
+  /** Finer area within the city (suburb/locality, e.g. "Baner") — best-effort from the geocode, optional. */
+  locality: external_exports.string().max(80).nullable().optional(),
+  pincode: external_exports.string().regex(/^\d{6}$/).nullable().optional(),
+  address_line: external_exports.string().max(300).nullable().optional(),
+  building: external_exports.string().max(200).nullable().optional(),
+  landmark: external_exports.string().max(200).nullable().optional(),
+  geo_lat: external_exports.number().min(-90).max(90).nullable().optional(),
+  geo_lng: external_exports.number().min(-180).max(180).nullable().optional()
+});
 var listingVehicle = external_exports.object({
   make: external_exports.string(),
   model: external_exports.string(),
@@ -5758,9 +6231,11 @@ var createListingRequest = external_exports.object({
   ask_price: money,
   reserve_price: money.nullable().optional(),
   seller_note: external_exports.string().max(2e3).nullable().optional(),
-  /** Seller-declared launch-region city (Phase 8) — controlled enum, never free text. */
-  city: external_exports.enum(["PUNE", "PCMC"]).nullable().optional(),
-  ownership_attested: external_exports.literal(true)
+  /** Seller-declared location — city + state required (captured via the map picker). */
+  location: listingLocation,
+  ownership_attested: external_exports.literal(true),
+  /** The dealership to list for — only needed when the seller belongs to more than one (else automatic). */
+  seller_org_id: external_exports.string().min(1).nullable().optional()
 });
 var updateListingRequest = external_exports.object({
   ask_price: money.optional(),
@@ -5769,7 +6244,7 @@ var updateListingRequest = external_exports.object({
   version: external_exports.number().int().positive()
 });
 var moderateListingRequest = external_exports.object({
-  decision: external_exports.enum(["APPROVE", "REJECT"]),
+  decision: external_exports.enum(["APPROVE", "REQUEST_CHANGES", "REJECT"]),
   reason: external_exports.string().max(1e3).nullable().optional()
 });
 var listingView = external_exports.object({
@@ -5783,6 +6258,8 @@ var listingView = external_exports.object({
   seller_note: external_exports.string().nullable(),
   /** Seller self-declared ownership — NEVER verified ownership. */
   ownership_attested: external_exports.boolean(),
+  /** Seller-declared location (city/state + optional fuller address). Null on legacy pre-location rows. */
+  location: listingLocation.nullable(),
   verification: listingVerification,
   /** The pinned valuation snapshot as price context (READY) or NOT_READY (production fail-closed). */
   valuation_context: reportValuation,
@@ -5815,8 +6292,38 @@ var listingSummary = external_exports.object({
   published_at: external_exports.string().nullable(),
   expires_at: external_exports.string().nullable()
 });
+var moderationScope = external_exports.enum(["pending", "changes_requested", "approved", "rejected"]);
+var moderationQueueQuery = external_exports.object({
+  scope: moderationScope.default("pending"),
+  page: external_exports.coerce.number().int().min(1).max(1e4).default(1),
+  page_size: external_exports.coerce.number().int().min(1).max(100).default(20),
+  /** Free-text filter on make / model / listing id. */
+  q: external_exports.string().trim().max(100).optional()
+});
+var moderationQueueItem = listingSummary.extend({
+  /** The pinned valuation's headline value (paise), or null when there is no valuation / it is unavailable. */
+  valuation_headline: money.nullable(),
+  /** The latest moderation reason (send-back or rejection), or null. */
+  moderation_reason: external_exports.string().nullable(),
+  updated_at: external_exports.string().nullable()
+});
+var moderationCounts = external_exports.object({
+  pending: external_exports.number().int().nonnegative(),
+  changes_requested: external_exports.number().int().nonnegative(),
+  approved: external_exports.number().int().nonnegative(),
+  rejected: external_exports.number().int().nonnegative()
+});
 var listingResponse = external_exports.object({ listing: listingView, request_id: external_exports.string() });
 var listingListResponse = external_exports.object({ listings: external_exports.array(listingSummary), request_id: external_exports.string() });
+var moderationQueueResponse = external_exports.object({
+  listings: external_exports.array(moderationQueueItem),
+  page: external_exports.number().int(),
+  page_size: external_exports.number().int(),
+  /** Rows matching the scope + search (for pagination). */
+  total: external_exports.number().int().nonnegative(),
+  counts: moderationCounts,
+  request_id: external_exports.string()
+});
 var setShowcaseRequest = external_exports.object({
   listing_ids: external_exports.array(external_exports.string().min(1)).min(1).max(100),
   sold: external_exports.boolean()
@@ -5829,8 +6336,17 @@ var setShowcaseResponse = external_exports.object({
   request_id: external_exports.string()
 });
 
+// ../../packages/contracts/src/vehicle-tier.ts
+var vehicleTier = external_exports.enum(["BUDGET", "ASSURED", "PREMIUM"]);
+var TIER_RULES = {
+  premium: { grades: ["A_PLUS", "A"], minScore: 85, minPriceMinor: 1e6 * 100 },
+  assured: { grades: ["A_PLUS", "A", "B"], minScore: 70 }
+};
+
 // ../../packages/contracts/src/marketplace.ts
 var marketplaceCity = external_exports.string().max(50);
+var marketplaceState = external_exports.string().max(60);
+var marketplaceLocality = external_exports.string().max(80);
 var marketplaceSort = external_exports.enum(["price_asc", "price_desc", "recent", "relevance"]);
 var marketplaceFilters = external_exports.object({
   category: inspectionCategory.optional(),
@@ -5842,6 +6358,7 @@ var marketplaceFilters = external_exports.object({
   min_price: external_exports.number().int().nonnegative().optional(),
   max_price: external_exports.number().int().positive().optional(),
   grade_min: grade.optional(),
+  tier: vehicleTier.optional(),
   fuel: external_exports.string().max(30).optional(),
   transmission: external_exports.string().max(30).optional(),
   body_type: external_exports.string().max(50).optional(),
@@ -5903,11 +6420,15 @@ var publicFindingsSummary = external_exports.object({
 var publicListingSummary = external_exports.object({
   listing_id: external_exports.string(),
   ...vehicleFacets,
+  locality: marketplaceLocality.nullable(),
   city: marketplaceCity.nullable(),
+  state: marketplaceState.nullable(),
   ask_price: money,
   grade: grade.nullable(),
   coverage_pct: external_exports.number().nullable(),
   verification_label: verificationLabel,
+  /** Budget / Assured / Premium, derived from the verified inspection + asking price (see vehicle-tier.ts). */
+  tier: vehicleTier,
   status: external_exports.enum(["LIVE", "RESERVED"]),
   fair_price: publicFairPrice,
   findings_summary: publicFindingsSummary.nullable(),
@@ -5968,30 +6489,42 @@ var publicListingOverview = external_exports.object({
   color: external_exports.string().nullable(),
   seating_capacity: external_exports.number().int().positive().nullable(),
   engine_cc: external_exports.number().int().positive().nullable(),
-  city: marketplaceCity.nullable()
+  locality: marketplaceLocality.nullable(),
+  city: marketplaceCity.nullable(),
+  state: marketplaceState.nullable()
 });
 var publicListingDetail = external_exports.object({
   listing_id: external_exports.string(),
   ...vehicleFacets,
+  locality: marketplaceLocality.nullable(),
   city: marketplaceCity.nullable(),
+  state: marketplaceState.nullable(),
   ask_price: money,
   status: external_exports.enum(["LIVE", "RESERVED"]),
   // available | reserved
   /** Launch-preview showcase listing: shown with a SOLD badge and not open for offers. Defaults false. */
   is_showcase: external_exports.boolean().default(false),
+  /** Budget / Assured / Premium, derived from the verified inspection + asking price (see vehicle-tier.ts). */
+  tier: vehicleTier,
   fair_price: publicFairPrice,
   /** At-a-glance vehicle facts (make/registration year, km, owners, insurance validity, body facts). */
   overview: publicListingOverview,
   report: publicReport.nullable(),
   // null when no inspection is pinned
+  /** Traffic challans from the latest check (ADR-0050). Absent/null when never checked. Non-PII. */
+  challans: reportChallans.nullable().optional(),
   eligibility: publicEligibility,
   /** The public gallery — short-lived signed URLs to REDACTED (ops-approved) photos only. Empty until
    *  redaction approval; the raw originals are never served (INV-EVI-02). */
   photos: external_exports.array(external_exports.string()),
   /** The same redacted gallery, each photo tagged with its category so the client can render buyer-facing
-   *  tabs (Exterior / Engine / Interior / Tyre / Extras). Additive to `photos` (which stays the flat list
-   *  for existing consumers). `photos[i]` and `photos_by_category[i]` are the same assets in the same order. */
-  photos_by_category: external_exports.array(external_exports.object({ category: shotCategory, url: external_exports.string() })),
+   *  tabs (Exterior / Engine / Interior / Tyre / Extras), plus the stable `shot_code` and a human `label`
+   *  (e.g. "Front Left", "Instrument Cluster") for the per-photo caption. Additive to `photos` (which stays
+   *  the flat list for existing consumers). `photos[i]` and `photos_by_category[i]` are the same assets in
+   *  the same order. */
+  photos_by_category: external_exports.array(
+    external_exports.object({ category: shotCategory, url: external_exports.string(), shot_code: external_exports.string(), label: external_exports.string() })
+  ),
   published_at: external_exports.string().nullable()
   // seller_note is DELIBERATELY ABSENT (withheld publicly, Phase-8 decision 10).
 });
@@ -6049,6 +6582,13 @@ var orderStatus = external_exports.enum([
   "COMPLETED",
   "CANCELLED"
 ]);
+var cancellationRefund = external_exports.object({
+  /** 0–100, e.g. 75 */
+  refund_percent: external_exports.number(),
+  refund: money,
+  retained: money,
+  policy_version: external_exports.string()
+});
 var orderView = external_exports.object({
   order_id: external_exports.string(),
   listing_id: external_exports.string(),
@@ -6060,7 +6600,25 @@ var orderView = external_exports.object({
   created_at: external_exports.string(),
   updated_at: external_exports.string().nullable(),
   /** When the seller/ops confirmed handover (TOKEN_PAID → HANDED_OVER); null before handover. Additive (§20). */
-  handover_at: external_exports.string().nullable()
+  handover_at: external_exports.string().nullable(),
+  /** When the sale completed (all required transfer items verified/waived, ADR-0032 amendment); null before. Additive (§20). */
+  completed_at: external_exports.string().nullable(),
+  /**
+   * The booking token and its cancellation refund (ADR-0051). Null until a token is captured (and on orders
+   * captured before ADR-0051 that have no stamped token). Additive (§20).
+   */
+  token: external_exports.object({
+    amount: money,
+    /** When the verified capture moved the order to TOKEN_PAID — the refund windows run from here. */
+    paid_at: external_exports.string().nullable(),
+    /**
+     * TOKEN_PAID only: what cancelling RIGHT NOW would refund. A server-computed quote for display — the cancel
+     * itself re-decides with the server clock at the moment it is written.
+     */
+    cancellation_quote: cancellationRefund.extend({ next_change_at: external_exports.string().nullable() }).nullable(),
+    /** CANCELLED after payment: the refund decision frozen at cancellation. */
+    cancellation_refund: cancellationRefund.nullable()
+  }).nullable()
 });
 var orderResponse = external_exports.object({ order: orderView, request_id: external_exports.string() });
 var orderQueueItem = external_exports.object({
@@ -6165,6 +6723,41 @@ var loanApplicationResponse = external_exports.object({
   request_id: external_exports.string()
 });
 
+// ../../packages/contracts/src/service-area.ts
+var serviceabilityCheckRequest = external_exports.object({
+  /** The geocoded city the client resolved for the address (free text; may be absent if not geocoded). */
+  city: external_exports.string().trim().max(120).nullable().optional(),
+  pincode: external_exports.string().regex(/^\d{6}$/).nullable().optional()
+});
+var serviceabilityCheckResponse = external_exports.object({
+  serviceable: external_exports.boolean(),
+  /** The city label to display back to the user ("coming soon in <city>") — the place THEY entered, echoed. */
+  city_label: external_exports.string().nullable(),
+  request_id: external_exports.string()
+});
+var serviceAreaLeadRequest = external_exports.object({
+  /** The (unserviced) city the user entered — stored verbatim for the launch email copy ("inspection in …"). */
+  city: external_exports.string().trim().min(1).max(120),
+  locality: external_exports.string().trim().max(120).nullable().optional(),
+  state: external_exports.string().trim().max(120).nullable().optional(),
+  pincode: external_exports.string().regex(/^\d{6}$/).nullable().optional(),
+  /** What they were about to book, so the launch email can be specific. */
+  category: inspectionCategory.nullable().optional(),
+  vehicle_id: external_exports.string().min(1).nullable().optional(),
+  /** The slot they had picked (ISO), for context — not a reservation. */
+  requested_slot_at: external_exports.string().nullable().optional(),
+  /**
+   * Explicit opt-in to be contacted when Turag launches in this city (DPDP: the lawful basis for the later
+   * marketing message). Required `true` — a lead is never stored without it.
+   */
+  consent_notify: external_exports.literal(true)
+});
+var serviceAreaLeadResponse = external_exports.object({
+  lead_id: external_exports.string(),
+  status: external_exports.string(),
+  request_id: external_exports.string()
+});
+
 // ../../packages/contracts/src/waitlist.ts
 var waitlistRole = external_exports.enum(["individual", "dealer", "bank"]);
 var name = external_exports.string().trim().min(2, "Please enter your name.").max(80);
@@ -6221,6 +6814,7 @@ var paymentStatus = external_exports.enum([
 ]);
 var paymentPurpose = external_exports.enum([
   "INSPECTION_FEE",
+  "SELF_INSPECTION_FEE",
   "LISTING_FEE",
   "TOKEN",
   "EMD",
@@ -6243,8 +6837,9 @@ var paymentListResponse = external_exports.object({ data: external_exports.array
 var tokenPaymentInitRequest = external_exports.object({
   amount: money.optional(),
   /**
-   * Refund Policy §2.2: the buyer's distinct affirmative acknowledgement, before paying, that the order cannot
-   * be cancelled once placed. Required (enforced at the route) and recorded in the audit log as evidence.
+   * Refund Policy §2.2/§2.4: the buyer's distinct affirmative acknowledgement, before paying, of the token
+   * cancellation terms (the time-based refund schedule, ADR-0051). Required (enforced at the route) and recorded
+   * in the audit log, with the policy version, as evidence.
    */
   cancellation_ack: external_exports.boolean().optional()
 });
@@ -6263,6 +6858,17 @@ var bookingPaymentInitView = external_exports.object({
   redirect_url: external_exports.string().nullable()
 });
 var bookingPaymentInitResponse = external_exports.object({ payment: bookingPaymentInitView, request_id: external_exports.string() });
+var selfInspectionPaymentInitView = external_exports.object({
+  payment_id: external_exports.string(),
+  provider_order_id: external_exports.string(),
+  amount: money,
+  key_id: external_exports.string(),
+  redirect_url: external_exports.string().nullable()
+});
+var selfInspectionPaymentInitResponse = external_exports.object({
+  payment: selfInspectionPaymentInitView,
+  request_id: external_exports.string()
+});
 var refundRequest = external_exports.object({ amount: money.optional(), reason: external_exports.string().max(500).nullable().optional() });
 
 // ../../packages/contracts/src/settlements.ts
@@ -6286,6 +6892,11 @@ var settlementView = external_exports.object({
   breakdown: external_exports.object({ base: nonNegativeMoney, commission: nonNegativeMoney, gst: nonNegativeMoney }).nullable(),
   /** The payout destination (masked); null until an ACTIVE verified account is bound. */
   account: settlementAccount.nullable(),
+  /**
+   * Why the seller is paid (ADR-0051): HANDOVER — the held token after handover; CANCELLATION_RETAINED — the part
+   * of the token kept when the buyer cancelled late (breakdown.base is that retained amount). Additive (§20).
+   */
+  basis: external_exports.enum(["HANDOVER", "CANCELLATION_RETAINED"]),
   status: settlementStatus,
   /** The bank transfer reference / UTR recorded by ops once paid. */
   provider_payout_ref: external_exports.string().nullable(),
@@ -6342,9 +6953,22 @@ var bankAccountView = external_exports.object({
 });
 var bankAccountResponse = external_exports.object({ account: bankAccountView, request_id: external_exports.string() });
 var bankAccountListResponse = external_exports.object({ accounts: external_exports.array(bankAccountView), request_id: external_exports.string() });
+var bankAccountAutomatedCheck = external_exports.object({
+  provider: external_exports.string(),
+  method: external_exports.enum(["PENNYLESS", "PENNYDROP"]),
+  status: external_exports.enum(["PENDING", "PASSED", "NAME_MISMATCH", "INVALID", "UNSUPPORTED", "ERROR"]),
+  /** 0–1, or null when the name match could not run. */
+  name_match_score: external_exports.number().min(0).max(1).nullable(),
+  provider_reference_id: external_exports.string().nullable(),
+  tid: external_exports.string().nullable(),
+  account_status: external_exports.string().nullable(),
+  error_kind: external_exports.string().nullable(),
+  checked_at: external_exports.string().nullable()
+});
 var opsBankAccountView = bankAccountView.extend({
   seller_id: external_exports.string(),
-  verified_by: external_exports.string().nullable()
+  verified_by: external_exports.string().nullable(),
+  automated_check: bankAccountAutomatedCheck.nullable()
 });
 var opsBankAccountListResponse = external_exports.object({ accounts: external_exports.array(opsBankAccountView), request_id: external_exports.string() });
 var opsBankAccountResponse = external_exports.object({ account: opsBankAccountView, request_id: external_exports.string() });
@@ -6363,7 +6987,14 @@ var revealedBankAccount = external_exports.object({
 });
 var revealedBankAccountResponse = external_exports.object({ account: revealedBankAccount, request_id: external_exports.string() });
 var percent = external_exports.number().min(0).max(100).refine((v) => Math.abs(v * 100 - Math.round(v * 100)) < 1e-9, { message: "At most two decimal places." });
+var paiseOrNull = external_exports.number().int().min(0).nullable().optional();
 var commissionInput = external_exports.discriminatedUnion("type", [
+  external_exports.object({ type: external_exports.literal("PERCENT"), percent }),
+  external_exports.object({ type: external_exports.literal("FIXED"), amount_minor: external_exports.number().int().min(0) }),
+  external_exports.object({ type: external_exports.literal("PRICE_PERCENT"), percent, min_amount_minor: paiseOrNull, max_amount_minor: paiseOrNull })
+]);
+var cancellationCommissionInput = external_exports.discriminatedUnion("type", [
+  external_exports.object({ type: external_exports.literal("NONE") }),
   external_exports.object({ type: external_exports.literal("PERCENT"), percent }),
   external_exports.object({ type: external_exports.literal("FIXED"), amount_minor: external_exports.number().int().min(0) })
 ]);
@@ -6371,6 +7002,11 @@ var setPayoutConfigRequest = external_exports.object({
   commission: commissionInput,
   /** GST as a percentage of the commission (deducted from the seller's payout). */
   gst_percent: percent,
+  /**
+   * ADR-0052. Optional for backward compatibility: when omitted, a late-cancellation payout uses `commission`
+   * on the retained amount (the pre-ADR-0052 behaviour). The ops screen always sends it.
+   */
+  cancellation_commission: cancellationCommissionInput.optional(),
   note: external_exports.string().trim().max(500).optional(),
   /** Interim confirmation code (env) — replaced by an OTP later. Never logged or echoed. */
   confirmation_code: external_exports.string().min(1).max(200)
@@ -6379,9 +7015,21 @@ var payoutConfigView = external_exports.object({
   config_id: external_exports.string(),
   commission: external_exports.discriminatedUnion("type", [
     external_exports.object({ type: external_exports.literal("PERCENT"), percent: external_exports.number() }),
-    external_exports.object({ type: external_exports.literal("FIXED"), amount_minor: external_exports.number().int() })
+    external_exports.object({ type: external_exports.literal("FIXED"), amount_minor: external_exports.number().int() }),
+    external_exports.object({
+      type: external_exports.literal("PRICE_PERCENT"),
+      percent: external_exports.number(),
+      min_amount_minor: external_exports.number().int().nullable(),
+      max_amount_minor: external_exports.number().int().nullable()
+    })
   ]),
   gst_percent: external_exports.number(),
+  /** Null on versions saved before ADR-0052 (cancellations then use `commission` on the retained amount). */
+  cancellation_commission: external_exports.discriminatedUnion("type", [
+    external_exports.object({ type: external_exports.literal("NONE") }),
+    external_exports.object({ type: external_exports.literal("PERCENT"), percent: external_exports.number() }),
+    external_exports.object({ type: external_exports.literal("FIXED"), amount_minor: external_exports.number().int() })
+  ]).nullable(),
   note: external_exports.string().nullable(),
   created_by: external_exports.string(),
   created_at: external_exports.string()
@@ -6390,6 +7038,59 @@ var payoutConfigResponse = external_exports.object({
   /** The rule currently in force, or null when none has been set (settlements wait, fail-closed). */
   current: payoutConfigView.nullable(),
   history: external_exports.array(payoutConfigView),
+  request_id: external_exports.string()
+});
+var tokenSlabCode = external_exports.enum(["S1", "S2", "S3", "S4A", "S4B", "S4C", "S4D", "S4E"]);
+var tokenPercent = percent.refine((v) => v > 0 && v < 100, { message: "Must be above 0 and below 100." });
+var positivePaise = external_exports.number().int().positive();
+var tokenSlabInput = external_exports.discriminatedUnion("mode", [
+  external_exports.object({
+    code: tokenSlabCode,
+    mode: external_exports.literal("PERCENT"),
+    /** Percentage of the agreed vehicle price, at most two decimals. */
+    percent: tokenPercent,
+    /** Optional floor / ceiling for the percentage token, in paise. */
+    min_amount_minor: positivePaise.nullable().optional(),
+    max_amount_minor: positivePaise.nullable().optional()
+  }),
+  external_exports.object({ code: tokenSlabCode, mode: external_exports.literal("FIXED"), amount_minor: positivePaise })
+]);
+var setTokenSlabsRequest = external_exports.object({
+  /** Every slab exactly once (validated server-side). */
+  slabs: external_exports.array(tokenSlabInput).min(1).max(16),
+  note: external_exports.string().trim().max(500).optional(),
+  /** The admin PIN (OPS_SETTINGS_CODE) — same check as commission/GST. Never logged or echoed. */
+  confirmation_code: external_exports.string().min(1).max(200)
+});
+var tokenSlabView = external_exports.object({
+  code: tokenSlabCode,
+  /** Price range the slab covers: (lower, upper] in paise; upper null = no ceiling. */
+  lower_minor: external_exports.number().int(),
+  upper_minor: external_exports.number().int().nullable(),
+  rule: external_exports.discriminatedUnion("mode", [
+    external_exports.object({ mode: external_exports.literal("PERCENT"), percent: external_exports.number(), min_amount_minor: external_exports.number().int().nullable(), max_amount_minor: external_exports.number().int().nullable() }),
+    external_exports.object({ mode: external_exports.literal("FIXED"), amount_minor: external_exports.number().int() })
+  ])
+});
+var tokenSlabConfigView = external_exports.object({
+  config_id: external_exports.string(),
+  slabs: external_exports.array(tokenSlabView),
+  note: external_exports.string().nullable(),
+  created_by: external_exports.string(),
+  created_at: external_exports.string()
+});
+var tokenSlabWarning = external_exports.object({ code: tokenSlabCode, message: external_exports.string() });
+var tokenSlabsResponse = external_exports.object({
+  /** The version in force, or null when none is set (tokens then fall back to TOKEN_AMOUNT_MINOR, else unavailable). */
+  current: tokenSlabConfigView.nullable(),
+  history: external_exports.array(tokenSlabConfigView),
+  /** Slab boundaries (also present on each slab) so the form can render before any version exists. */
+  bounds: external_exports.array(external_exports.object({ code: tokenSlabCode, lower_minor: external_exports.number().int(), upper_minor: external_exports.number().int().nullable() })),
+  /**
+   * Non-blocking checks of the version in force against the commission/GST in force: slabs whose token could be
+   * too small to cover commission + GST (the seller payout would not be positive and the settlement would wait).
+   */
+  warnings: external_exports.array(tokenSlabWarning),
   request_id: external_exports.string()
 });
 var markSettlementPaidRequest = external_exports.object({
@@ -6403,13 +7104,18 @@ var markSettlementFailedRequest = external_exports.object({ reason: external_exp
 
 // ../../packages/contracts/src/kyc.ts
 var identityDocType = external_exports.enum(["AADHAAR", "PAN", "DRIVING_LICENCE"]);
-var verificationStatus = external_exports.enum(["PENDING_REVIEW", "APPROVED", "REJECTED"]);
+var verificationStatus = external_exports.enum(["INITIATED", "PENDING_REVIEW", "APPROVED", "REJECTED", "FAILED", "EXPIRED"]);
+var verificationMethod = external_exports.enum(["MANUAL", "DIGILOCKER"]);
 var verificationView = external_exports.object({
   verification_id: external_exports.string(),
   status: verificationStatus,
+  method: verificationMethod,
   doc_type: identityDocType,
-  /** e.g. "XXXX XXXX 1234" (Aadhaar) or "••••234F" (PAN) — the only form of the number any read returns. */
-  doc_masked: external_exports.string(),
+  /**
+   * e.g. "XXXX XXXX 1234" (Aadhaar) or "••••234F" (PAN) — the only form of the number any read returns. Null
+   * while a DigiLocker journey is still open.
+   */
+  doc_masked: external_exports.string().nullable(),
   rejection_reason: external_exports.string().nullable(),
   submitted_at: external_exports.string(),
   reviewed_at: external_exports.string().nullable()
@@ -6420,7 +7126,19 @@ var verificationResponse = external_exports.object({
 });
 var opsVerificationView = verificationView.extend({
   user_id: external_exports.string(),
-  reviewed_by: external_exports.string().nullable()
+  reviewed_by: external_exports.string().nullable(),
+  /** True for a DigiLocker row approved by SYSTEM (no human reviewer) — the ops "Auto-verified" category. */
+  auto_verified: external_exports.boolean(),
+  /** When DigiLocker returned the verified document (DigiLocker rows). */
+  provider_verified_at: external_exports.string().nullable(),
+  /** DigiLocker name vs account name. MISMATCH rows are auto-approved but flagged for ops. */
+  name_match_status: external_exports.enum(["MATCH", "MISMATCH", "UNAVAILABLE"]).nullable(),
+  /** 0–1, or null when the match could not run. */
+  name_match_score: external_exports.number().min(0).max(1).nullable(),
+  /** Provider label + its reference for support tickets (never PII). */
+  provider: external_exports.string().nullable(),
+  provider_reference_id: external_exports.string().nullable(),
+  failure_reason: external_exports.string().nullable()
 });
 var opsVerificationListResponse = external_exports.object({
   verifications: external_exports.array(opsVerificationView),
@@ -6439,6 +7157,31 @@ var reviewVerificationRequest = external_exports.object({
 });
 var revealedDocument = external_exports.object({ doc_type: identityDocType, doc_number: external_exports.string() });
 var revealedDocumentResponse = external_exports.object({ document: revealedDocument, request_id: external_exports.string() });
+var verificationOptions = external_exports.object({
+  manual: external_exports.boolean(),
+  digilocker: external_exports.boolean(),
+  /** In `digilocker` mode manual upload is offered only after a failed/expired DigiLocker attempt. */
+  manual_is_fallback: external_exports.boolean()
+});
+var verificationResponseWithOptions = verificationResponse.extend({ options: verificationOptions });
+var startDigiLockerRequest = external_exports.object({ consent: external_exports.literal(true) });
+var startDigiLockerResponse = external_exports.object({
+  verification: verificationView,
+  /** The DigiLocker URL to send the user to. */
+  redirect_url: external_exports.string().url(),
+  request_id: external_exports.string()
+});
+var digiLockerDocument = external_exports.object({
+  name: external_exports.string().nullable(),
+  dob: external_exports.string().nullable(),
+  gender: external_exports.string().nullable(),
+  masked_aadhaar: external_exports.string().nullable(),
+  address: external_exports.string().nullable(),
+  /** data: URL of the DigiLocker photo, or null. */
+  photo_data_url: external_exports.string().nullable(),
+  fetched_at: external_exports.string().nullable()
+});
+var digiLockerDocumentResponse = external_exports.object({ document: digiLockerDocument, request_id: external_exports.string() });
 
 // ../../packages/contracts/src/bookings.ts
 var bookingMode = external_exports.enum(["DOORSTEP", "CENTRE"]);
@@ -6457,6 +7200,11 @@ var bookingSlotsResponse = external_exports.object({
   slots: external_exports.array(bookingSlot),
   /** The doorstep price, or null when booking is unavailable/unconfigured (fail-closed, not an error). */
   price: money.nullable(),
+  /**
+   * False while no live payment gateway is configured: slots and price are real, but the fee cannot be taken
+   * yet, so clients must not start a booking. Absent from older servers, which clients read as available.
+   */
+  payments_available: external_exports.boolean().optional(),
   request_id: external_exports.string()
 });
 var createBookingRequest = external_exports.object({
@@ -6482,7 +7230,13 @@ var createBookingRequest = external_exports.object({
    * the customer's explicit consent to the doorstep inspection and its evidence capture, and that the booking
    * cannot be cancelled once confirmed. Required (enforced at the route) and recorded in the audit log.
    */
-  inspection_consent: external_exports.boolean().optional()
+  inspection_consent: external_exports.boolean().optional(),
+  /**
+   * "Send me booking updates on WhatsApp" (pre-ticked on the booking form). True records WHATSAPP consent when the
+   * user does not already have it; false or absent changes nothing (an existing opt-in is never withdrawn here).
+   * Covers service updates only: marketing on WhatsApp also needs MARKETING consent.
+   */
+  whatsapp_updates: external_exports.boolean().optional()
 });
 var assignBookingRequest = external_exports.object({
   inspector_id: external_exports.string().min(1).optional()
@@ -6642,29 +7396,162 @@ var browseDealerListingsResponse = external_exports.object({
   listings: external_exports.array(dealerListingSummary),
   request_id: external_exports.string()
 });
+var dealerSelfSummary = external_exports.object({
+  live_listings: external_exports.number().int(),
+  in_review: external_exports.number().int(),
+  offers_pending: external_exports.number().int(),
+  offers_received_90d: external_exports.number().int(),
+  orders_in_progress: external_exports.number().int(),
+  awaiting_rc_transfer: external_exports.number().int(),
+  sold_90d: external_exports.number().int(),
+  sold_value_90d_minor: external_exports.number().int(),
+  avg_days_to_sell_90d: external_exports.number().nullable(),
+  my_offers_to_answer: external_exports.number().int(),
+  my_offers_expiring_soon: external_exports.number().int(),
+  my_handovers_due: external_exports.number().int(),
+  team_offers_to_answer: external_exports.number().int()
+});
+var dealerSelfWeek = external_exports.object({
+  week_start: external_exports.string(),
+  offers_received: external_exports.number().int(),
+  sales_started: external_exports.number().int(),
+  sales_completed: external_exports.number().int()
+});
+var dealerSelfDashboardResponse = external_exports.object({
+  summary: dealerSelfSummary,
+  weeks: external_exports.array(dealerSelfWeek),
+  request_id: external_exports.string()
+});
+var dealerSelfOfferFilter = external_exports.enum(["open", "accepted", "closed", "all"]);
+var dealerSelfOrderFilter = external_exports.enum(["active", "completed", "cancelled", "all"]);
+var dealerSelfOfferRow = external_exports.object({
+  offer_id: external_exports.string(),
+  listing_id: external_exports.string(),
+  vehicle: external_exports.object({ make: external_exports.string(), model: external_exports.string(), mfg_year: external_exports.number().int() }),
+  status: external_exports.string(),
+  amount_minor: external_exports.number().int(),
+  ask_price_minor: external_exports.number().int(),
+  last_counter_minor: external_exports.number().int().nullable(),
+  last_counter_by: external_exports.enum(["BUYER", "SELLER"]).nullable(),
+  created_at: external_exports.string(),
+  expires_at: external_exports.string(),
+  listed_by_me: external_exports.boolean()
+});
+var dealerSelfOffersResponse = external_exports.object({
+  items: external_exports.array(dealerSelfOfferRow),
+  next_cursor: external_exports.string().nullable(),
+  request_id: external_exports.string()
+});
+var dealerSelfOrderRow = external_exports.object({
+  order_id: external_exports.string(),
+  listing_id: external_exports.string(),
+  vehicle: external_exports.object({ make: external_exports.string(), model: external_exports.string(), mfg_year: external_exports.number().int() }),
+  status: external_exports.string(),
+  agreed_price_minor: external_exports.number().int(),
+  token_amount_minor: external_exports.number().int().nullable(),
+  created_at: external_exports.string(),
+  token_paid_at: external_exports.string().nullable(),
+  handover_at: external_exports.string().nullable(),
+  completed_at: external_exports.string().nullable(),
+  cancelled_at: external_exports.string().nullable(),
+  /** Visible only on the caller's own sales; null on a teammate's. */
+  payout_status: external_exports.string().nullable(),
+  listed_by_me: external_exports.boolean()
+});
+var dealerSelfOrdersResponse = external_exports.object({
+  items: external_exports.array(dealerSelfOrderRow),
+  next_cursor: external_exports.string().nullable(),
+  request_id: external_exports.string()
+});
 
 // ../../packages/contracts/src/dealers.ts
+var emailDeliveryStatus = external_exports.enum(["SENT", "FAILED", "SKIPPED"]);
+var dealerLocationInput = external_exports.object({
+  address_line: external_exports.string().trim().max(300).nullish(),
+  city: external_exports.string().trim().min(1).max(100),
+  state: external_exports.string().trim().min(1).max(100),
+  pin_code: external_exports.string().trim().min(6).max(6)
+});
 var createDealerRequest = external_exports.object({
   email: external_exports.string().trim().min(3).max(254),
   mobile: external_exports.string().trim().min(8).max(20),
   password: external_exports.string().min(8).max(128),
-  dealer_name: external_exports.string().trim().min(1).max(200)
+  business_name: external_exports.string().trim().min(1).max(200),
+  owner_name: external_exports.string().trim().min(1).max(200),
+  location: dealerLocationInput,
+  gstin: external_exports.string().trim().max(20).nullish(),
+  pan: external_exports.string().trim().min(1).max(12),
+  kyc: external_exports.object({
+    /** ISO date (YYYY-MM-DD) the offline KYC was completed. */
+    verified_at: external_exports.string().trim().max(40).nullish(),
+    /** The offline-KYC reference number (file / ticket no.). */
+    reference: external_exports.string().trim().min(1).max(200)
+  }),
+  /** The numbers on the uploaded documents (the files travel as multipart parts — see above). */
+  kyc_documents: external_exports.object({
+    aadhaar_number: external_exports.string().trim().min(1).max(20),
+    business_registration_type: external_exports.enum(["SHOP_ACT", "UDYAM"]),
+    business_registration_number: external_exports.string().trim().min(1).max(60)
+  })
+});
+var dealerKycDocumentView = external_exports.object({
+  id: external_exports.string(),
+  doc_type: external_exports.enum(["AADHAAR", "PAN", "SHOP_ACT", "UDYAM"]),
+  number_masked: external_exports.string(),
+  file_content_type: external_exports.string(),
+  /** Aadhaar only: whether a back side was uploaded. */
+  back_content_type: external_exports.string().nullable(),
+  uploaded_by_name: external_exports.string().nullable(),
+  uploaded_at: external_exports.string(),
+  /** False when a newer document of the same type supersedes this one (kept as history). */
+  current: external_exports.boolean()
+});
+var dealerKycDocumentsResponse = external_exports.object({
+  documents: external_exports.array(dealerKycDocumentView),
+  request_id: external_exports.string()
+});
+var revealDealerKycNumberResponse = external_exports.object({
+  number: external_exports.string(),
+  request_id: external_exports.string()
 });
 var dealerCredentials = external_exports.object({
   user_id: external_exports.string(),
   org_id: external_exports.string(),
   email: external_exports.string(),
   mobile: external_exports.string(),
-  password: external_exports.string(),
-  dealer_name: external_exports.string(),
-  /** Whether the welcome/reset email was actually dispatched (false when SMTP is off or the send failed). */
-  email_sent: external_exports.boolean()
+  /** The password to hand over, or null when an upgraded account already had one (it is kept, never shown). */
+  password: external_exports.string().nullable(),
+  business_name: external_exports.string(),
+  owner_name: external_exports.string(),
+  /** Whether the welcome email was accepted by the email provider (false when email is off or the send failed). */
+  email_sent: external_exports.boolean(),
+  email_status: emailDeliveryStatus,
+  /** True when the mobile/email already belonged to a signed-up account. */
+  upgraded_existing_account: external_exports.boolean(),
+  /**
+   * True for an existing account: nothing on it changed yet. Its owner activates the dealer by signing in with
+   * these details and the code sent to the account's own mobile (PR #51 review #4).
+   */
+  awaiting_confirmation: external_exports.boolean()
 });
 var createDealerResponse = external_exports.object({
   credentials: dealerCredentials,
   request_id: external_exports.string()
 });
 var dealerAccountView = external_exports.object({
+  business_name: external_exports.string(),
+  city: external_exports.string().nullable(),
+  state: external_exports.string().nullable(),
+  /** False for dealers created before business profiles existed, until Ops fills in the location. */
+  profile_complete: external_exports.boolean(),
+  /** The dealer's first sign-in (which generates their certificate); null while awaiting first login. */
+  first_login_at: external_exports.string().nullable(),
+  /** The latest sign-in email (credentials / login details / password reset) and its outcome. */
+  last_login_email: external_exports.object({
+    kind: external_exports.enum(["DEALER_CREDENTIALS", "DEALER_LOGIN_DETAILS", "DEALER_PASSWORD_RESET"]),
+    status: emailDeliveryStatus,
+    at: external_exports.string()
+  }).nullable(),
   user_id: external_exports.string(),
   email: external_exports.string().nullable(),
   mobile: external_exports.string(),
@@ -6685,7 +7572,546 @@ var resetDealerPasswordResponse = external_exports.object({
   user_id: external_exports.string(),
   email: external_exports.string().nullable(),
   email_sent: external_exports.boolean(),
+  email_status: emailDeliveryStatus,
   request_id: external_exports.string()
+});
+var resendDealerLoginDetailsResponse = external_exports.object({
+  user_id: external_exports.string(),
+  email_status: emailDeliveryStatus,
+  request_id: external_exports.string()
+});
+
+// ../../packages/contracts/src/dealer-insights.ts
+var dealerStage = external_exports.enum([
+  "SUSPENDED",
+  "AWAITING_CONFIRMATION",
+  "CREDENTIALS_FAILED",
+  "AWAITING_FIRST_LOGIN",
+  "AWAITING_CERTIFICATE",
+  "CERTIFICATE_PENDING",
+  "CERTIFICATE_IN_PROGRESS",
+  "CERTIFICATE_FAILED",
+  "CERTIFICATE_REVOKED",
+  "ONBOARDED",
+  "CERTIFICATE_EXPIRING",
+  "CERTIFICATE_EXPIRED"
+]);
+var dealerCountsView = external_exports.object({
+  live_listings: external_exports.number().int(),
+  live_turag_inspected: external_exports.number().int(),
+  in_review: external_exports.number().int(),
+  /** Orders COMPLETED in the last 90 days (D8). */
+  sold_90d: external_exports.number().int(),
+  /** Orders HANDED_OVER: vehicle delivered, RC transfer pending. */
+  awaiting_rc_transfer: external_exports.number().int(),
+  orders_in_progress: external_exports.number().int(),
+  offers_pending: external_exports.number().int(),
+  offers_received_90d: external_exports.number().int()
+});
+var dealerDirectoryItemView = external_exports.object({
+  org_id: external_exports.string(),
+  business_name: external_exports.string(),
+  city: external_exports.string().nullable(),
+  state: external_exports.string().nullable(),
+  org_status: external_exports.enum(["PENDING", "ACTIVE", "SUSPENDED"]),
+  stage: dealerStage,
+  profile_complete: external_exports.boolean(),
+  owner_user_id: external_exports.string().nullable(),
+  owner_name: external_exports.string().nullable(),
+  /** Masked (e.g. +91 98•••••210). Reveal via POST …/reveal. */
+  owner_phone: external_exports.string().nullable(),
+  /** Masked (e.g. ra•••@gmail.com). */
+  owner_email: external_exports.string().nullable(),
+  /** Whether the owner's mobile was proven by an OTP (sign-in or dealer confirmation). */
+  owner_mobile_verified: external_exports.boolean(),
+  owner_mobile_verified_at: external_exports.string().nullable(),
+  first_login_at: external_exports.string().nullable(),
+  last_active_at: external_exports.string().nullable(),
+  /** Seen within the last 20 minutes (access tokens refresh every 15). */
+  online: external_exports.boolean(),
+  cert_status: external_exports.string().nullable(),
+  cert_valid_until: external_exports.string().nullable(),
+  login_email_status: external_exports.string().nullable(),
+  created_at: external_exports.string(),
+  counts: dealerCountsView
+});
+var dealerDirectoryResponse = external_exports.object({
+  items: external_exports.array(dealerDirectoryItemView),
+  next_cursor: external_exports.string().nullable(),
+  request_id: external_exports.string()
+});
+var dealerOverviewResponse = external_exports.object({
+  dealer: dealerDirectoryItemView,
+  profile: external_exports.object({
+    address_line: external_exports.string().nullable(),
+    pin_code: external_exports.string().nullable(),
+    /** Masked to the last 4 characters. */
+    gstin: external_exports.string().nullable(),
+    pan: external_exports.string().nullable(),
+    kyc_verified_at: external_exports.string().nullable(),
+    kyc_reference: external_exports.string().nullable(),
+    kyc_verified_by_name: external_exports.string().nullable(),
+    member_count: external_exports.number().int(),
+    offers_accepted_90d: external_exports.number().int(),
+    orders_cancelled_90d: external_exports.number().int()
+  }),
+  request_id: external_exports.string()
+});
+var dealerListingRowView = external_exports.object({
+  id: external_exports.string(),
+  created_at: external_exports.string(),
+  status: external_exports.string(),
+  channel: external_exports.string(),
+  ask_price_minor: external_exports.number(),
+  published_at: external_exports.string().nullable(),
+  expires_at: external_exports.string().nullable(),
+  view_count: external_exports.number().int(),
+  vehicle: external_exports.string(),
+  /** Masked registration number (e.g. MH12••••34). */
+  registration: external_exports.string().nullable(),
+  /** SELF (M1), TURAG (M2), YARD (M3), DEALER_STAFF (M4), OTHER, or NONE when no inspection backs it. */
+  inspection_type: external_exports.enum(["SELF", "TURAG", "YARD", "DEALER_STAFF", "OTHER", "NONE"]),
+  inspection_grade: external_exports.string().nullable(),
+  inspection_status: external_exports.string().nullable(),
+  offer_count: external_exports.number().int(),
+  latest_order_status: external_exports.string().nullable()
+});
+var dealerInspectionRowView = external_exports.object({
+  id: external_exports.string(),
+  created_at: external_exports.string(),
+  inspection_type: external_exports.enum(["SELF", "TURAG", "YARD", "DEALER_STAFF", "OTHER", "NONE"]),
+  status: external_exports.string(),
+  grade: external_exports.string().nullable(),
+  overall_score: external_exports.number().nullable(),
+  qc_status: external_exports.string().nullable(),
+  submitted_at: external_exports.string().nullable(),
+  verified_at: external_exports.string().nullable(),
+  vehicle: external_exports.string(),
+  registration: external_exports.string().nullable()
+});
+var dealerOfferRowView = external_exports.object({
+  id: external_exports.string(),
+  created_at: external_exports.string(),
+  status: external_exports.string(),
+  amount_minor: external_exports.number(),
+  ask_price_minor: external_exports.number(),
+  expires_at: external_exports.string(),
+  listing_id: external_exports.string(),
+  vehicle: external_exports.string()
+});
+var dealerOrderRowView = external_exports.object({
+  id: external_exports.string(),
+  created_at: external_exports.string(),
+  status: external_exports.string(),
+  /** SOLD = COMPLETED; AWAITING_RC = HANDED_OVER (D8). */
+  sale_state: external_exports.enum(["IN_PROGRESS", "AWAITING_RC", "SOLD", "CANCELLED"]),
+  agreed_price_minor: external_exports.number(),
+  token_amount_minor: external_exports.number().nullable(),
+  token_paid_at: external_exports.string().nullable(),
+  handover_at: external_exports.string().nullable(),
+  completed_at: external_exports.string().nullable(),
+  cancelled_at: external_exports.string().nullable(),
+  cancel_reason: external_exports.string().nullable(),
+  refund_amount_minor: external_exports.number().nullable(),
+  settlement_status: external_exports.string().nullable(),
+  settlement_amount_minor: external_exports.number().nullable(),
+  listing_id: external_exports.string(),
+  vehicle: external_exports.string()
+});
+var activityRowView = external_exports.object({
+  id: external_exports.string(),
+  created_at: external_exports.string(),
+  action: external_exports.string(),
+  entity_type: external_exports.string(),
+  entity_id: external_exports.string().nullable(),
+  actor_id: external_exports.string().nullable(),
+  actor_type: external_exports.string(),
+  actor_name: external_exports.string().nullable(),
+  /** Masked to the network part (e.g. 203.0.x.x). */
+  ip: external_exports.string().nullable(),
+  device: external_exports.string().nullable(),
+  before: external_exports.unknown(),
+  after: external_exports.unknown(),
+  reason: external_exports.string().nullable()
+});
+var dealerSessionRowView = external_exports.object({
+  id: external_exports.string(),
+  created_at: external_exports.string(),
+  user_id: external_exports.string(),
+  user_name: external_exports.string().nullable(),
+  login_method: external_exports.string().nullable(),
+  ip: external_exports.string().nullable(),
+  device: external_exports.string().nullable(),
+  last_active_at: external_exports.string().nullable(),
+  revoked_at: external_exports.string().nullable(),
+  revoke_reason: external_exports.string().nullable(),
+  /** True when this login came from a device/browser not seen on the user's earlier sessions on this page. */
+  new_device: external_exports.boolean()
+});
+var dealerCommsRowView = external_exports.object({
+  id: external_exports.string(),
+  created_at: external_exports.string(),
+  channel: external_exports.enum(["EMAIL", "IN_APP"]),
+  kind: external_exports.string(),
+  status: external_exports.string(),
+  title: external_exports.string().nullable()
+});
+var dealerTeamRowView = external_exports.object({
+  user_id: external_exports.string(),
+  name: external_exports.string().nullable(),
+  phone: external_exports.string(),
+  email: external_exports.string().nullable(),
+  org_role: external_exports.string(),
+  roles: external_exports.array(external_exports.string()),
+  joined_at: external_exports.string(),
+  first_login_at: external_exports.string().nullable(),
+  mobile_verified: external_exports.boolean(),
+  last_active_at: external_exports.string().nullable()
+});
+var loginFailureRowView = external_exports.object({
+  id: external_exports.string(),
+  created_at: external_exports.string(),
+  method: external_exports.string(),
+  reason: external_exports.string(),
+  ip: external_exports.string().nullable()
+});
+var page = (item) => external_exports.object({ items: external_exports.array(item), next_cursor: external_exports.string().nullable(), request_id: external_exports.string() });
+var dealerListingsResponse = page(dealerListingRowView);
+var dealerInspectionsResponse = page(dealerInspectionRowView);
+var dealerOffersResponse = page(dealerOfferRowView);
+var dealerOrdersResponse = page(dealerOrderRowView);
+var activityResponse = page(activityRowView);
+var dealerSessionsResponse = page(dealerSessionRowView);
+var dealerCommsResponse = page(dealerCommsRowView);
+var dealerTeamResponse = external_exports.object({ items: external_exports.array(dealerTeamRowView), request_id: external_exports.string() });
+var loginFailuresResponse = external_exports.object({ items: external_exports.array(loginFailureRowView), request_id: external_exports.string() });
+var revealDealerFieldRequest = external_exports.object({ field: external_exports.enum(["owner_phone", "owner_email", "gstin", "pan"]) });
+var revealDealerFieldResponse = external_exports.object({
+  field: external_exports.string(),
+  value: external_exports.string().nullable(),
+  request_id: external_exports.string()
+});
+var dealerCountersResponse = external_exports.object({
+  certificates_pending: external_exports.number().int(),
+  certificates_failed: external_exports.number().int(),
+  certificates_expiring: external_exports.number().int(),
+  dealers_awaiting_certificate: external_exports.number().int(),
+  login_emails_failed: external_exports.number().int(),
+  request_id: external_exports.string()
+});
+
+// ../../packages/contracts/src/dealer-console.ts
+var dealerDashboardResponse = external_exports.object({
+  /** When the metrics read model was last rebuilt (hourly); null before the first rebuild. Charts use it. */
+  as_of: external_exports.string().nullable(),
+  tiles: external_exports.object({
+    active_dealers: external_exports.number().int(),
+    online_now: external_exports.number().int(),
+    live_listings: external_exports.number().int(),
+    live_turag_inspected: external_exports.number().int(),
+    /** Orders COMPLETED in the last 30 days (D8). */
+    sold_30d: external_exports.number().int()
+  }),
+  needs_action: external_exports.object({
+    awaiting_first_login_7d: external_exports.number().int(),
+    offers_unanswered_24h: external_exports.number().int(),
+    certificates_pending: external_exports.number().int(),
+    certificates_failed: external_exports.number().int(),
+    login_emails_failed: external_exports.number().int(),
+    risk_alerts_active: external_exports.number().int(),
+    risk_alerts_high: external_exports.number().int()
+  }),
+  /** Last 12 IST weeks, oldest first. */
+  weekly: external_exports.array(
+    external_exports.object({
+      week_start: external_exports.string(),
+      listings_created: external_exports.number().int(),
+      turag_inspected: external_exports.number().int(),
+      self_inspected: external_exports.number().int(),
+      sold: external_exports.number().int()
+    })
+  ),
+  funnel: external_exports.object({
+    created: external_exports.number().int(),
+    signed_in: external_exports.number().int(),
+    certificate_sent: external_exports.number().int(),
+    listed: external_exports.number().int(),
+    sold: external_exports.number().int()
+  }),
+  watch_cancellations: external_exports.array(
+    external_exports.object({
+      org_id: external_exports.string(),
+      business_name: external_exports.string(),
+      cancels_30d: external_exports.number().int(),
+      completed_30d: external_exports.number().int()
+    })
+  ),
+  watch_inactive: external_exports.array(
+    external_exports.object({
+      org_id: external_exports.string(),
+      business_name: external_exports.string(),
+      live_listings: external_exports.number().int(),
+      last_active_at: external_exports.string().nullable()
+    })
+  ),
+  request_id: external_exports.string()
+});
+var riskAlertStatus = external_exports.enum(["OPEN", "IN_REVIEW", "ESCALATED", "ACTIONED", "DISMISSED"]);
+var riskSeverity = external_exports.enum(["HIGH", "MEDIUM", "LOW"]);
+var riskAlertView = external_exports.object({
+  id: external_exports.string(),
+  rule_code: external_exports.string(),
+  rule_title: external_exports.string(),
+  rule_version: external_exports.number().int(),
+  org_id: external_exports.string().nullable(),
+  business_name: external_exports.string().nullable(),
+  entity_type: external_exports.string(),
+  entity_id: external_exports.string(),
+  severity: riskSeverity,
+  status: riskAlertStatus,
+  title: external_exports.string(),
+  /** Rule-specific facts (ids, numbers, dates). Never personal data. */
+  evidence: external_exports.record(external_exports.string(), external_exports.unknown()),
+  assignee_id: external_exports.string().nullable(),
+  assignee_name: external_exports.string().nullable(),
+  resolution_reason: external_exports.string().nullable(),
+  resolved_at: external_exports.string().nullable(),
+  first_seen_at: external_exports.string(),
+  last_seen_at: external_exports.string(),
+  created_at: external_exports.string(),
+  /** States this alert may move to next (the state machine, so the UI never offers an invalid action). */
+  allowed_transitions: external_exports.array(riskAlertStatus)
+});
+var riskAlertListResponse = external_exports.object({
+  items: external_exports.array(riskAlertView),
+  next_cursor: external_exports.string().nullable(),
+  request_id: external_exports.string()
+});
+var riskAlertResponse = external_exports.object({ alert: riskAlertView, request_id: external_exports.string() });
+var riskAlertTransitionRequest = external_exports.object({
+  to: riskAlertStatus,
+  reason: external_exports.string().max(1e3).nullable().optional()
+});
+var riskAlertAssignRequest = external_exports.object({ assignee_id: external_exports.string().min(1).nullable() });
+var riskRulesResponse = external_exports.object({
+  rules: external_exports.array(
+    external_exports.object({
+      rule_code: external_exports.string(),
+      title: external_exports.string(),
+      severity: riskSeverity,
+      version: external_exports.number().int(),
+      enabled: external_exports.boolean(),
+      params: external_exports.record(external_exports.string(), external_exports.unknown())
+    })
+  ),
+  request_id: external_exports.string()
+});
+var opsPriority = external_exports.enum(["HIGH", "NORMAL", "LOW"]);
+var opsNotificationView = external_exports.object({
+  id: external_exports.string(),
+  category: external_exports.string(),
+  category_label: external_exports.string(),
+  priority: opsPriority,
+  org_id: external_exports.string().nullable(),
+  entity_type: external_exports.string().nullable(),
+  entity_id: external_exports.string().nullable(),
+  title: external_exports.string(),
+  body: external_exports.string().nullable(),
+  /** In-app path to act on it (e.g. /ops/certifications). */
+  link: external_exports.string().nullable(),
+  acknowledged_by_name: external_exports.string().nullable(),
+  acknowledged_at: external_exports.string().nullable(),
+  emailed_at: external_exports.string().nullable(),
+  slacked_at: external_exports.string().nullable(),
+  created_at: external_exports.string()
+});
+var opsInboxListResponse = external_exports.object({
+  items: external_exports.array(opsNotificationView),
+  next_cursor: external_exports.string().nullable(),
+  request_id: external_exports.string()
+});
+var opsInboxCountResponse = external_exports.object({ open: external_exports.number().int(), high: external_exports.number().int(), request_id: external_exports.string() });
+var opsNotificationResponse = external_exports.object({ notification: opsNotificationView, request_id: external_exports.string() });
+var routeView = external_exports.object({ email: external_exports.boolean(), slack: external_exports.boolean() });
+var opsRoutesResponse = external_exports.object({
+  routes: external_exports.array(
+    external_exports.object({ category: external_exports.string(), label: external_exports.string(), priority: opsPriority, email: external_exports.boolean(), slack: external_exports.boolean() })
+  ),
+  slack_configured: external_exports.boolean(),
+  changed_by_name: external_exports.string().nullable(),
+  changed_at: external_exports.string().nullable(),
+  request_id: external_exports.string()
+});
+var opsRoutesRequest = external_exports.object({ routes: external_exports.record(external_exports.string(), routeView) });
+var opsNoteEntity = external_exports.enum(["organization", "risk_alert"]);
+var opsNoteView = external_exports.object({
+  id: external_exports.string(),
+  author_name: external_exports.string().nullable(),
+  body: external_exports.string(),
+  created_at: external_exports.string()
+});
+var opsNotesResponse = external_exports.object({ items: external_exports.array(opsNoteView), request_id: external_exports.string() });
+var addOpsNoteRequest = external_exports.object({ body: external_exports.string().min(1).max(4e3) });
+var healthBand = external_exports.enum(["HEALTHY", "WATCH", "AT_RISK", "CRITICAL", "INSUFFICIENT_DATA"]);
+var healthComponentView = external_exports.object({
+  key: external_exports.enum(["reliability", "accuracy", "responsiveness", "satisfaction", "compliance"]),
+  /** 0–1, or null when there was not enough activity to judge (left out of the score). */
+  value: external_exports.number().nullable(),
+  weight: external_exports.number(),
+  /** The number of events the value is based on. */
+  basis: external_exports.number().int()
+});
+var healthSnapshotView = external_exports.object({
+  day: external_exports.string(),
+  score: external_exports.number().int().nullable(),
+  band: healthBand,
+  config_version: external_exports.number().int(),
+  components: external_exports.array(healthComponentView),
+  computed_at: external_exports.string()
+});
+var dealerHealthResponse = external_exports.object({
+  latest: healthSnapshotView.nullable(),
+  /** Score per day, oldest first (last 90 days). */
+  history: external_exports.array(external_exports.object({ day: external_exports.string(), score: external_exports.number().int().nullable(), band: healthBand })),
+  request_id: external_exports.string()
+});
+var healthDistributionResponse = external_exports.object({
+  day: external_exports.string().nullable(),
+  counts: external_exports.record(healthBand, external_exports.number().int()),
+  request_id: external_exports.string()
+});
+var dealerSegment = external_exports.object({
+  q: external_exports.string().max(100).nullable().optional(),
+  status: external_exports.enum(["ACTIVE", "SUSPENDED", "PENDING"]).nullable().optional(),
+  stage: external_exports.string().max(40).nullable().optional(),
+  city: external_exports.string().max(100).nullable().optional(),
+  mobile_verified: external_exports.boolean().nullable().optional()
+});
+var dealerMessagePreviewRequest = external_exports.object({ segment: dealerSegment });
+var dealerMessagePreviewResponse = external_exports.object({
+  dealers: external_exports.number().int(),
+  /** Owners with an email address, one per owner: who would receive it. */
+  recipients: external_exports.number().int(),
+  unreachable: external_exports.number().int(),
+  too_large: external_exports.boolean(),
+  max_recipients: external_exports.number().int(),
+  sample: external_exports.array(external_exports.string()),
+  request_id: external_exports.string()
+});
+var dealerMessageSendRequest = external_exports.object({
+  segment: dealerSegment,
+  subject: external_exports.string().min(1).max(150),
+  body: external_exports.string().min(1).max(5e3),
+  expected_recipients: external_exports.number().int().min(1)
+});
+var dealerMessageSendResponse = external_exports.object({ message_id: external_exports.string(), recipients: external_exports.number().int(), request_id: external_exports.string() });
+var dealerMessageView = external_exports.object({
+  id: external_exports.string(),
+  subject: external_exports.string(),
+  body: external_exports.string(),
+  segment: dealerSegment,
+  recipient_count: external_exports.number().int(),
+  created_by_name: external_exports.string().nullable(),
+  created_at: external_exports.string(),
+  sent: external_exports.number().int(),
+  failed: external_exports.number().int(),
+  skipped: external_exports.number().int(),
+  pending: external_exports.number().int()
+});
+var dealerMessageListResponse = external_exports.object({ items: external_exports.array(dealerMessageView), request_id: external_exports.string() });
+var resendDealerConfirmationRequest = external_exports.object({ password: external_exports.string().min(8).max(200) });
+var resendDealerConfirmationResponse = external_exports.object({
+  email: external_exports.string(),
+  email_status: external_exports.enum(["SENT", "FAILED", "SKIPPED"]),
+  /** False when the account already has its own password (the new one was not needed). */
+  password_set: external_exports.boolean(),
+  request_id: external_exports.string()
+});
+
+// ../../packages/contracts/src/certifications.ts
+var certificateStatus = external_exports.enum([
+  "DRAFT",
+  "APPROVED",
+  "ISSUED",
+  "SENT",
+  "FAILED",
+  "REVOKED",
+  /** Renewed: replaced by a newer certificate; still a valid document until its own valid_until. */
+  "SUPERSEDED"
+]);
+var certificateView = external_exports.object({
+  id: external_exports.string(),
+  org_id: external_exports.string(),
+  org_name: external_exports.string(),
+  recipient_user_id: external_exports.string(),
+  recipient_email: external_exports.string().nullable(),
+  certificate_no: external_exports.string(),
+  /** The dealer's business name (what the certificate prints). */
+  recipient_name: external_exports.string(),
+  designation_line: external_exports.string(),
+  /** The location line under the business name ("Pune, Maharashtra"); may be empty for older dealers. */
+  location: external_exports.string(),
+  issue_date: external_exports.string(),
+  valid_until: external_exports.string(),
+  status: certificateStatus,
+  /**
+   * Derived validity of a SENT certificate: EXPIRING within 60 days, EXPIRED once valid_until has passed.
+   * Null for a certificate that has not been sent.
+   */
+  expiry: external_exports.enum(["VALID", "EXPIRING", "EXPIRED"]).nullable(),
+  /** True once the PDF has been rendered and stored (ISSUED/SENT). */
+  pdf_available: external_exports.boolean(),
+  last_error: external_exports.string().nullable(),
+  approved_at: external_exports.string().nullable(),
+  /** True when certificate_config.auto_approve approved it (no human approver). */
+  approved_by_system: external_exports.boolean(),
+  sent_to_email: external_exports.string().nullable(),
+  sent_at: external_exports.string().nullable(),
+  version: external_exports.number().int(),
+  /** Set on a renewal: the id of the certificate it replaces. */
+  renewal_of: external_exports.string().nullable(),
+  /** Whether Ops may renew it now (SENT, within 90 days of expiry or expired). */
+  renewable: external_exports.boolean(),
+  created_at: external_exports.string()
+});
+var listCertificatesResponse = external_exports.object({
+  certificates: external_exports.array(certificateView),
+  request_id: external_exports.string()
+});
+var certificateResponse = external_exports.object({
+  certificate: certificateView,
+  request_id: external_exports.string()
+});
+var updateCertificateDraftRequest = external_exports.object({
+  recipient_name: external_exports.string().trim().min(1).max(200).optional(),
+  certificate_no: external_exports.string().trim().min(1).max(64).optional(),
+  location: external_exports.string().trim().max(200).optional(),
+  issue_date: external_exports.string().regex(/^\d{4}-\d{2}-\d{2}$/, "issue_date must be YYYY-MM-DD").optional(),
+  valid_until: external_exports.string().regex(/^\d{4}-\d{2}-\d{2}$/, "valid_until must be YYYY-MM-DD").optional()
+}).strict();
+var revokeCertificateRequest = external_exports.object({ reason: external_exports.string().trim().min(3).max(500) });
+var resendCertificateResponse = external_exports.object({ sent_to: external_exports.string(), request_id: external_exports.string() });
+var generateCertificateRequest = external_exports.object({ org_id: external_exports.string().trim().min(1).max(64) });
+var generateCertificateResponse = external_exports.object({
+  certificate_id: external_exports.string(),
+  /** True when auto-approve was on, so render + email are already queued. */
+  auto_approved: external_exports.boolean(),
+  request_id: external_exports.string()
+});
+var certificateConfigView = external_exports.object({
+  auto_approve: external_exports.boolean(),
+  number_prefix: external_exports.string(),
+  updated_at: external_exports.string().nullable(),
+  updated_by: external_exports.string().nullable()
+});
+var certificateConfigResponse = external_exports.object({
+  config: certificateConfigView,
+  request_id: external_exports.string()
+});
+var setCertificateConfigRequest = external_exports.object({
+  auto_approve: external_exports.boolean(),
+  number_prefix: external_exports.string().trim().min(1).max(32),
+  note: external_exports.string().trim().max(500).optional()
 });
 
 // ../../packages/contracts/src/inspectors.ts
@@ -6953,6 +8379,96 @@ var listIntakeImportRowsResponse = external_exports.object({
   request_id: external_exports.string()
 });
 
+// ../../packages/contracts/src/ai-scans.ts
+var AI_SCAN_MAX_BASE64_CHARS = 4e6;
+var imageBase64 = external_exports.string().trim().min(1).max(AI_SCAN_MAX_BASE64_CHARS + 64).transform((s) => {
+  var _a;
+  return s.startsWith("data:") ? (_a = s.split(";base64,")[1]) != null ? _a : "" : s;
+}).refine((s) => s.length > 0 && s.length <= AI_SCAN_MAX_BASE64_CHARS && /^[A-Za-z0-9+/=\r\n]+$/.test(s), {
+  message: "image_base64 must be base64 image data"
+});
+var imageMimeType = external_exports.enum(["image/jpeg", "image/png", "image/webp"]).default("image/jpeg");
+var identityExtractRequest = external_exports.object({
+  /** RC = registration certificate (paper or smart card); VIN_PLATE = chassis/VIN plate or stamping. */
+  kind: external_exports.enum(["RC", "VIN_PLATE"]),
+  image_base64: imageBase64,
+  mime_type: imageMimeType
+});
+var rcExtractResult = external_exports.object({
+  isRcDocument: external_exports.boolean(),
+  registrationNumber: external_exports.string().nullable(),
+  chassisNumber: external_exports.string().nullable(),
+  engineNumber: external_exports.string().nullable(),
+  mfgYear: external_exports.number().nullable(),
+  regDate: external_exports.string().nullable(),
+  make: external_exports.string().nullable(),
+  model: external_exports.string().nullable(),
+  variant: external_exports.string().nullable(),
+  fuel: external_exports.string().nullable()
+});
+var vinPlateExtractResult = external_exports.object({
+  isVinPlate: external_exports.boolean(),
+  vin: external_exports.string().nullable(),
+  engineNumber: external_exports.string().nullable(),
+  confidence: external_exports.number().nullable()
+});
+var identityExtractResponse = external_exports.discriminatedUnion("kind", [
+  external_exports.object({ kind: external_exports.literal("RC"), result: rcExtractResult, request_id: external_exports.string() }),
+  external_exports.object({ kind: external_exports.literal("VIN_PLATE"), result: vinPlateExtractResult, request_id: external_exports.string() })
+]);
+var optText = external_exports.string().trim().max(200).nullable().optional();
+var optNum = external_exports.number().finite().nullable().optional();
+var damageScanVehicle = external_exports.object({
+  make: optText,
+  model: optText,
+  variant: optText,
+  category: optText,
+  fuel: optText,
+  bodyType: optText,
+  segment: optText,
+  segmentTier: optText,
+  baseExShowroomMinor: optNum,
+  referenceYear: optNum,
+  mfgYear: optNum,
+  ageYears: optNum,
+  odometerKm: optNum,
+  ownerCount: optNum,
+  /** Registry facts (non-PII allowlist, e.g. engineCc, color, rcState, insuranceUpto). */
+  registry: external_exports.record(external_exports.union([external_exports.string().max(200), external_exports.number().finite(), external_exports.null()])).nullable().optional()
+});
+var damageScanContext = external_exports.object({
+  vehicle: damageScanVehicle.nullable().optional(),
+  /** Checklist item the photo belongs to, e.g. "B1". */
+  itemCode: external_exports.string().trim().max(40).optional(),
+  itemLabel: external_exports.string().trim().max(200).optional(),
+  answerType: external_exports.string().trim().max(40).optional(),
+  /** Shot code or angle hint, e.g. "WALK_FRONT_LEFT". */
+  shotHint: external_exports.string().trim().max(80).optional(),
+  checklistVersion: external_exports.number().int().nonnegative().optional(),
+  m1Snapshot: external_exports.array(external_exports.object({ code: external_exports.string().max(40), label: external_exports.string().max(200) })).max(100).optional()
+});
+var damageScanRequest = external_exports.object({
+  image_base64: imageBase64,
+  mime_type: imageMimeType,
+  context: damageScanContext.default({})
+});
+var damageScanResult = external_exports.object({
+  hasDamage: external_exports.boolean(),
+  part: external_exports.string(),
+  type: external_exports.string(),
+  severity: external_exports.enum(["NONE", "MINOR", "MODERATE", "MAJOR", "CRITICAL"]),
+  confidence: external_exports.number().nullable(),
+  partMinor: external_exports.number(),
+  labourMinor: external_exports.number(),
+  paintMinor: external_exports.number(),
+  repairCostMinor: external_exports.number(),
+  matrixTotalMinor: external_exports.number().nullable(),
+  reasoning: external_exports.string(),
+  cosmetic: external_exports.array(external_exports.record(external_exports.unknown())),
+  promptVersion: external_exports.string()
+});
+var damageScanResponse = external_exports.object({ result: damageScanResult, request_id: external_exports.string() });
+
 // ../../packages/contracts/src/index.ts
 var healthResponse = external_exports.object({
   status: external_exports.literal("ok"),
@@ -7115,18 +8631,36 @@ var WIZARD_PHOTO_STEPS = [
 function b1WalkaroundShots() {
   return WIZARD_PHOTO_STEPS.filter((p) => p.itemCode === "B1").map((p) => p.shotCode);
 }
+var SHOT_LABELS2 = {
+  WALK_FRONT: "Front photo",
+  WALK_FRONT_LEFT: "Front-Left photo",
+  WALK_LEFT: "Left photo",
+  WALK_REAR_LEFT: "Rear-Left photo",
+  WALK_REAR: "Rear photo",
+  WALK_REAR_RIGHT: "Rear-Right photo",
+  WALK_RIGHT: "Right photo",
+  WALK_FRONT_RIGHT: "Front-Right photo"
+};
+var MISSING_KEYS = {
+  ...Object.fromEntries(Object.entries(SHOT_LABELS2).map(([code, label]) => [label, `field.inspect.rr.${code}`])),
+  "Odometer confirmation": "field.inspect.rr.odometer",
+  "Previous-owners confirmation": "field.inspect.rr.owners",
+  "VIN confirmation": "field.inspect.rr.vin",
+  "Engine number confirmation": "field.inspect.rr.engine",
+  "Registration confirmation": "field.inspect.rr.registration"
+};
 
 // src/app/inspect/[id]/angle-findings.ts
 var VALID_SEVERITIES3 = ["NONE", "MINOR", "MODERATE", "MAJOR", "CRITICAL"];
-function toSeverity2(raw) {
-  return raw != null && VALID_SEVERITIES3.includes(raw) ? raw : "NONE";
+function toSeverity2(raw2) {
+  return raw2 != null && VALID_SEVERITIES3.includes(raw2) ? raw2 : "NONE";
 }
-function toDamageType(raw) {
-  return raw != null && DAMAGE_TYPE_VALUES.includes(raw) ? raw : null;
+function toDamageType(raw2) {
+  return raw2 != null && DAMAGE_TYPE_VALUES.includes(raw2) ? raw2 : null;
 }
-function toConfidence(raw) {
-  if (raw == null || !Number.isFinite(raw)) return 0;
-  const v = raw <= 1 ? raw : raw / 100;
+function toConfidence(raw2) {
+  if (raw2 == null || !Number.isFinite(raw2)) return 0;
+  const v = raw2 <= 1 ? raw2 : raw2 / 100;
   return Math.min(1, Math.max(0, v));
 }
 function collectAngleFindings(reads) {
@@ -7180,11 +8714,11 @@ function collectAngleFindings(reads) {
 }
 
 // src/app/inspect/[id]/cross-validate.ts
-function normalizeIdentityCode(raw) {
-  return raw.toUpperCase().replace(/[^A-Z0-9]/g, "");
+function normalizeIdentityCode(raw2) {
+  return raw2.toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
-function normalizeName(raw) {
-  return raw.trim().replace(/\s+/g, " ").toUpperCase();
+function normalizeName(raw2) {
+  return raw2.trim().replace(/\s+/g, " ").toUpperCase();
 }
 function present(value) {
   return value != null && value.trim() !== "";
@@ -7364,9 +8898,9 @@ function verdictFor(v, field) {
 }
 
 // ../../packages/core/src/modules/valuation/domain/config.ts
-var VALUATION_MODEL_VERSION = "val-dev-0";
+var VALUATION_MODEL_VERSION = "val-dev-1";
 var CATEGORY_CURVES = {
-  PASSENGER: { firstYearRetention: 0.85, annualRetention: 0.86, floor: 0.1, avgAnnualKm: 1e4 },
+  PASSENGER: { firstYearRetention: 0.85, annualRetention: 0.88, floor: 0.2, avgAnnualKm: 1e4 },
   TWO_WHEELER: { firstYearRetention: 0.8, annualRetention: 0.85, floor: 0.08, avgAnnualKm: 6e3 }
 };
 var CONDITION_ADJUSTMENT_PCT = {
@@ -8228,10 +9762,10 @@ var RulesPricingEngine = class {
       breakdown.push({ component: "freshness", earned: 0, max: 10, note: avgAge == null ? "no dated sales" : "stale market" });
       if (anchored) warnings.push("Comparable sales are stale (avg over a year old) \u2014 treat the anchor cautiously.");
     }
-    const raw = breakdown.reduce((n, c) => n + c.earned, 0);
+    const raw2 = breakdown.reduce((n, c) => n + c.earned, 0);
     const fullEvidence = anchored && !features.conditionIncomplete && manualPanels === 0;
     const cap = fullEvidence ? 89 : 69;
-    const score = Math.min(raw, cap);
+    const score = Math.min(raw2, cap);
     const level = score >= 70 ? "HIGH" : score >= 40 ? "MEDIUM" : "LOW";
     return {
       status: "READY",
@@ -8563,13 +10097,25 @@ function explainIntegrityFailure(media, labels) {
 }
 
 // src/lib/final-valuation-card.ts
+var MAX_VALUATION_ODOMETER_KM = 1e6;
+var MAX_VALUATION_OWNER_COUNT = 20;
+function contractOwnerCount(n) {
+  if (n == null) return null;
+  const count = Math.max(1, n);
+  return count <= MAX_VALUATION_OWNER_COUNT ? count : null;
+}
+function contractOdometerKm(n) {
+  return n != null && n >= 0 && n <= MAX_VALUATION_ODOMETER_KM ? n : null;
+}
 function buildFinalValuationRequest(inputs) {
+  const odometerKm = contractOdometerKm(inputs.odometerKm);
+  const ownerCount = contractOwnerCount(inputs.ownerCount);
   return {
     vehicle_id: inputs.vehicleId,
     stage: "DECLARED",
     inspection_id: inputs.inspectionId,
-    ...inputs.odometerKm != null ? { odometer_km: inputs.odometerKm } : {},
-    ...inputs.ownerCount != null ? { owner_count: inputs.ownerCount } : {},
+    ...odometerKm != null ? { odometer_km: odometerKm } : {},
+    ...ownerCount != null ? { owner_count: ownerCount } : {},
     ...inputs.declaredCondition != null ? { declared_condition: inputs.declaredCondition } : {}
   };
 }
@@ -8639,6 +10185,17 @@ function findNearDuplicate(hash, seen, maxDistance = NEAR_DUPLICATE_DISTANCE) {
   }
   return best;
 }
+
+// src/lib/walkaround-coverage.ts
+var EXTERIOR_AREAS = ["FRONT", "REAR", "LEFT_SIDE", "RIGHT_SIDE"];
+var INTERIOR_AREAS = ["DASHBOARD", "STEERING", "FRONT_SEATS", "REAR_SEATS", "DOORS"];
+var REQUIRED_WALKAROUND_AREAS = [...EXTERIOR_AREAS, ...INTERIOR_AREAS];
+function checkVideoDuration(durationS, maxDurationS, minDurationS) {
+  if (!Number.isFinite(durationS) || durationS <= 0) return "UNKNOWN";
+  if (minDurationS != null && durationS < minDurationS - 1) return "TOO_SHORT";
+  if (maxDurationS != null && durationS > maxDurationS + 1) return "TOO_LONG";
+  return "OK";
+}
 export {
   COSMETIC_AREAS2 as COSMETIC_AREAS,
   COSMETIC_SEVERITIES2 as COSMETIC_SEVERITIES,
@@ -8650,6 +10207,7 @@ export {
   PHOTO_CAPTURE_GUIDANCE,
   POOR_LIGHTING_GUIDANCE,
   STEP_ORDER,
+  activeItemsFor,
   buildAiFinding,
   buildCanonicalProfile,
   buildFinalValuationRequest,
@@ -8657,6 +10215,7 @@ export {
   buildMissingList,
   buildPricingSummary,
   buildProgress,
+  checkVideoDuration,
   collectAngleFindings,
   crossValidateVehicle,
   decideForSavedSeverity,
@@ -8672,14 +10231,18 @@ export {
   mapAiSeverityToAnswer,
   newestFindingFor,
   normalizeDamageResult,
+  parseKeyCount,
   parseOdometerKm,
   parseOwnerCount,
   partitionItems,
   photoGroups,
+  photoSections,
   photoSlots,
+  previousOwnersFromRegistry,
   resolveShotDisplayName,
   selectFinalValuationCard,
   shotLabel,
   stepForItem,
-  toDamageVehicleContext
+  toDamageVehicleContext,
+  totalOwnersFromPrevious
 };

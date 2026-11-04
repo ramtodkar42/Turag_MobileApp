@@ -8,8 +8,8 @@
 //   uploadInspectionFile (documents + photos) -> recordInspectionAnswer ->
 //   submitInspection -> estimateValuation DECLARED with the inspection.
 import { ApiError, newIdempotencyKey, request } from '../client';
-import { DIRECT_OPENAI_SCAN, UPLOAD_TIMEOUT_MS, USE_REAL_API } from '../config';
-import { scanIdentityWithOpenAI } from './visionScan';
+import { UPLOAD_TIMEOUT_MS, USE_REAL_API, VIDEO_UPLOAD_TIMEOUT_MS } from '../config';
+import { readIdentityPhoto } from './aiScan.api';
 import { ENDPOINTS } from '../endpoints';
 import { mapValuation, mapVehicle } from '../mappers/valuation';
 import { sampleValuation, sampleVehicle } from '../mock/valuation';
@@ -218,19 +218,18 @@ export const uploadInspectionFile = async ({ inspectionId, itemCode, shotCode, k
       timeoutMs: UPLOAD_TIMEOUT_MS,
     }),
   );
-  await withRetry(() => putToUploadTarget(upload, blob));
+  // A walkaround video is far bigger than a photo: it gets longer to go up.
+  await withRetry(() => putToUploadTarget(upload, blob, kind === 'VIDEO' ? VIDEO_UPLOAD_TIMEOUT_MS : undefined));
   const done = await withRetry(() =>
     request(ENDPOINTS.mediaComplete(mediaId), { method: 'POST', timeoutMs: UPLOAD_TIMEOUT_MS }),
   );
   return { mediaId, status: done.media?.status ?? null };
 };
 
-// M1 VIN / RC photo reading (as the web's identity extraction cards).
+// M1 VIN / RC photo reading (as the web's identity extraction cards), on the
+// server (aiScan.api). kind: 'VIN' | 'RC'. The inspection id isn't needed by
+// the route; it stays in the signature for the callers.
 export const extractInspectionIdentity = async (inspectionId, kind, imageBase64) => {
-  // DEV: read the photo by calling OpenAI directly (staging has no extract route).
-  if (DIRECT_OPENAI_SCAN) {
-    return scanIdentityWithOpenAI(kind, imageBase64);
-  }
   if (!real()) {
     await wait(800);
     return kind === 'VIN'
@@ -248,12 +247,7 @@ export const extractInspectionIdentity = async (inspectionId, kind, imageBase64)
           regDate: '2020-08-14',
         };
   }
-  const data = await request(ENDPOINTS.inspectionIdentityExtract(inspectionId), {
-    method: 'POST',
-    body: { kind, image_base64: imageBase64 },
-    timeoutMs: 60000,
-  });
-  return data.result;
+  return readIdentityPhoto(kind, imageBase64);
 };
 
 // Verify the user-CONFIRMED VIN / RC / plate reads against the vehicle's

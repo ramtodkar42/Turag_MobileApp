@@ -8,7 +8,6 @@ export default {
   'home.searchPlaceholder': 'कार शोधा',
   'home.banner': 'तुमची आवडती कार शोधा',
   'home.bannerText': 'सर्वोत्तम किमतीत पडताळलेल्या कार, फक्त एका टॅपवर.',
-  'home.location': 'पुणे, महाराष्ट्र',
   'home.openSearch': 'वाहने शोधा',
   'home.language.button': 'भाषा: {language}. भाषा बदला',
   'home.closeSearch': 'शोध बंद करा',

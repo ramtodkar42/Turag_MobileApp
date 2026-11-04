@@ -38,6 +38,14 @@ export const getSelfInspection = async inspectionId => {
   return { inspection, sections, media: media.items ?? [] };
 };
 
+// The valuation the owner saw before starting this inspection (from Evaluate),
+// shown as the live estimate so they see one consistent number. Paise, or null
+// when the vehicle has none yet (e.g. it came through "List a vehicle").
+export const getReferenceValuation = async inspectionId => {
+  const data = await request(ENDPOINTS.inspectionReferenceValuation(inspectionId));
+  return data?.valuation?.value_minor ?? null;
+};
+
 // The inspection's media again (after submit: the integrity reasons).
 export const listSelfInspectionMedia = async inspectionId =>
   (await request(ENDPOINTS.inspectionMedia(inspectionId))).items ?? [];

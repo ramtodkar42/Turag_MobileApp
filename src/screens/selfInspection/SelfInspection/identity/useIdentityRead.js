@@ -1,19 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { launchImageLibrary } from 'react-native-image-picker';
 import { extractInspectionIdentity } from '../../../../api/services/valuation.api';
 import { tNow } from '../../../../i18n';
+import { takePhotoWithBase64 } from '../../../../utils/pickVideo';
 
-const PICK = {
-  mediaType: 'photo',
-  selectionLimit: 1,
-  includeBase64: true,
-  quality: 0.8,
-  maxWidth: 1600,
-  maxHeight: 1600,
-};
-
-// The VIN / RC photo read behind IdentityExtractCard. The photo is only read
-// (as on the web) - it isn't uploaded as evidence.
+// The VIN / RC photo read behind IdentityExtractCard. The photo is taken with the
+// camera and only read (as on the web) - it isn't uploaded as evidence.
 //   phase: 'start' | 'reading' | 'ready'
 //   read: what the AI read ({} for manual entry); fromPhoto: it came from a photo
 //   notDocument: the photo isn't a VIN plate / an RC (manual review; retake or type)
@@ -62,13 +53,13 @@ export default function useIdentityRead(inspectionId, kind, { initial, onChange 
     const id = ++run.current;
     let image;
     try {
-      const picked = await launchImageLibrary(PICK);
-      if (picked.didCancel) {
-        return;
+      const photo = await takePhotoWithBase64();
+      if (!photo) {
+        return; // cancelled
       }
-      image = picked.assets?.[0]?.base64;
-      if (picked.errorCode || !image) {
-        throw new Error('pick');
+      image = photo.base64;
+      if (!image) {
+        throw new Error('no photo');
       }
     } catch {
       setError(tNow('inspector.identity.photoError'));

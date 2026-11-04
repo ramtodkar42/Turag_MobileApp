@@ -7,7 +7,6 @@ export default {
   'home.searchPlaceholder': 'Search Car',
   'home.banner': 'Find Your Dream Car',
   'home.bannerText': 'Verified cars at the best prices, just a tap away.',
-  'home.location': 'Pune, Maharashtra',
   'home.openSearch': 'Search vehicles',
   'home.language.button': 'Language: {language}. Change language',
   'home.closeSearch': 'Close search',

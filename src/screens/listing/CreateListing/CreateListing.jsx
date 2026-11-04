@@ -8,6 +8,7 @@ import {
   HeaderCard,
   InfoNote,
   ScreenContainer,
+  SelectField,
   TextField,
   TitledCard,
   ValueCard,
@@ -17,11 +18,13 @@ import { fs } from '../../../utils/responsive';
 import { formatINR, formatNumber } from '../../../utils/format';
 import { newIdempotencyKey } from '../../../api/client';
 import { createListing } from '../../../api/services/sellerListing.api';
+import useMyOrganizations from '../../../hooks/useMyOrganizations';
 import { loadGarage } from '../../../store/garageStore';
 import { ROUTES } from '../../../navigation/routes';
 import { useT } from '../../../i18n';
 import LocationSection from './components/LocationSection';
 import useListingLocation from './useListingLocation';
+import ListingReportSummary from './components/ListingReportSummary';
 
 const MAX_PRICE_DIGITS = 9; // up to ₹99,99,99,999
 const MAX_NOTE = 2000; // backend limit
@@ -39,6 +42,11 @@ function CreateListing({ navigation, route }) {
   const [touched, setTouched] = useState(false);
   const [note, setNote] = useState('');
   const [attested, setAttested] = useState(false);
+  // A dealer is a seller with the dealer role: the listing is filed under their
+  // dealership by the server. Only someone in several has to choose.
+  const { orgs } = useMyOrganizations();
+  const dealerships = orgs.filter(o => o.type === 'DEALER' && o.active);
+  const [sellerOrgId, setSellerOrgId] = useState('');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
   // Where the vehicle is: city + state are required by the backend.
@@ -72,10 +80,14 @@ function CreateListing({ navigation, route }) {
       setShowLocationErrors(true);
       return;
     }
+    if (dealerships.length > 1 && !sellerOrgId) {
+      setError(t('selling.create.dealershipRequired'));
+      return;
+    }
     // The same key only for a retry of exactly the same listing; after any
     // change (price, note, location) it's a new attempt with a new key.
     const payload = location.toPayload();
-    const attempt = JSON.stringify([Number(price), note, payload]);
+    const attempt = JSON.stringify([Number(price), note, payload, sellerOrgId]);
     if (key.current?.attempt !== attempt) {
       key.current = { attempt, value: newIdempotencyKey() };
     }
@@ -89,6 +101,7 @@ function CreateListing({ navigation, route }) {
         askPrice: Number(price),
         sellerNote: note,
         location: payload,
+        sellerOrgId: dealerships.length > 1 ? sellerOrgId : undefined,
         idempotencyKey: key.current.value,
         vehicle,
       });
@@ -120,6 +133,8 @@ function CreateListing({ navigation, route }) {
       {!eligible ? (
         <InfoNote style={styles.card}>{t('selling.create.needsInspection')}</InfoNote>
       ) : null}
+
+      <ListingReportSummary inspectionId={vehicle.inspectionId} vehicle={vehicle} style={styles.card} />
 
       <ValueCard
         label={t('selling.create.estimate')}
@@ -162,6 +177,17 @@ function CreateListing({ navigation, route }) {
       </View>
 
       <LocationSection form={location} showErrors={showLocationErrors} style={styles.section} />
+
+      {dealerships.length > 1 ? (
+        <SelectField
+          label={t('selling.create.dealershipLabel')}
+          placeholder={t('selling.create.dealershipChoose')}
+          options={dealerships.map(o => ({ label: o.name, value: o.id }))}
+          value={sellerOrgId}
+          onChange={setSellerOrgId}
+          style={styles.section}
+        />
+      ) : null}
 
       <TitledCard title={t('selling.create.ownershipTitle')} style={styles.card}>
         <AppText variant="caption" color={colors.body} style={styles.ownership}>

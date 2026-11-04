@@ -3,7 +3,6 @@ import {
   AppText,
   BottomSheet,
   Button,
-  ButtonRow,
   FadeIn,
   Icon,
   TextField,
@@ -69,26 +68,22 @@ function DeleteAccountSheet({ account }) {
         </FadeIn>
       ) : null}
 
-      <ButtonRow style={styles.actions}>
-        <Button
-          title={t('profile.delete.cancel')}
-          variant="outline"
-          fullWidth={false}
-          disabled={deleting}
-          onPress={hide}
-          style={styles.flex}
-        />
+      <View style={styles.actions}>
         <Button
           title={t(
             deleting ? 'profile.delete.deleting' : 'profile.delete.confirm',
           )}
-          fullWidth={false}
           loading={deleting}
           disabled={!canDelete && !deleting}
           onPress={remove}
-          style={styles.flex}
         />
-      </ButtonRow>
+        <Button
+          title={t('profile.delete.cancel')}
+          variant="outline"
+          disabled={deleting}
+          onPress={hide}
+        />
+      </View>
     </BottomSheet>
   );
 }
@@ -125,6 +120,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   actions: {
+    gap: spacing.sm,
     marginTop: spacing.lg,
   },
 });

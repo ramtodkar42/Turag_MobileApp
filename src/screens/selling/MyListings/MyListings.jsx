@@ -20,7 +20,6 @@ import { formatSlot } from '../../../utils/date';
 import useRemoteData from '../../../hooks/useRemoteData';
 import { getMyListings } from '../../../api/services/sellerListing.api';
 import { ROUTES } from '../../../navigation/routes';
-import { currentHomeRoute } from '../../../navigation/homeRoute';
 import { useT } from '../../../i18n';
 import { LISTING_STATUS } from '../../account/statuses';
 
@@ -133,7 +132,7 @@ function MyListings({ navigation }) {
       footer={
         <Button
           title={t('selling.list.listVehicle')}
-          onPress={() => navigation.navigate(currentHomeRoute(), { screen: ROUTES.GARAGE })}
+          onPress={() => navigation.navigate(ROUTES.LIST_VEHICLE_START)}
         />
       }
     >

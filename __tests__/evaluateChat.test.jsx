@@ -8,8 +8,10 @@ import React from 'react';
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import EvaluateChat from '../src/screens/valuation/EvaluateChat/EvaluateChat';
-import { Keyboard, TextInput } from 'react-native';
-import { KeyValueRow, ValueCard } from '../src/components';
+import { FlatList, Keyboard, TextInput } from 'react-native';
+import { KeyValueRow } from '../src/components';
+import EstimateResultCard from '../src/screens/valuation/components/EstimateResultCard';
+import { TierNote } from '../src/screens/valuation/components/TierPreview';
 import { sampleVehicle } from '../src/api/mock/valuation';
 import * as valuationApi from '../src/api/services/valuation.api';
 import { clearGarage } from '../src/store/garageStore';
@@ -67,8 +69,6 @@ const toResult = async (root, accident = 'Minor') => {
   await advance(2000);
   await type(root, '45000');
   await advance(700);
-  await act(async () => button(root, '2').props.onPress());
-  await advance(700);
   await act(async () => button(root, accident).props.onPress());
   await advance(1500);
 };
@@ -102,15 +102,14 @@ test('the whole conversation, the same calls as the web, then AI Self Inspection
   await advance(2000);
   expect(confirm).toHaveBeenCalledWith('MH12DX5087');
   expect(estimate).toHaveBeenCalledWith({ vehicleId: 'veh_mock_1', stage: 'INSTANT' });
-  expect(root.findAllByType(ValueCard)[0].props.value).toBe('₹8,31,300/-');
+  expect(hasText(root, '₹8,31,300')).toBe(true);
   expect(hasText(root, 'How many km has it done?')).toBe(true);
 
   await type(root, '45000');
   expect(hasText(root, '45,000 km')).toBe(true);
   await advance(700);
-  await act(async () => button(root, '2').props.onPress());
-  expect(hasText(root, '2 owners')).toBe(true);
-  await advance(700);
+  // Owners aren't asked: the server reads them from the RC record (as the web).
+  expect(hasText(root, 'How many owners')).toBe(false);
   expect(button(root, 'No')).toBeDefined();
   await act(async () => button(root, 'Minor').props.onPress());
   await advance(1500);
@@ -118,12 +117,23 @@ test('the whole conversation, the same calls as the web, then AI Self Inspection
     vehicleId: 'veh_mock_1',
     stage: 'DECLARED',
     odometerKm: 45000,
-    ownerCount: 2,
     condition: 'FAIR',
   });
   // (The list is inverted: the newest card comes first.)
-  expect(root.findAllByType(ValueCard)).toHaveLength(2);
-  expect(root.findAllByType(ValueCard)[0].props.label).toBe('Updated Estimate');
+  const cards = root.findAllByType(EstimateResultCard);
+  expect(cards).toHaveLength(2);
+  expect(cards[0].props.label).toBe('Dealer will pay about');
+  expect(hasText(root, 'Sell to a private buyer for about')).toBe(true);
+  expect(hasText(root, 'This is an estimate, not the final price.')).toBe(true);
+  expect(hasText(root, 'Turag tier today')).toBe(true);
+  // One short card: the longer notes wait under "More details".
+  expect(root.findAllByType(TierNote)).toHaveLength(0);
+  expect(hasText(root, 'This is an estimated value based on your answers')).toBe(false);
+  const more = () => cards[0].findAll(n => n.props.title === 'More details' && n.props.onPress)[0];
+  await act(async () => more().props.onPress());
+  expect(root.findAllByType(TierNote)).toHaveLength(1);
+  expect(hasText(root, 'This is an estimated value based on your answers')).toBe(true);
+  expect(root.findAllByType(KeyValueRow).map(row => row.props.label)).not.toContain('Distress');
   expect(button(root, 'Save Vehicle')).toBeDefined();
 
   await act(async () => button(root, 'Inspect Vehicle').props.onPress());
@@ -131,7 +141,7 @@ test('the whole conversation, the same calls as the web, then AI Self Inspection
   expect(hasText(root, 'How would you like to verify your vehicle?')).toBe(true);
   await act(async () => button(root, 'AI Self Inspection').props.onPress());
   await advance(700);
-  expect(hasText(root, 'RC, insurance and PUC')).toBe(true); // what it covers
+  expect(hasText(root, 'RC and insurance')).toBe(true); // what it covers
   await act(async () => {
     button(root, 'Start AI Self Inspection').props.onPress();
   });
@@ -161,6 +171,20 @@ test('Not my vehicle asks for the number again; a failed lookup explains and ask
   expect(input(root)).toBeDefined();
 });
 
+test('each answer brings the chat back to the latest message', async () => {
+  const scroll = jest.spyOn(FlatList.prototype, 'scrollToOffset').mockImplementation(() => {});
+  const root = await open(nav());
+  scroll.mockClear();
+  await toResult(root);
+  scroll.mockClear();
+  await act(async () => button(root, 'Inspect Vehicle').props.onPress());
+  expect(scroll).toHaveBeenCalledWith({ offset: 0, animated: true });
+  scroll.mockClear();
+  await advance(700);
+  expect(hasText(root, 'How would you like to verify your vehicle?')).toBe(true);
+  expect(scroll).toHaveBeenCalledWith({ offset: 0, animated: true });
+});
+
 test('Appoint an Inspector says it is coming soon and offers the AI Self Inspection; Save Vehicle saves it to the Garage', async () => {
   const navigation = nav();
   const root = await open(navigation);
@@ -180,11 +204,11 @@ test('Appoint an Inspector says it is coming soon and offers the AI Self Inspect
   expect(navigation.navigate).not.toHaveBeenCalledWith(ROUTES.BOOK_APPOINTMENT, expect.anything());
   expect(hasText(root, 'Inspector visits are coming soon.')).toBe(true);
   // One short message in view, and only AI Self Inspection left to tap.
-  expect(hasText(root, 'RC, insurance and PUC')).toBe(false);
+  expect(hasText(root, 'RC and insurance')).toBe(false);
   expect(button(root, 'Appoint an Inspector')).toBeUndefined();
   await act(async () => button(root, 'AI Self Inspection').props.onPress());
   await advance(700);
-  expect(hasText(root, 'RC, insurance and PUC')).toBe(true);
+  expect(hasText(root, 'RC and insurance')).toBe(true);
   expect(button(root, 'Start AI Self Inspection')).toBeDefined();
   act(() => clearGarage());
 });

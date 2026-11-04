@@ -7,6 +7,7 @@ import { CATEGORIES } from '../constants';
 import CategoryTabs from './CategoryTabs';
 import HomeHeader from './HomeHeader';
 import PromoBanner from './PromoBanner';
+import HomeInsightsCard from '../../../insights/HomeInsightsCard';
 import QuickFilters from './QuickFilters';
 import SearchStatus from './SearchStatus';
 import SmartSearchChips from './SmartSearchChips';
@@ -69,7 +70,6 @@ function HomeListHeader({
       <View style={styles.padded}>
         <HomeHeader
           name={firstName}
-          location={t('home.location')}
           unreadCount={unreadCount}
           searchOpen={showSearch}
           onSearchPress={toggleSearch}
@@ -112,6 +112,7 @@ function HomeListHeader({
       <QuickFilters filters={market.filters} onChange={market.setFilter} onLanguagePress={onLanguagePress} />
 
       <View style={styles.padded}>
+        <HomeInsightsCard style={styles.insights} />
         <PromoBanner
           title={t('home.banner')}
           subtitle={t('home.bannerText')}
@@ -143,6 +144,9 @@ const styles = StyleSheet.create({
     paddingRight: spacing.sm, // room for the mic
     backgroundColor: colors.white,
     ...shadows.sm,
+  },
+  insights: {
+    marginTop: spacing.md,
   },
   banner: {
     marginTop: spacing.xs,

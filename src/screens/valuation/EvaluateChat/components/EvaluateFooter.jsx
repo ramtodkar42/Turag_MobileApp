@@ -6,7 +6,7 @@ import { ROUTES } from '../../../../navigation/routes';
 import { useT } from '../../../../i18n';
 import { ACCIDENT_OPTIONS } from '../../constants';
 import SaveVehicleButton from '../../components/SaveVehicleButton';
-import { OWNER_CHOICES, STEPS } from '../steps';
+import { STEPS } from '../steps';
 import AnswerInput from './AnswerInput';
 import QuickReplies from './QuickReplies';
 
@@ -33,19 +33,6 @@ function EvaluateFooter({ chat, navigation }) {
       );
     case STEPS.KM:
       return <AnswerInput key="km" kind="km" onSubmit={chat.submitKm} />;
-    case STEPS.OWNERS:
-      return (
-        <View style={styles.stack}>
-          <QuickReplies
-            options={OWNER_CHOICES.map(count => ({
-              key: String(count),
-              label: String(count),
-              onPress: () => chat.submitOwners(count),
-            }))}
-          />
-          <AnswerInput key="owners" kind="owners" onSubmit={chat.submitOwners} />
-        </View>
-      );
     case STEPS.ACCIDENT:
       return (
         <QuickReplies
@@ -79,6 +66,7 @@ function EvaluateFooter({ chat, navigation }) {
     case STEPS.MODE:
       return (
         <QuickReplies
+          stacked
           options={[
             ...(chat.canSelfInspect
               ? [{ key: 'self', label: t('valuation.mode.self'), onPress: chat.chooseSelf, primary: true }]

@@ -20,8 +20,7 @@ export default {
   'garage.vehicle.savedOn': 'जतन केल्याची तारीख',
   'garage.vehicle.valueNote':
     'हे अंदाजित मूल्य आहे. तुमच्या वाहनाचे अधिक अचूक मूल्यांकन मिळवण्यासाठी तपासणी पूर्ण करा.',
-  'garage.vehicle.inspectNote':
-    'मोफत AI स्व-तपासणीमुळे किंमतीचा पल्ला कमी होतो, किंवा Turag पडताळणीसाठी इन्स्पेक्टर बुक करा.',
+  'garage.vehicle.inspectNote': 'रेंज अधिक अचूक करण्यासाठी स्वतः निरीक्षण करा, किंवा ही गाडी Turag Verified करण्यासाठी इन्स्पेक्टर बुक करा.',
   'garage.vehicle.createListing': 'लिस्टिंग तयार करा',
   'garage.vehicle.bookInspector': 'इन्स्पेक्टर बुक करा',
   'garage.status.not_inspected': 'तपासणी झाली नाही',
@@ -78,4 +77,5 @@ export default {
   'garage.card.viewSummary': 'सारांश पहा',
   'garage.card.viewDetails': 'माहिती पहा',
   'garage.card.rejected': 'तपासणीकडे लक्ष हवे',
+  'garage.vehicle.bookSoon': 'इन्स्पेक्टर बुकिंग लवकरच येत आहे. सध्या तुमची गाडी तपासण्यासाठी AI सेल्फ इन्स्पेक्शन वापरा.',
 };

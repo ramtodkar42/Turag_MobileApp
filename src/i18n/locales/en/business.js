@@ -314,4 +314,6 @@ export default {
   'business.rowStatus.CREATED': 'Registered',
   'business.rowStatus.FAILED': 'Failed',
   'business.rowStatus.SKIPPED_DUPLICATE': 'Duplicate',
+  'business.listingStatus.CHANGES_REQUESTED': 'Changes requested',
+  'business.dealer.sellNote': 'List a car the same way any seller does: enter the registration number, run an AI Self Inspection, then list it. It appears here with its offers and sales.',
 };

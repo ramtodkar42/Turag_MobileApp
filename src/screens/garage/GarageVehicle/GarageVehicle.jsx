@@ -20,6 +20,7 @@ import { formatDate, formatINR } from '../../../utils/format';
 import { ROUTES } from '../../../navigation/routes';
 import { useT } from '../../../i18n';
 import { codeLabel, keyLabel } from '../../../i18n/vehicleLabels';
+import { FEATURES } from '../../../api/config';
 import { supportsSelfInspection } from '../../../api/mappers/valuation';
 import { startSelfInspection } from '../../../api/services/valuation.api';
 import { loadGarage, removeFromGarageById, useGarage } from '../../../store/garageStore';
@@ -74,8 +75,15 @@ function GarageVehicle({ navigation, route }) {
     navigation.navigate(ROUTES.WEB_PAGE, { title: t('profile.item.privacyPolicy'), path: '/privacy_policy' });
   const { confirm, dialog } = useConfirmDialog();
 
-  const bookInspector = () =>
-    navigation.navigate(ROUTES.BOOK_APPOINTMENT, { vehicle, valuation: valuationParam });
+  // Paused for customers (as the web): the button stays and says it's coming soon.
+  const [bookingSoon, setBookingSoon] = useState(false);
+  const bookInspector = () => {
+    if (FEATURES.inspectorBooking) {
+      navigation.navigate(ROUTES.BOOK_APPOINTMENT, { vehicle, valuation: valuationParam });
+    } else {
+      setBookingSoon(true);
+    }
+  };
 
   // The self-inspection started from this page (until the Garage shows it):
   // coming back and tapping again continues it - never a second one.
@@ -235,6 +243,11 @@ function GarageVehicle({ navigation, route }) {
 
   const footer = (
     <View style={styles.footer}>
+      {bookingSoon ? (
+        <AppText variant="caption" accessibilityLiveRegion="polite" style={styles.error}>
+          {t('garage.vehicle.bookSoon')}
+        </AppText>
+      ) : null}
       {error ? (
         <AppText variant="caption" color={colors.danger} style={styles.error}>
           {error}

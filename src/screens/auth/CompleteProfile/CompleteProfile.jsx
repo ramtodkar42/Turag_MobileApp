@@ -50,14 +50,16 @@ function CompleteProfile({ navigation, route }) {
       const titleKey = needsProfile
         ? 'auth.accountCreated'
         : 'auth.loginSuccessful';
-      resetAfterSignIn(navigation, [
+      const success = [
         ROUTES.AUTH_SUCCESS,
         {
           titleKey,
           next: getHomeRoute(user.role),
           ...(emailNotice ? { emailNotice } : null),
         },
-      ]);
+      ];
+      // A new account gets the optional "tell us about you" questions first (as the web).
+      resetAfterSignIn(navigation, needsProfile ? [ROUTES.ABOUT_YOU, { then: success }] : success);
     },
   });
   const { values, errors } = form;

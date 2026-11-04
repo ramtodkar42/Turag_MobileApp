@@ -12,7 +12,7 @@ const CONFIDENCE_LEVELS = new Set(['LOW', 'MEDIUM', 'HIGH']);
 // (like ValueCard): the value, the likely range on a band (placed in a +-35%
 // window around the value) and the confidence; otherwise `emptyText`.
 // Amounts in paise.
-function EstimateCard({ valueMinor, lowerMinor, upperMinor, confidenceLevel, vehicleLabel, emptyText, footnote, loading }) {
+function EstimateCard({ label, valueMinor, lowerMinor, upperMinor, confidenceLevel, vehicleLabel, emptyText, footnote, loading }) {
   const t = useT();
   let band = null;
   if (valueMinor != null && lowerMinor != null && upperMinor != null && valueMinor > 0) {
@@ -26,7 +26,7 @@ function EstimateCard({ valueMinor, lowerMinor, upperMinor, confidenceLevel, veh
     <Card>
       <View style={styles.labelRow}>
         <AppText variant="caption" color={colors.heading} style={styles.label}>
-          {t('selfInspection.estimate.title')}
+          {label ?? t('selfInspection.estimate.title')}
         </AppText>
         <Icon name="trendUp" size={ms(12)} color={colors.heading} strokeWidth={2} />
         {confidenceLevel && valueMinor != null && !loading ? (

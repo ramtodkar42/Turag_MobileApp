@@ -8,7 +8,7 @@ const ORG_TONE = { ACTIVE: 'success', PENDING: 'warning', SUSPENDED: 'danger' };
 export const orgStatus = status => ({ labelKey: label('orgStatus', status), tone: ORG_TONE[status] ?? 'neutral' });
 
 // Listing / portfolio status (dealer portal: live green, in review / reserved amber).
-const LISTING_TONE = { LIVE: 'success', PENDING_REVIEW: 'warning', RESERVED: 'warning', REJECTED: 'warning' };
+const LISTING_TONE = { LIVE: 'success', PENDING_REVIEW: 'warning', CHANGES_REQUESTED: 'warning', RESERVED: 'warning', REJECTED: 'warning' };
 export const listingStatus = status => ({
   labelKey: label('listingStatus', status),
   tone: LISTING_TONE[status] ?? 'neutral',
@@ -56,7 +56,7 @@ export const DEALER_SALE_FILTERS = ['active', 'completed', 'cancelled', 'all'];
 export const CATEGORIES = ['PASSENGER', 'TWO_WHEELER'];
 export const FUELS = ['PETROL', 'DIESEL', 'CNG', 'ELECTRIC', 'HYBRID'];
 export const CITIES = ['PUNE', 'PCMC'];
-export const PORTFOLIO_STATUSES = ['DRAFT', 'PENDING_REVIEW', 'LIVE', 'RESERVED', 'WITHDRAWN', 'EXPIRED'];
+export const PORTFOLIO_STATUSES = ['DRAFT', 'PENDING_REVIEW', 'CHANGES_REQUESTED', 'LIVE', 'RESERVED', 'WITHDRAWN', 'EXPIRED'];
 export const AGEING_BUCKETS = ['FRESH', 'AGEING', 'STALE', 'OLD'];
 
 // A known code's label key, or the raw value for anything new from the server.

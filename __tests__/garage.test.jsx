@@ -113,7 +113,9 @@ test('Valuation result: "sent for review" for 2 s, then Save Vehicle adds it to 
   expect(root.findByType(SuccessSheet).props.visible).toBe(true);
   await advance(2100);
   expect(root.findByType(SuccessSheet).props.visible).toBe(false);
-  expect(root.findAllByType(KeyValueRow).map(r => r.props.label)).toEqual([
+  // The two figures a seller acts on, as the web: no band table here (only on the report).
+  expect(root.findAll(n => n.props.children === 'Sell to a private buyer for about').length).toBeGreaterThan(0);
+  expect(root.findAllByType(KeyValueRow).map(r => r.props.label)).not.toEqual([
     'Distress',
     'Auction',
     'Trade-In',
@@ -168,11 +170,22 @@ test('Garage vehicle page: details; not inspected yet - self-inspect (after cons
   // ADR-0038: not listable before a finished inspection.
   expect(button(root, 'Create Listing')).toBeUndefined();
   expect(button(root, 'Start AI Self Inspection').props.disabled).toBe(true); // consent first
+  // Booking an inspector is paused (as the web): it stays, and says it's coming soon.
   await act(async () => button(root, 'Book an Inspector').props.onPress());
-  expect(navigation.navigate).toHaveBeenCalledWith(
-    ROUTES.BOOK_APPOINTMENT,
-    expect.objectContaining({ vehicle: expect.objectContaining({ vehicleId: expect.any(String) }) }),
-  );
+  expect(navigation.navigate).not.toHaveBeenCalledWith(ROUTES.BOOK_APPOINTMENT, expect.anything());
+  expect(root.findAll(n => n.props.children === 'Booking an inspector is coming soon. For now, use AI Self Inspection to check your vehicle.').length).toBeGreaterThan(0);
+
+  const { FEATURES } = require('../src/api/config');
+  FEATURES.inspectorBooking = true;
+  try {
+    await act(async () => button(root, 'Book an Inspector').props.onPress());
+    expect(navigation.navigate).toHaveBeenCalledWith(
+      ROUTES.BOOK_APPOINTMENT,
+      expect.objectContaining({ vehicle: expect.objectContaining({ vehicleId: expect.any(String) }) }),
+    );
+  } finally {
+    FEATURES.inspectorBooking = false;
+  }
 });
 
 test('Garage vehicle page: inspected + valued - Create Listing; listed - View listing; no value - Book', async () => {
