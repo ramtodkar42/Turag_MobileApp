@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { StatusBar } from 'react-native';
+import { Platform, StatusBar } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import RNBootSplash from 'react-native-bootsplash';
@@ -7,6 +7,8 @@ import RootNavigator from './navigation/RootNavigator';
 import { navigationRef } from './navigation/navigationRef';
 import useAppBoot from './hooks/useAppBoot';
 import PushBanner from './push/PushBanner';
+import AppStoreUpdatePrompt from './components/feedback/AppStoreUpdatePrompt';
+import AppUpdatePrompt from './components/feedback/AppUpdatePrompt';
 import OfflineBanner from './components/feedback/OfflineBanner';
 import PermissionDialog from './components/feedback/PermissionDialog';
 import SplashScreen from './screens/common/SplashScreen';
@@ -42,6 +44,8 @@ function App() {
           <OfflineBanner />
           {/* "Camera access is off" + Open Settings, from any screen. */}
           <PermissionDialog />
+          {/* A new version: Google Play's in-app update, or on iPhone a popup to the App Store. */}
+          {Platform.OS === 'ios' ? <AppStoreUpdatePrompt /> : <AppUpdatePrompt />}
         </>
       ) : (
         // Branded launch screen (TURAG logo) while the saved session is read.

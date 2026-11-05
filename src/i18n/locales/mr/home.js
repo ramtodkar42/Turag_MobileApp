@@ -2,7 +2,6 @@
 export default {
   'home.hello': 'नमस्कार {name}',
   // Brand tagline: kept in English, as in the logo.
-  'home.tagline': 'SWIFTLY INNOVATING',
   'home.helloFallback': 'मित्रा',
   'home.notifications': 'सूचना',
   'home.searchPlaceholder': 'कार शोधा',

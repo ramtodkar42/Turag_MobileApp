@@ -7,7 +7,7 @@ import { useT } from '../../../../i18n';
 // Bigger counts show as "9+" (as on the web).
 const MAX_BADGE = 9;
 const BUTTON = ms(42);
-const LOGO_WIDTH = ms(68);
+const LOGO_WIDTH = ms(84);
 
 // TURAG logo + "Hello Name"; round search and notification buttons
 // (the bell with the unread count). searchOpen: the search bar is showing.
@@ -27,7 +27,8 @@ function HomeHeader({ name, unreadCount = 0, searchOpen, onSearchPress, onNotifi
       <IconButton
         onPress={onSearchPress}
         size={BUTTON}
-        backgroundColor={colors.dangerLight}
+        backgroundColor={colors.white}
+        style={styles.action}
         accessibilityLabel={t(searchOpen ? 'home.closeSearch' : 'home.openSearch')}
       >
         <Icon name={searchOpen ? 'close' : 'search'} size={ms(20)} color={colors.primary} />
@@ -36,7 +37,8 @@ function HomeHeader({ name, unreadCount = 0, searchOpen, onSearchPress, onNotifi
       <IconButton
         onPress={onNotificationsPress}
         size={BUTTON}
-        backgroundColor={colors.dangerLight}
+        backgroundColor={colors.white}
+        style={styles.action}
         accessibilityLabel={
           unreadCount > 0 ? t('home.notificationsUnread', { count: unreadCount }) : t('home.notifications')
         }
@@ -65,6 +67,10 @@ const styles = StyleSheet.create({
   info: {
     flex: 1,
     marginLeft: spacing.md,
+  },
+  action: {
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   // Design greeting is smaller than the screen-title h3.
   greeting: {

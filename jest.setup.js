@@ -1,4 +1,8 @@
 // Native modules that don't exist in the Jest environment.
+jest.mock('react-native-device-info', () => ({
+  getVersion: () => '1.0.0',
+  getBundleId: () => 'ai.turag.app',
+}));
 jest.mock('react-native-image-picker', () => ({
   launchImageLibrary: jest.fn(() => Promise.resolve({ didCancel: true })),
   launchCamera: jest.fn(() => Promise.resolve({ didCancel: true })),

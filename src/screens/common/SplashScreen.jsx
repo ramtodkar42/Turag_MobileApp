@@ -1,11 +1,11 @@
 import { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
+import TuragWordmark from '../../components/common/TuragWordmark';
 import { colors } from '../../theme';
 import { ms } from '../../utils/responsive';
 
-const WORDMARK = require('../../assets/images/turag_wordmark.png'); // 700x178
-
-const WORDMARK_W = ms(210);
+// The same size as the native splash's logo, so nothing jumps at the hand-off.
+const WORDMARK_W = ms(170);
 
 // The branded launch screen shown while the app boots: the TURAG wordmark
 // centered on white, fading in. Plain white to match the native splash
@@ -19,11 +19,9 @@ function SplashScreen() {
 
   return (
     <View style={styles.container}>
-      <Animated.Image
-        source={WORDMARK}
-        resizeMode="contain"
-        style={[styles.wordmark, { opacity: fade }]}
-      />
+      <Animated.View style={{ opacity: fade }}>
+        <TuragWordmark width={WORDMARK_W} />
+      </Animated.View>
     </View>
   );
 }
@@ -34,10 +32,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  wordmark: {
-    width: WORDMARK_W,
-    height: (WORDMARK_W * 178) / 700,
   },
 });
 

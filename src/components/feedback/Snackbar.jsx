@@ -1,13 +1,13 @@
 import { useEffect, useRef } from 'react';
-import { Animated, KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
+import { Animated, KeyboardAvoidingView, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AppText from '../common/AppText';
 import IconButton from '../common/IconButton';
 import Icon from '../icons/Icon';
-import { colors, shadows, spacing } from '../../theme';
-import { MAX_CONTENT_WIDTH } from '../../constants/layout';
+import { colors, fonts, shadows, spacing } from '../../theme';
+import { HIT_SLOP, MAX_CONTENT_WIDTH } from '../../constants/layout';
 import useKeyboardInset from '../../hooks/useKeyboardInset';
-import { ms } from '../../utils/responsive';
+import { fs, ms } from '../../utils/responsive';
 import { useT } from '../../i18n';
 
 const IOS = Platform.OS === 'ios';
@@ -19,7 +19,8 @@ const SLIDE = ms(64);
 // when it's open: it slides up, stays about 6 seconds (or until its X is tapped), slides
 // away and calls onDone. Render it as the last child of a full-screen view. Nothing on
 // the screen moves for it, and touches outside it go through.
-function Snackbar({ text, icon = 'check', onDone }) {
+// persist: stays until closed. actionLabel + onAction: a text button beside the X.
+function Snackbar({ text, icon = 'check', persist = false, actionLabel, onAction, onDone }) {
   const t = useT();
   const insets = useSafeAreaInsets();
   const keyboard = useKeyboardInset({ animate: false });
@@ -35,9 +36,9 @@ function Snackbar({ text, icon = 'check', onDone }) {
 
   useEffect(() => {
     Animated.timing(progress, { toValue: 1, duration: MOVE_MS, useNativeDriver: true }).start();
-    timer.current = setTimeout(leave, SHOW_MS);
+    if (!persist) timer.current = setTimeout(leave, SHOW_MS);
     return () => clearTimeout(timer.current);
-  }, [progress, leave]);
+  }, [progress, leave, persist]);
 
   const translateY = progress.interpolate({ inputRange: [0, 1], outputRange: [SLIDE, 0] });
   const barBottom = keyboard.open ? 0 : insets.bottom;
@@ -59,6 +60,13 @@ function Snackbar({ text, icon = 'check', onDone }) {
           <AppText variant="label" color={colors.white} style={styles.text}>
             {text}
           </AppText>
+          {actionLabel ? (
+            <Pressable onPress={onAction} hitSlop={HIT_SLOP} accessibilityRole="button">
+              <AppText color={colors.white} style={styles.action}>
+                {actionLabel}
+              </AppText>
+            </Pressable>
+          ) : null}
           <IconButton onPress={leave} size={ms(36)} backgroundColor="transparent" accessibilityLabel={t('common.close')}>
             <Icon name="close" size={ms(18)} color={colors.white} />
           </IconButton>
@@ -90,6 +98,12 @@ const styles = StyleSheet.create({
   },
   text: {
     flex: 1,
+  },
+  action: {
+    fontFamily: fonts.title.bold,
+    fontSize: fs(15),
+    lineHeight: fs(20),
+    textDecorationLine: 'underline',
   },
 });
 

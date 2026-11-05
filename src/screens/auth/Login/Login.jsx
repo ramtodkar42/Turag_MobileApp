@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 import {
   AppText,
-  Button,
   FadeIn,
   Icon,
   IconButton,
@@ -19,7 +18,8 @@ import useStatusBarStyle from '../../../hooks/useStatusBarStyle';
 import useCompactOnKeyboard from '../../../hooks/useCompactOnKeyboard';
 import PhoneField from './components/PhoneField';
 import { markGuestChosen } from '../../../utils/appPrefs';
-import LoginFooter from './components/LoginFooter';
+import LoginLink from './components/LoginLink';
+import TermsNote from './components/TermsNote';
 import AgeConfirm from './components/AgeConfirm';
 import SignInMethods from './components/SignInMethods';
 import TrustNote from './components/TrustNote';
@@ -50,8 +50,8 @@ const getPhoneProblem = phone => {
 // Google (as the web): signs straight in when the Google email belongs to an
 // account; otherwise the mobile number is still needed (the account is the
 // phone) and the Google email is linked after the OTP.
-// Or "Skip" (top right): the marketplace as a guest (remembered, so the app
-// opens there next time).
+// "Email sign-in" under the Terms: accounts Turag created (e.g. dealers). "Skip" (top
+// right): the marketplace as a guest (remembered, so the app opens there next time).
 // params: { fromGuest? } - opened by a guest from inside the app: a close
 // button takes them back, and after logging in they return to that screen.
 function Login({ navigation, route }) {
@@ -184,8 +184,8 @@ function Login({ navigation, route }) {
         keyboardRoom={false}
         backgroundColor={colors.primary}
         header={
-          fromGuest ? (
-            <View style={styles.header}>
+          <View style={[styles.header, !fromGuest && styles.headerEnd]}>
+            {fromGuest ? (
               <IconButton
                 onPress={navigation.goBack}
                 size={ms(40)}
@@ -194,12 +194,10 @@ function Login({ navigation, route }) {
               >
                 <Icon name="close" size={ms(20)} color={colors.white} />
               </IconButton>
-            </View>
-          ) : (
-            <View style={[styles.header, styles.headerEnd]}>
-              <Button title={t('auth.skip')} variant="lightOutline" size="sm" onPress={browseAsGuest} />
-            </View>
-          )
+            ) : (
+              <LoginLink label={t('auth.skip')} onPress={browseAsGuest} />
+            )}
+          </View>
         }
       >
         <View
@@ -290,15 +288,16 @@ function Login({ navigation, route }) {
           />
           <KeyboardFade hidden={keyboardOpen}>
             <TrustNote style={styles.trust} />
-            {/* One quiet bottom: email sign-in (accounts Turag created, e.g. dealers),
-                and the website's Terms / Privacy Policy under it. */}
-            <LoginFooter
-              onEmail={() =>
-                navigation.navigate(ROUTES.EMAIL_LOGIN, fromGuest ? { fromGuest } : undefined)
-              }
+            {/* The website's Terms / Privacy Policy. */}
+            <TermsNote
               onTerms={() => openPage('profile.item.terms', '/terms')}
               onPrivacy={() => openPage('profile.item.privacyPolicy', '/privacy_policy')}
-              style={styles.footer}
+              style={styles.terms}
+            />
+            <LoginLink
+              label={t('auth.emailLogin.short')}
+              onPress={() => navigation.navigate(ROUTES.EMAIL_LOGIN, fromGuest ? { fromGuest } : undefined)}
+              style={styles.emailLink}
             />
           </KeyboardFade>
         </View>
@@ -363,14 +362,22 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
   },
   headerEnd: {
-    alignItems: 'flex-end',
+    justifyContent: 'flex-end',
   },
-  footer: {
-    marginTop: spacing.xl,
+  emailLink: {
+    alignSelf: 'center',
+    marginTop: spacing.md,
+  },
+  terms: {
+    marginTop: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    opacity: 0.85,
   },
 });
 

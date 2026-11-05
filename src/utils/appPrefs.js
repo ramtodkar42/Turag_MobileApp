@@ -55,6 +55,17 @@ export const removePref = async key => {
   }
 };
 
+// The update prompt (both platforms): true if it may show now, and marks it as shown,
+// so someone who says "not now" isn't asked again on every open.
+const UPDATE_PROMPT_KEY = 'updatePromptAt';
+const UPDATE_PROMPT_EVERY_MS = 24 * 60 * 60 * 1000;
+export const claimUpdatePrompt = async () => {
+  const last = Number(await readPref(UPDATE_PROMPT_KEY)) || 0;
+  if (Date.now() - last < UPDATE_PROMPT_EVERY_MS) return false;
+  await writePref(UPDATE_PROMPT_KEY, Date.now());
+  return true;
+};
+
 export const hasSeenIntro = () => isSet(KEYS.INTRO_SEEN);
 export const markIntroSeen = () => set(KEYS.INTRO_SEEN);
 

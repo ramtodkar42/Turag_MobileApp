@@ -1,7 +1,6 @@
 // en - Home (marketplace grid).
 export default {
   'home.hello': 'Hello {name}',
-  'home.tagline': 'SWIFTLY INNOVATING',
   'home.helloFallback': 'there',
   'home.notifications': 'Notifications',
   'home.searchPlaceholder': 'Search Car',

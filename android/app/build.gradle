@@ -132,6 +132,8 @@ dependencies {
     implementation("com.facebook.react:react-android")
     // Backported Photo Picker for Android < 11 (react-native-image-picker)
     implementation("androidx.activity:activity:1.9.+")
+    // Google Play's in-app update (com.turag.update)
+    implementation("com.google.android.play:app-update:2.1.0")
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")

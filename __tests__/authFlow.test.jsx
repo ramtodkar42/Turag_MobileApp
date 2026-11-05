@@ -160,13 +160,21 @@ test('Login: Skip goes to the marketplace as a guest; not offered to a guest who
   const chosen = jest.spyOn(appPrefs, 'markGuestChosen').mockImplementation(() => {});
   const navigation = makeNavigation();
   let root = await render(<Login navigation={navigation} />);
-  const skip = r2 => r2.findAll(n => n.props.title === 'Skip' && n.props.onPress)[0];
+  const skip = r2 => r2.findAll(n => n.props.accessibilityRole === 'button' && n.props.onPress && n.findAll(c => c.props.children === 'Skip').length)[0];
   await act(async () => skip(root).props.onPress());
   expect(chosen).toHaveBeenCalled();
   chosen.mockRestore();
   expect(navigation.reset).toHaveBeenCalledWith({ index: 0, routes: [{ name: ROUTES.MAIN_TABS }] });
   root = await render(<Login navigation={makeNavigation()} route={{ params: { fromGuest: true } }} />);
   expect(skip(root)).toBeUndefined();
+});
+
+test('Login: Email sign-in opens the email login', async () => {
+  const navigation = makeNavigation();
+  const root = await render(<Login navigation={navigation} />);
+  const link = root.findAll(n => n.props.accessibilityRole === 'button' && n.props.onPress && n.findAll(c => c.props.children === 'Email sign-in').length)[0];
+  await act(async () => link.props.onPress());
+  expect(navigation.navigate).toHaveBeenCalledWith(ROUTES.EMAIL_LOGIN, undefined);
 });
 
 test('Login blocks an invalid mobile number', async () => {
