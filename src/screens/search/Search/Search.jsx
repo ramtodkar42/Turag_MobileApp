@@ -19,7 +19,7 @@ import useVoiceSearch from '../../../hooks/useVoiceSearch';
 import { addRecentSearch, clearRecentSearches, useRecentSearches } from '../../../store/recentSearchStore';
 import { currentHomeRoute } from '../../../navigation/homeRoute';
 import { ROUTES } from '../../../navigation/routes';
-import { QUICK_FILTERS, optionsOf } from '../../home/Home/constants';
+import { QUICK_FILTERS, optionsOf, priceCategory } from '../../home/Home/constants';
 import { brandFits, popularBrands, suggestionsFor } from '../brands';
 import BrandTile from './components/BrandTile';
 import HighlightText from './components/HighlightText';
@@ -97,9 +97,15 @@ function Search({ navigation, route }) {
   // A brand / price: remembered too (it shows in Recent searches and re-applies
   // the same filter), then applied on Home.
   // A brand that isn't on Home's tab (e.g. Hyundai while Bikes is open) shows
-  // on All, so it's never silently dropped.
+  // on All, and a price range of the other kind (a bike price while All or Cars
+  // is open) on its own tab - so neither is ever silently dropped.
   const applyFilter = (id, value, labelKey = null) => {
-    const category = id === 'make' && !brandFits(value, vehicle) ? 'all' : undefined;
+    let category;
+    if (id === 'make' && !brandFits(value, vehicle)) {
+      category = 'all';
+    } else if (id === 'price' && !optionsOf(PRICE, { vehicle }).some(option => option.value === value)) {
+      category = priceCategory(value) ?? undefined;
+    }
     const filter = category ? { id, value, category } : { id, value };
     addRecentSearch({ query: labelKey ? t(labelKey) : value, filter, labelKey });
     applyOnHome({ filter, searchAt: Date.now() });

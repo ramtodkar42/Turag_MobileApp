@@ -25,6 +25,8 @@ export default {
   // Uploads
   'valuation.upload.tooLarge': 'फ़ाइल {mb} MB से बड़ी है',
   'valuation.upload.failed': 'अपलोड नहीं हो सका। पुनः प्रयास करें।',
+  'valuation.upload.readFailed': 'यह फ़ाइल आपके फ़ोन पर पढ़ी नहीं जा सकी। कृपया फिर से कोशिश करें, या इसे दोबारा लें।',
+  'valuation.upload.videoNeedsUpdate': 'वीडियो अपलोड करने के लिए कृपया ऐप को नए वर्ज़न में अपडेट करें।',
   'valuation.upload.duplicatePhoto': 'यह फ़ोटो पहले से अपलोड है। कृपया नई फ़ोटो लें।',
   'valuation.upload.duplicateDocument': 'यह फ़ाइल पहले से अपलोड है।',
   'valuation.upload.fileError': 'यह फ़ाइल नहीं खुल सकी। कृपया दूसरी फ़ाइल चुनें।',

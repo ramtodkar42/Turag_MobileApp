@@ -4,10 +4,12 @@ import { tNow } from '../../../../i18n';
 import { takePhotoWithBase64 } from '../../../../utils/pickVideo';
 
 // The VIN / RC photo read behind IdentityExtractCard. The photo is taken with the
-// camera and only read (as on the web) - it isn't uploaded as evidence.
+// camera and read here; nothing is uploaded until the values are confirmed.
 //   phase: 'start' | 'reading' | 'ready'
 //   read: what the AI read ({} for manual entry); fromPhoto: it came from a photo
 //   notDocument: the photo isn't a VIN plate / an RC (manual review; retake or type)
+//   scanFile: the photo taken (no base64), kept even after a failed read, which is how
+//   QC can tell a value was typed. Null when no photo was taken.
 //
 // opts.initial restores this state when the step is reopened (so a read done
 // earlier isn't lost when the wizard moves on and back); opts.onChange reports
@@ -18,6 +20,7 @@ export default function useIdentityRead(inspectionId, kind, { initial, onChange 
   const [read, setRead] = useState(() => initial?.read ?? null);
   const [fromPhoto, setFromPhoto] = useState(() => initial?.fromPhoto ?? false);
   const [notDocument, setNotDocument] = useState(() => initial?.notDocument ?? false);
+  const [scanFile, setScanFile] = useState(() => initial?.scanFile ?? null);
   const [error, setError] = useState('');
   const run = useRef(0);
   // Always call the latest onChange without re-creating the callbacks below.
@@ -35,8 +38,9 @@ export default function useIdentityRead(inspectionId, kind, { initial, onChange 
     setRead(null);
     setFromPhoto(false);
     setNotDocument(false);
+    setScanFile(null);
     setError('');
-    persist({ phase: 'start', read: null, fromPhoto: false, notDocument: false });
+    persist({ phase: 'start', read: null, fromPhoto: false, notDocument: false, scanFile: null });
   }, []);
 
   const startManual = useCallback(() => {
@@ -45,19 +49,21 @@ export default function useIdentityRead(inspectionId, kind, { initial, onChange 
     setRead({});
     setFromPhoto(false);
     setNotDocument(false);
+    setScanFile(null);
     setError('');
-    persist({ phase: 'ready', read: {}, fromPhoto: false, notDocument: false });
+    persist({ phase: 'ready', read: {}, fromPhoto: false, notDocument: false, scanFile: null });
   }, []);
 
   const choosePhoto = useCallback(async () => {
     const id = ++run.current;
     let image;
+    let file;
     try {
       const photo = await takePhotoWithBase64();
       if (!photo) {
         return; // cancelled
       }
-      image = photo.base64;
+      ({ base64: image, ...file } = photo);
       if (!image) {
         throw new Error('no photo');
       }
@@ -68,6 +74,7 @@ export default function useIdentityRead(inspectionId, kind, { initial, onChange 
 
     setPhase('reading');
     setError('');
+    setScanFile(file);
     try {
       const result = await extractInspectionIdentity(inspectionId, kind, image);
       if (id !== run.current) {
@@ -79,7 +86,7 @@ export default function useIdentityRead(inspectionId, kind, { initial, onChange 
       setRead(nextRead);
       setFromPhoto(true);
       setPhase('ready');
-      persist({ phase: 'ready', read: nextRead, fromPhoto: true, notDocument: !isDocument });
+      persist({ phase: 'ready', read: nextRead, fromPhoto: true, notDocument: !isDocument, scanFile: file });
     } catch {
       if (id !== run.current) {
         return;
@@ -90,9 +97,9 @@ export default function useIdentityRead(inspectionId, kind, { initial, onChange 
       setFromPhoto(false);
       setNotDocument(false);
       setPhase('ready');
-      persist({ phase: 'ready', read: {}, fromPhoto: false, notDocument: false });
+      persist({ phase: 'ready', read: {}, fromPhoto: false, notDocument: false, scanFile: file });
     }
   }, [inspectionId, kind]);
 
-  return { phase, read, fromPhoto, notDocument, error, choosePhoto, startManual, reset };
+  return { phase, read, fromPhoto, notDocument, scanFile, error, choosePhoto, startManual, reset };
 }

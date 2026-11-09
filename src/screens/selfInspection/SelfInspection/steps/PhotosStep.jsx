@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { AppText, Button, ButtonRow, FadeIn, FillImage, Icon, Spinner } from '../../../../components';
 import { colors, fonts, radius, shadows, spacing } from '../../../../theme';
 import { fs, ms } from '../../../../utils/responsive';
+import { scrollToView } from '../../../../utils/scrollToView';
 import { useT } from '../../../../i18n';
 import { isVideoItem } from '../../../../vendor/selfInspectionLogic';
 import { slotKey } from '../useSelfInspection';
@@ -45,9 +46,10 @@ const aiBadge = (state, finding) => {
 // focusItem: open the group of that item (a jump from the "what's left" list).
 // onTakePhoto(itemCode, shotCode, label, replace).
 // videos: the guided videos' state (useGuidedVideos).
-function PhotosStep({ si, focusItem, scans, videos, onTakePhoto, onAddVideo, onAddDocument }) {
+// scrollRef: the screen's ScrollView (a new recording scrolls into view).
+function PhotosStep({ si, focusItem, scans, videos, scrollRef, onTakePhoto, onAddVideo, onAddDocument }) {
   const t = useT();
-  const { groups, progress, mediaShots, mediaFiles, thumbs, uploading, removing, slotMsg, analysis, persisted, submitting } = si;
+  const { groups, progress, mediaShots, mediaFiles, thumbs, uploading, uploadProgress, removing, slotMsg, analysis, persisted, submitting } = si;
   const [tipsOpen, setTipsOpen] = useState(false);
   const [revealedDents, setRevealedDents] = useState(1);
 
@@ -107,6 +109,13 @@ function PhotosStep({ si, focusItem, scans, videos, onTakePhoto, onAddVideo, onA
     const next = sections[i]?.group;
     // Dents are filled in order, so their first missing one is the next to add.
     setShotIndex(next ? firstMissing(next.slots) : 0);
+  };
+
+  // On from further down the page (a saved video): back up to the group tabs too.
+  const pills = useRef(null);
+  const openSectionAtTop = i => {
+    openSection(i);
+    scrollToView(scrollRef, pills.current, spacing.md);
   };
 
   // Opened from the "what's left" list: show that item's group.
@@ -360,33 +369,35 @@ function PhotosStep({ si, focusItem, scans, videos, onTakePhoto, onAddVideo, onA
       }
     >
       {/* Groups */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pills}>
-        {sections.map((s, i) => {
-          const done = sectionDone(s);
-          const active = i === secIndex;
-          const count = groupCount(s);
-          const optional = s.detail
-            ? false
-            : s.video
-            ? (s.video.evidence_requirement?.min_count ?? 0) === 0
-            : s.group.minCount === 0;
-          return (
-            <Pressable
-              key={s.key}
-              onPress={() => openSection(i)}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: active }}
-              style={[styles.pill, done && styles.pillDone, active && styles.pillActive]}
-            >
-              {done && !active ? <Icon name="check" size={ms(12)} color={colors.success} strokeWidth={2.8} /> : null}
-              <AppText style={[styles.pillText, done && styles.pillTextDone, active && styles.pillTextActive]} numberOfLines={1}>
-                {groupLabel(s)}
-                {count ? `  ${count}` : optional ? `  · ${t('selfInspection.optional')}` : ''}
-              </AppText>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+      <View ref={pills} collapsable={false}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pills}>
+          {sections.map((s, i) => {
+            const done = sectionDone(s);
+            const active = i === secIndex;
+            const count = groupCount(s);
+            const optional = s.detail
+              ? false
+              : s.video
+              ? (s.video.evidence_requirement?.min_count ?? 0) === 0
+              : s.group.minCount === 0;
+            return (
+              <Pressable
+                key={s.key}
+                onPress={() => openSection(i)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: active }}
+                style={[styles.pill, done && styles.pillDone, active && styles.pillActive]}
+              >
+                {done && !active ? <Icon name="check" size={ms(12)} color={colors.success} strokeWidth={2.8} /> : null}
+                <AppText style={[styles.pillText, done && styles.pillTextDone, active && styles.pillTextActive]} numberOfLines={1}>
+                  {groupLabel(s)}
+                  {count ? `  ${count}` : optional ? `  · ${t('selfInspection.optional')}` : ''}
+                </AppText>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </View>
 
       {sec.detail ? (
         <FadeIn key={sec.key} offset={ms(8)} style={styles.focus}>
@@ -422,6 +433,7 @@ function PhotosStep({ si, focusItem, scans, videos, onTakePhoto, onAddVideo, onA
             const have = (mediaShots[sec.video.item_code] ?? []).includes(shot);
             const guide = GUIDED_VIDEOS[shot];
             if (guide) {
+              const nextSection = sections.findIndex((s, i) => i > secIndex && !sectionDone(s));
               return (
                 <GuidedVideo
                   guide={guide}
@@ -435,6 +447,12 @@ function PhotosStep({ si, focusItem, scans, videos, onTakePhoto, onAddVideo, onA
                   savedUri={videos.saved[vkey]}
                   error={videos.errors[vkey]}
                   message={slotMsg[vkey]}
+                  progress={uploadProgress[vkey]}
+                  nextLabel={
+                    nextSection >= 0 ? t('selfInspection.photos.nextGroup', { name: groupLabel(sections[nextSection]) }) : null
+                  }
+                  onNext={nextSection >= 0 ? () => openSectionAtTop(nextSection) : null}
+                  scrollRef={scrollRef}
                   onRecord={() => videos.record(sec.video, shot)}
                   onUse={file => videos.use(sec.video, shot, file, have)}
                 />

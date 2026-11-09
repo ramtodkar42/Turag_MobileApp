@@ -1,9 +1,10 @@
-// "What brings you to turag ?" options (`value` is what's saved as `purpose`).
+// "What brings you to turag ?" options (`value` is what's saved as `purpose`), as the
+// web's sign-up. A storage yard is never chosen here: Turag sets up yard accounts
+// itself (the web's ADR-0016).
 export const PURPOSES = [
   { value: 'buy_sell', labelKey: 'auth.purpose.buy_sell' },
   { value: 'dealer', labelKey: 'auth.purpose.dealer' },
   { value: 'bank', labelKey: 'auth.purpose.bank' },
-  { value: 'storage_yard', labelKey: 'auth.purpose.storage_yard' },
 ];
 
 // Terms & Conditions rows. `required` ones must be ticked to continue.

@@ -27,11 +27,14 @@ const fieldError = (field, message) => Object.assign(new Error(message), { field
 // Returns { user, emailNotice: { email, sent } | null } - sent: false when the
 // link couldn't go out now (the user can resend it from Personal Information).
 // `purpose` isn't stored by the backend yet, so it is kept on the device.
+// verifiedEmail: the Google email already linked to the account (verified by
+// Google) - no link is sent for it, as the web.
 export default async function completeSignUp({
   needsProfile,
   needsConsent,
   values: { fullName, email, purpose },
   consents,
+  verifiedEmail = null,
 }) {
   const phone = getUser()?.contact;
 
@@ -49,7 +52,9 @@ export default async function completeSignUp({
   let emailNotice = null;
   if (needsProfile) {
     user = await updateMyName(fullName, { phone });
-    if (email) {
+    const alreadyVerified =
+      !!verifiedEmail && String(email ?? '').trim().toLowerCase() === verifiedEmail.trim().toLowerCase();
+    if (email && !alreadyVerified) {
       try {
         await saveMyEmail(email);
         user = { ...user, email, emailVerified: false };
@@ -69,11 +74,13 @@ export default async function completeSignUp({
     ({ user } = await getMe({ phone }));
   }
 
-  // A dealer or a bank / NBFC: Turag's team reaches out (as the web). Never
-  // holds up the account that was just made.
+  // A dealer or a bank / NBFC: Turag's team reaches out (as the web). Tried once
+  // more if it didn't get saved, or the lead is lost. Never holds up the account
+  // that was just made.
   const businessKind = BUSINESS_KINDS[purpose];
   if (businessKind) {
-    await registerBusinessInterest(businessKind).catch(() => {});
+    const first = await registerBusinessInterest(businessKind).catch(() => null);
+    if (!first?.recorded) await registerBusinessInterest(businessKind).catch(() => {});
   }
 
   const signedUp = { ...user, contact: phone ?? user.contact, ...(purpose ? { purpose } : null) };

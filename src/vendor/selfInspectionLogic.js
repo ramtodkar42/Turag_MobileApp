@@ -11,15 +11,15 @@ var __export = (target, all) => {
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 
 // src/lib/inspection-display-names.ts
-function buildItemLabelMap(items) {
+function buildItemLabelMap(items2) {
   const map = /* @__PURE__ */ new Map();
-  for (const it of items) {
+  for (const it of items2) {
     if (it.item_code && it.label && !map.has(it.item_code)) map.set(it.item_code, it.label);
   }
   return map;
 }
-function humanizeCode(code) {
-  return code.replace(/_/g, " ").toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase());
+function humanizeCode(code2) {
+  return code2.replace(/_/g, " ").toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase());
 }
 function resolveItemDisplayName(itemCode, labels) {
   var _a;
@@ -101,13 +101,13 @@ function evidenceNoun(kind) {
   return "file";
 }
 function humanizeSubmitError(message, labels) {
-  const withItems = message.replace(/\bItem ([A-Za-z0-9]+)\b/g, (_, code) => {
-    const name2 = resolveItemDisplayName(code, labels);
+  const withItems = message.replace(/\bItem ([A-Za-z0-9]+)\b/g, (_, code2) => {
+    const name2 = resolveItemDisplayName(code2, labels);
     return name2 ? `The ${name2}` : "This item";
   });
-  return withItems.replace(/angle\(s\): (.+)$/, (_, list) => {
-    const ended = /\.\s*$/.test(list);
-    const shots = list.split(",").map((s) => s.trim().replace(/\.+$/, "")).filter((s) => s.length > 0).map((s) => resolveShotDisplayName(s));
+  return withItems.replace(/angle\(s\): (.+)$/, (_, list2) => {
+    const ended = /\.\s*$/.test(list2);
+    const shots = list2.split(",").map((s) => s.trim().replace(/\.+$/, "")).filter((s) => s.length > 0).map((s) => resolveShotDisplayName(s));
     return `angle(s): ${shots.join(", ")}${ended ? "." : ""}`;
   });
 }
@@ -135,20 +135,20 @@ function isPhotoGridItem(item) {
   if (!req || req.kinds.includes("DOCUMENT") || req.kinds.includes("VIDEO")) return false;
   return isEvidenceOnlyItem(item) ? req.shot_codes.length >= 1 : req.shot_codes.length > 1;
 }
-function pick(items, codes) {
-  return codes.flatMap((code) => items.filter((i) => i.item_code === code));
+function pick(items2, codes) {
+  return codes.flatMap((code2) => items2.filter((i) => i.item_code === code2));
 }
-function partitionItems(items) {
-  const details = pick(items, DOCUMENT_DETAIL_CODES);
-  const photoDetails = pick(items, PHOTO_DETAIL_CODES);
-  const docs = items.filter((i) => isDocumentItem(i) && !i.show_if && !DETAIL_ITEM_CODES.includes(i.item_code));
+function partitionItems(items2) {
+  const details = pick(items2, DOCUMENT_DETAIL_CODES);
+  const photoDetails = pick(items2, PHOTO_DETAIL_CODES);
+  const docs = items2.filter((i) => isDocumentItem(i) && !i.show_if && !DETAIL_ITEM_CODES.includes(i.item_code));
   const placed = new Set([...details, ...photoDetails, ...docs].map((i) => i.item_code));
   return {
     documents: [...details, ...docs],
     photoDetails,
     // Evidence-only photo/video items (Interior, Engine, Tyres, Extra, Underbody, Dents, videos) have no
     // condition answer — they live in the Photos step, so they are excluded from the condition checklist.
-    checklist: items.filter((i) => !placed.has(i.item_code) && !isEvidenceOnlyItem(i))
+    checklist: items2.filter((i) => !placed.has(i.item_code) && !isEvidenceOnlyItem(i))
   };
 }
 var SHOT_LABELS = {
@@ -167,10 +167,10 @@ function shotLabel(shotCode) {
   var _a;
   return (_a = SHOT_LABELS[shotCode]) != null ? _a : resolveShotDisplayName(shotCode);
 }
-function photoSlots(items) {
+function photoSlots(items2) {
   var _a, _b, _c, _d;
   const slots = [];
-  for (const it of items) {
+  for (const it of items2) {
     if (!isPhotoGridItem(it)) continue;
     const optional = ((_b = (_a = it.evidence_requirement) == null ? void 0 : _a.min_count) != null ? _b : 0) === 0;
     for (const shot of (_d = (_c = it.evidence_requirement) == null ? void 0 : _c.shot_codes) != null ? _d : []) {
@@ -179,10 +179,10 @@ function photoSlots(items) {
   }
   return slots;
 }
-function photoGroups(items) {
+function photoGroups(items2) {
   var _a, _b, _c, _d;
   const groups = [];
-  for (const it of items) {
+  for (const it of items2) {
     if (!isPhotoGridItem(it)) continue;
     const minCount = (_b = (_a = it.evidence_requirement) == null ? void 0 : _a.min_count) != null ? _b : 0;
     const optional = minCount === 0;
@@ -201,11 +201,11 @@ var SHOWN_WITH = {
   XSEAT_M1: { host: "XINT_M1", titleKey: "field.self.photos.interior" }
 };
 function photoSections(groups) {
-  const present2 = new Set(groups.map((g) => g.item.item_code));
+  const present3 = new Set(groups.map((g) => g.item.item_code));
   const sections = [];
   for (const g of groups) {
     const rule = SHOWN_WITH[g.item.item_code];
-    if (rule && present2.has(rule.host)) continue;
+    if (rule && present3.has(rule.host)) continue;
     const companions = groups.filter((c) => {
       var _a;
       return ((_a = SHOWN_WITH[c.item.item_code]) == null ? void 0 : _a.host) === g.item.item_code;
@@ -223,8 +223,8 @@ function photoSections(groups) {
   }
   return sections;
 }
-function activeItemsFor(items, answers) {
-  return items.filter((it) => {
+function activeItemsFor(items2, answers) {
+  return items2.filter((it) => {
     if (!it.show_if) return true;
     const ctrl = answers[it.show_if.item_code];
     return (ctrl == null ? void 0 : ctrl.saved) === true && ctrl.value === it.show_if.equals;
@@ -238,12 +238,12 @@ function stepForItem(item, partition) {
 }
 function buildMissingList(input) {
   var _a, _b, _c;
-  const { items, answers, evidenceCount, parseNumeric } = input;
-  const partition = partitionItems(items);
-  const has = (code) => items.some((i) => i.item_code === code);
-  const saved = (code) => {
+  const { items: items2, answers, evidenceCount, parseNumeric } = input;
+  const partition = partitionItems(items2);
+  const has = (code2) => items2.some((i) => i.item_code === code2);
+  const saved = (code2) => {
     var _a2;
-    return ((_a2 = answers[code]) == null ? void 0 : _a2.saved) === true;
+    return ((_a2 = answers[code2]) == null ? void 0 : _a2.saved) === true;
   };
   const out = [];
   const seen = /* @__PURE__ */ new Set();
@@ -257,17 +257,17 @@ function buildMissingList(input) {
   if (has("P1") && !saved("P1")) push({ step: "documents", itemCode: "P1", label: "RC details", labelKey: "field.inspect.missing.rc" });
   if (has("A1") && !saved("A1"))
     push({ step: "photos", itemCode: "A1", label: "Chassis / VIN number", labelKey: "field.inspect.missing.vin" });
-  for (const [code, label, labelKey, step] of [
+  for (const [code2, label, labelKey, step] of [
     ["O1", "Odometer reading", "field.inspect.missing.odometer", "photos"],
     ["O2", "Number of previous owners", "field.inspect.missing.owners", "documents"]
   ]) {
-    if (!has(code)) continue;
-    const a = answers[code];
+    if (!has(code2)) continue;
+    const a = answers[code2];
     const notAssessable = (a == null ? void 0 : a.severity) === "NOT_ASSESSABLE";
-    if (!saved(code) || !notAssessable && parseNumeric(code, (_a = a == null ? void 0 : a.num) != null ? _a : "") == null)
-      push({ step, itemCode: code, label, labelKey });
+    if (!saved(code2) || !notAssessable && parseNumeric(code2, (_a = a == null ? void 0 : a.num) != null ? _a : "") == null)
+      push({ step, itemCode: code2, label, labelKey });
   }
-  for (const item of items) {
+  for (const item of items2) {
     if (isEvidenceOnlyItem(item)) {
       const req2 = item.evidence_requirement;
       if (req2 && item.mandatory && ((_b = evidenceCount[item.item_code]) != null ? _b : 0) < req2.min_count) {
@@ -315,12 +315,12 @@ function buildMissingList(input) {
   }
   return out;
 }
-function buildProgress(items, answers, uploadedShots) {
+function buildProgress(items2, answers, uploadedShots) {
   var _a, _b, _c;
-  const partition = partitionItems(items);
+  const partition = partitionItems(items2);
   let ptotal = 0;
   let pdone = 0;
-  for (const it of items) {
+  for (const it of items2) {
     if (!isPhotoGridItem(it) && !isVideoItem(it)) continue;
     const min = (_b = (_a = it.evidence_requirement) == null ? void 0 : _a.min_count) != null ? _b : 0;
     if (min <= 0) continue;
@@ -328,7 +328,7 @@ function buildProgress(items, answers, uploadedShots) {
     ptotal += min;
     pdone += Math.min(have, min);
   }
-  const savedCount = (list) => list.filter((i) => {
+  const savedCount = (list2) => list2.filter((i) => {
     var _a2;
     return (_a2 = answers[i.item_code]) == null ? void 0 : _a2.saved;
   }).length;
@@ -348,19 +348,19 @@ var MAX_ODOMETER_KM = 9999999;
 var MAX_OWNER_COUNT = 50;
 function parseOdometerKm(raw2) {
   if (raw2 == null) return null;
-  const text2 = String(raw2).toUpperCase().replace(/KM/g, "").replace(/,/g, "").trim();
-  if (text2 === "") return null;
-  if (!/^\d+(\.\d+)?$/.test(text2)) return null;
-  const n = Number(text2);
+  const text3 = String(raw2).toUpperCase().replace(/KM/g, "").replace(/,/g, "").trim();
+  if (text3 === "") return null;
+  if (!/^\d+(\.\d+)?$/.test(text3)) return null;
+  const n = Number(text3);
   if (!Number.isFinite(n) || n < 0 || n > MAX_ODOMETER_KM) return null;
   return Math.floor(n);
 }
 function parseOwnerCount(raw2) {
   if (raw2 == null) return null;
-  const text2 = String(raw2).replace(/,/g, "").trim();
-  if (text2 === "") return null;
-  if (!/^\d+$/.test(text2)) return null;
-  const n = Number(text2);
+  const text3 = String(raw2).replace(/,/g, "").trim();
+  if (text3 === "") return null;
+  if (!/^\d+$/.test(text3)) return null;
+  const n = Number(text3);
   if (!Number.isFinite(n) || n < 0 || n > MAX_OWNER_COUNT) return null;
   return n;
 }
@@ -370,9 +370,9 @@ function totalOwnersFromPrevious(previousOwners) {
 var MAX_KEY_COUNT = 10;
 function parseKeyCount(raw2) {
   if (raw2 == null) return null;
-  const text2 = String(raw2).trim();
-  if (!/^\d+$/.test(text2)) return null;
-  const n = Number(text2);
+  const text3 = String(raw2).trim();
+  if (!/^\d+$/.test(text3)) return null;
+  const n = Number(text3);
   return n <= MAX_KEY_COUNT ? n : null;
 }
 function previousOwnersFromRegistry(registryOwnerCount) {
@@ -537,9 +537,9 @@ var util;
     throw new Error();
   }
   util2.assertNever = assertNever;
-  util2.arrayToEnum = (items) => {
+  util2.arrayToEnum = (items2) => {
     const obj = {};
-    for (const item of items) {
+    for (const item of items2) {
       obj[item] = item;
     }
     return obj;
@@ -3447,18 +3447,18 @@ var ZodTuple = class _ZodTuple extends ZodType {
       });
       status.dirty();
     }
-    const items = [...ctx.data].map((item, itemIndex) => {
+    const items2 = [...ctx.data].map((item, itemIndex) => {
       const schema = this._def.items[itemIndex] || this._def.rest;
       if (!schema)
         return null;
       return schema._parse(new ParseInputLazyPath(ctx, item, ctx.path, itemIndex));
     }).filter((x) => !!x);
     if (ctx.common.async) {
-      return Promise.all(items).then((results) => {
+      return Promise.all(items2).then((results) => {
         return ParseStatus.mergeArray(status, results);
       });
     } else {
-      return ParseStatus.mergeArray(status, items);
+      return ParseStatus.mergeArray(status, items2);
     }
   }
   get items() {
@@ -3762,10 +3762,10 @@ var ZodFunction = class _ZodFunction extends ZodType {
   returnType() {
     return this._def.returns;
   }
-  args(...items) {
+  args(...items2) {
     return new _ZodFunction({
       ...this._def,
-      args: ZodTuple.create(items).rest(ZodUnknown.create())
+      args: ZodTuple.create(items2).rest(ZodUnknown.create())
     });
   }
   returns(returnType) {
@@ -4922,6 +4922,8 @@ var deleteMeRequest = external_exports.object({ confirm: external_exports.litera
 var businessInterestRequest = external_exports.object({ kind: external_exports.enum(["DEALER", "BANK"]) });
 var businessInterestResponse = external_exports.object({
   whatsapp_queued: external_exports.boolean(),
+  /** False when the sign-up record couldn't be saved. The account is fine; the client retries once so the lead isn't lost. */
+  recorded: external_exports.boolean(),
   request_id: external_exports.string()
 });
 var email = external_exports.string().trim().min(3).max(254);
@@ -5171,6 +5173,208 @@ var funnelSummaryResponse = external_exports.object({
   request_id: external_exports.string()
 });
 
+// ../../packages/contracts/src/careers.ts
+var careerBrand = external_exports.enum(["TURAG", "BLESSING"]);
+var careerBrandParam = external_exports.enum(["turag", "blessing"]);
+var careerEmploymentType = external_exports.enum(["FULL_TIME", "PART_TIME", "INTERNSHIP", "CONTRACT"]);
+var careerWorkMode = external_exports.enum(["REMOTE", "HYBRID", "ONSITE"]);
+var careerJobStatus = external_exports.enum(["DRAFT", "PUBLISHED", "CLOSED"]);
+var careerExperienceBand = external_exports.enum(["ENTRY", "MID", "SENIOR"]);
+var careerJobsQuery = external_exports.object({
+  brand: careerBrandParam,
+  department: external_exports.string().trim().min(1).max(60).optional(),
+  type: external_exports.enum(["full_time", "part_time", "internship", "contract"]).optional(),
+  mode: external_exports.enum(["remote", "hybrid", "onsite"]).optional(),
+  exp: external_exports.enum(["entry", "mid", "senior"]).optional()
+});
+var line = (max) => external_exports.string().max(max);
+var list = (maxItems, maxLen) => external_exports.array(external_exports.string().max(maxLen)).max(maxItems);
+var years = external_exports.number().int().min(0).max(50);
+var careerJobContent = external_exports.object({
+  title: line(120),
+  department: line(60),
+  employment_type: careerEmploymentType,
+  work_mode: careerWorkMode,
+  location: line(80),
+  experience_min_years: years,
+  experience_max_years: years.nullable(),
+  summary: line(280),
+  description: line(8e3),
+  responsibilities: list(30, 300),
+  requirements: list(30, 300),
+  skills: list(25, 40),
+  nice_to_have: list(30, 300)
+});
+var createCareerJobRequest = careerJobContent.extend({ brand: careerBrand });
+var publicCareerJobView = careerJobContent.extend({
+  id: external_exports.string(),
+  brand: careerBrand,
+  slug: external_exports.string(),
+  published_at: external_exports.string()
+});
+var publicCareerJobsResponse = external_exports.object({
+  jobs: external_exports.array(publicCareerJobView),
+  /** Published roles in the brand before filters (0 = no open roles at all). */
+  total: external_exports.number().int(),
+  departments: external_exports.array(external_exports.string()),
+  request_id: external_exports.string()
+});
+var publicCareerJobResponse = external_exports.object({ job: publicCareerJobView, request_id: external_exports.string() });
+var opsCareerJobView = careerJobContent.extend({
+  id: external_exports.string(),
+  brand: careerBrand,
+  slug: external_exports.string(),
+  status: careerJobStatus,
+  published_at: external_exports.string().nullable(),
+  closed_at: external_exports.string().nullable(),
+  created_by: external_exports.string(),
+  updated_by: external_exports.string(),
+  created_at: external_exports.string(),
+  updated_at: external_exports.string().nullable()
+});
+var opsCareerJobResponse = external_exports.object({ job: opsCareerJobView, request_id: external_exports.string() });
+var opsCareerJobListResponse = external_exports.object({ jobs: external_exports.array(opsCareerJobView), request_id: external_exports.string() });
+var careerJobFieldIssue = external_exports.object({ field: external_exports.string(), message: external_exports.string() });
+var careerLocale = external_exports.enum(["en", "hi", "mr"]);
+var careerApplicationKind = external_exports.enum(["LISTED", "OPEN"]);
+var careerWorkArrangement = external_exports.enum(["REMOTE", "HYBRID", "ONSITE", "FLEXIBLE"]);
+var careerInterviewStatus = external_exports.enum(["ACTIVE", "COMPLETED", "ABANDONED", "EXPIRED"]);
+var careerResumeContentType = external_exports.enum(["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]);
+var honeypot = external_exports.string().max(500).optional();
+var careerLinks = external_exports.object({
+  portfolio: external_exports.string().max(300).nullable(),
+  github: external_exports.string().max(300).nullable(),
+  linkedin: external_exports.string().max(300).nullable(),
+  other: external_exports.array(external_exports.string().max(300)).max(5)
+});
+var careerInterviewSlots = external_exports.object({
+  full_name: external_exports.string().optional(),
+  email: external_exports.string().optional(),
+  phone: external_exports.string().optional(),
+  location: external_exports.string().optional(),
+  links: careerLinks.optional(),
+  primary_expertise: external_exports.string().optional(),
+  skills: external_exports.array(external_exports.string()).optional(),
+  secondary_skills: external_exports.array(external_exports.string()).optional(),
+  years_experience: external_exports.number().optional(),
+  preferred_role: external_exports.string().optional(),
+  previous_projects: external_exports.array(external_exports.string()).optional(),
+  problems_enjoyed: external_exports.string().optional(),
+  proposed_contribution: external_exports.string().optional(),
+  availability: external_exports.string().optional(),
+  notice_period: external_exports.string().optional(),
+  expected_compensation: external_exports.string().optional(),
+  work_arrangement: careerWorkArrangement.optional()
+});
+var careerAiProfile = external_exports.object({
+  summary: external_exports.string().nullable(),
+  potential_departments: external_exports.array(external_exports.string()),
+  potential_roles: external_exports.array(external_exports.string()),
+  proposed_contribution: external_exports.string().nullable()
+});
+var careerInterviewView = external_exports.object({
+  id: external_exports.string(),
+  brand: careerBrand,
+  role_title: external_exports.string().nullable(),
+  status: careerInterviewStatus,
+  locale: careerLocale,
+  messages: external_exports.array(external_exports.object({ role: external_exports.enum(["assistant", "candidate"]), text: external_exports.string() })),
+  slots: careerInterviewSlots,
+  ai_profile: careerAiProfile.nullable(),
+  progress: external_exports.object({ filled: external_exports.number().int(), total: external_exports.number().int(), missing: external_exports.array(external_exports.string()) }),
+  turn_count: external_exports.number().int(),
+  max_turns: external_exports.number().int(),
+  expires_at: external_exports.string(),
+  submitted: external_exports.boolean()
+});
+var startCareerInterviewRequest = external_exports.object({
+  brand: careerBrand,
+  /** A published role's slug for the listed role flow; omit or null for an open introduction. */
+  job_slug: external_exports.string().trim().min(1).max(80).nullable().optional(),
+  locale: careerLocale.default("en"),
+  website: honeypot
+});
+var startCareerInterviewResponse = external_exports.object({
+  interview: careerInterviewView,
+  /** Shown once. Keep it in the tab's session storage and send it as X-Interview-Token. */
+  client_token: external_exports.string(),
+  request_id: external_exports.string()
+});
+var careerInterviewMessageRequest = external_exports.object({ text: external_exports.string().min(1).max(1500) });
+var careerInterviewTurnResponse = external_exports.object({
+  interview: careerInterviewView,
+  reply: external_exports.string(),
+  /** The assistant failed after one retry: continue in the form, which already holds what was collected. */
+  degraded: external_exports.boolean(),
+  completed: external_exports.boolean(),
+  request_id: external_exports.string()
+});
+var careerInterviewResponse = external_exports.object({ interview: careerInterviewView, request_id: external_exports.string() });
+var careerResumeUploadRequest = external_exports.object({
+  content_type: careerResumeContentType,
+  byte_size: external_exports.number().int().positive().max(5 * 1024 * 1024)
+});
+var careerResumeUploadResponse = external_exports.object({
+  upload: external_exports.object({ url: external_exports.string(), method: external_exports.literal("PUT"), headers: external_exports.record(external_exports.string()), expires_at: external_exports.string() }),
+  resume_token: external_exports.string(),
+  request_id: external_exports.string()
+});
+var careerResumeConfirmRequest = external_exports.object({ resume_token: external_exports.string().min(1).max(2e3) });
+var careerResumeConfirmResponse = external_exports.object({
+  resume_token: external_exports.string(),
+  content_type: careerResumeContentType,
+  byte_size: external_exports.number().int(),
+  request_id: external_exports.string()
+});
+var text2 = (max) => external_exports.string().max(max).nullable();
+var items = (maxItems, maxLen) => external_exports.array(external_exports.string().max(maxLen)).max(maxItems);
+var careerProfileInput = external_exports.object({
+  primary_expertise: text2(120),
+  skills: items(20, 40),
+  secondary_skills: items(20, 40),
+  years_experience: external_exports.number().min(0).max(50).nullable(),
+  preferred_role: text2(120),
+  previous_projects: items(8, 300),
+  problems_enjoyed: text2(600),
+  proposed_contribution: text2(1200),
+  availability: text2(120),
+  notice_period: text2(80),
+  expected_compensation: text2(80),
+  work_arrangement: careerWorkArrangement.nullable(),
+  potential_departments: items(6, 60),
+  cover_note: text2(1500),
+  ai_summary: text2(1200)
+});
+var submitCareerApplicationRequest = external_exports.object({
+  brand: careerBrand,
+  kind: careerApplicationKind,
+  /** Required for LISTED, absent for OPEN. */
+  job_slug: external_exports.string().trim().min(1).max(80).nullable(),
+  /** The interview this profile came from, if any (links the transcript and makes the submit idempotent). */
+  interview: external_exports.object({ id: external_exports.string().max(64), client_token: external_exports.string().max(128) }).nullable(),
+  full_name: external_exports.string().max(120),
+  email: external_exports.string().max(254),
+  phone: external_exports.string().max(40).nullable(),
+  location: external_exports.string().max(120).nullable(),
+  links: careerLinks,
+  profile: careerProfileInput,
+  /** Explicit agreement to the careers privacy notice; `version` is the notice version shown. */
+  consent: external_exports.object({ agreed: external_exports.boolean(), version: external_exports.string().max(40) }),
+  /** From POST /careers/resumes/confirm. */
+  resume_token: external_exports.string().max(2e3).nullable(),
+  /** A client generated idempotency key: the same key returns the first application. */
+  submit_key: external_exports.string().trim().min(8).max(80).nullable(),
+  /** Cloudflare Turnstile token; required only when the captcha is configured. */
+  captcha_token: external_exports.string().max(4096).nullable(),
+  website: honeypot
+});
+var submitCareerApplicationResponse = external_exports.object({
+  reference: external_exports.string(),
+  /** True when this repeated an earlier submit (same interview or submit key): nothing new was stored. */
+  already_submitted: external_exports.boolean(),
+  request_id: external_exports.string()
+});
+
 // ../../packages/contracts/src/notifications.ts
 var notificationItem = external_exports.object({
   id: external_exports.string(),
@@ -5393,7 +5597,11 @@ var checklistItemSpec = external_exports.object({
    */
   show_if: external_exports.object({ item_code: external_exports.string().min(1), equals: external_exports.string().min(1) }).optional(),
   /** CHOICE items: answers that also require a text note (e.g. flood YES → describe the damage). */
-  note_required_for: external_exports.array(external_exports.string().min(1)).optional()
+  note_required_for: external_exports.array(external_exports.string().min(1)).optional(),
+  /** The photo behind a scanned value is kept as evidence in these modes. No tile, and not required to submit (ADR-0078). */
+  scan_evidence: external_exports.object({ shot_code: external_exports.string().min(1), modes: external_exports.array(external_exports.string().min(1)) }).optional(),
+  /** In these modes QC answers the item and capture screens hide it (ADR-0081). */
+  qc_answered_modes: external_exports.array(external_exports.string().min(1)).optional()
 });
 var checklistSection = external_exports.object({
   group_code: external_exports.string().min(1),
@@ -5559,7 +5767,9 @@ var qcReviewRequest = external_exports.object({
   decision: qcStatus,
   sampled_reason: external_exports.string().optional(),
   itemised_corrections: external_exports.array(external_exports.object({ item_code: external_exports.string(), note: external_exports.string() })).optional(),
-  reason: external_exports.string().optional()
+  reason: external_exports.string().optional(),
+  /** QC has checked the mismatch. Required to PASS an M1 with a registration or chassis mismatch (ADR-0076). */
+  acknowledged_identity_mismatch: external_exports.boolean().optional()
 });
 var disputeInspectionRequest = external_exports.object({
   reason: external_exports.string().trim().min(1).max(500)
@@ -5759,10 +5969,11 @@ var documentMatchRow = external_exports.object({
     "MFG_YEAR",
     "INSURER",
     "INSURANCE_VALID_UNTIL",
-    "PREVIOUS_OWNERS"
+    "PREVIOUS_OWNERS",
+    "ODOMETER"
   ]),
-  source: external_exports.enum(["RC_READ", "VIN_PLATE", "RC_DOCUMENT", "INSURANCE_DOCUMENT", "OWNERS"]),
-  against: external_exports.enum(["REGISTRY", "RC_READ"]),
+  source: external_exports.enum(["RC_READ", "VIN_PLATE", "RC_DOCUMENT", "INSURANCE_DOCUMENT", "OWNERS", "SCAN_PHOTO"]),
+  against: external_exports.enum(["REGISTRY", "RC_READ", "OWNER_ENTRY"]),
   expected: external_exports.string().nullable(),
   expected_hidden: external_exports.boolean(),
   detected: external_exports.string().nullable(),
@@ -5771,11 +5982,133 @@ var documentMatchRow = external_exports.object({
 var documentMatchResponse = external_exports.object({
   has_registry: external_exports.boolean(),
   mismatch_count: external_exports.number().int().nonnegative(),
+  /** Registration and chassis mismatches. An M1 with any needs acknowledgement before PASS (ADR-0076). */
+  identity_mismatch_count: external_exports.number().int().nonnegative(),
+  /** The vendor's blacklist text, as received. Null means unknown, never clean. */
+  blacklist_status: external_exports.string().nullable(),
   rows: external_exports.array(documentMatchRow),
   request_id: external_exports.string()
 });
 var inspectionReportResponse = external_exports.object({ report: inspectionReport, request_id: external_exports.string() });
 var evidenceRegisteredResponse = external_exports.object({ evidence: evidenceRefView, request_id: external_exports.string() });
+var damageReviewRow = external_exports.object({
+  media_id: external_exports.string(),
+  shot_code: external_exports.string(),
+  has_damage: external_exports.boolean(),
+  cosmetic: external_exports.array(external_exports.object({ area: external_exports.string(), observation: external_exports.string(), severity: external_exports.string() })),
+  panel: external_exports.string().nullable(),
+  damage_type: external_exports.string(),
+  severity: external_exports.string(),
+  confidence: external_exports.number(),
+  repair_cost_minor: external_exports.number().int(),
+  manual_review: external_exports.boolean(),
+  observation: external_exports.string().nullable(),
+  owner_verdict: external_exports.enum(["CONFIRMED", "OVERRIDDEN", "REJECTED"]).nullable(),
+  qc_decision: external_exports.enum(["CONFIRMED", "DISMISSED"]).nullable()
+});
+var damageReviewResponse = external_exports.object({ rows: external_exports.array(damageReviewRow), pending_count: external_exports.number().int().nonnegative(), request_id: external_exports.string() });
+var damageReviewDecisionRequest = external_exports.object({ media_id: external_exports.string().min(1), decision: external_exports.enum(["CONFIRMED", "DISMISSED"]) });
+var aiReferencesResponse = external_exports.object({
+  /** Measured on the owner's phone and not verified by the server. A prompt to listen to the clip, never a diagnosis. */
+  /** Exhaust smoke and warning lamps, from frames masked before the AI saw them. Unverified. */
+  engine_visual: external_exports.object({ exhaust_smoke: external_exports.string(), warning_lamps: external_exports.string(), frames_usable: external_exports.number().int() }).nullable(),
+  engine_sound: external_exports.object({ status: external_exports.string(), loudness_dbfs: external_exports.number().nullable(), stability_cv: external_exports.number().nullable(), transients_per_sec: external_exports.number().nullable() }).nullable(),
+  tyre_reads: external_exports.array(external_exports.object({ shot_code: external_exports.string(), verdict: external_exports.string(), needs_replacement: external_exports.boolean(), description: external_exports.string().nullable() })),
+  request_id: external_exports.string()
+});
+var aiResearchRequest = external_exports.object({ kind: external_exports.enum(["MARKET", "REPAIR"]) });
+var aiResearchResponse = external_exports.object({
+  market: external_exports.array(external_exports.object({
+    label: external_exports.string(),
+    mfg_year: external_exports.number().int(),
+    odometer_km: external_exports.number(),
+    city: external_exports.string(),
+    price_minor: external_exports.number().int(),
+    price_type: external_exports.enum(["SOLD", "ASKING", "UNKNOWN"]),
+    source: external_exports.string().nullable()
+  })),
+  repair: external_exports.array(external_exports.object({
+    part: external_exports.string(),
+    damage_type: external_exports.string(),
+    action: external_exports.string(),
+    parts_min_minor: external_exports.number().int().nullable(),
+    parts_max_minor: external_exports.number().int().nullable(),
+    labour_min_minor: external_exports.number().int().nullable(),
+    labour_max_minor: external_exports.number().int().nullable(),
+    paint_min_minor: external_exports.number().int().nullable(),
+    paint_max_minor: external_exports.number().int().nullable(),
+    source: external_exports.string().nullable()
+  })),
+  request_id: external_exports.string()
+});
+var VIDEO_ANALYSIS_MAX_FRAMES = 10;
+var VIDEO_ANALYSIS_MAX_FRAME_CHARS = 4e5;
+var VIDEO_ANALYSIS_MAX_TOTAL_CHARS = 26e5;
+var videoFrameDataUrl = external_exports.string().max(VIDEO_ANALYSIS_MAX_FRAME_CHARS).regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/);
+var videoAudioSignals = external_exports.object({
+  duration_sec: external_exports.number().min(0).max(600),
+  loudness_dbfs: external_exports.number().min(-200).max(0),
+  stability_cv: external_exports.number().min(0).max(100),
+  transients_per_sec: external_exports.number().min(0).max(1e3)
+});
+var videoAnalysisRequest = external_exports.object({
+  frames: external_exports.array(videoFrameDataUrl).min(1).max(VIDEO_ANALYSIS_MAX_FRAMES),
+  /** Seconds into the clip for each frame (same order and length as `frames`). */
+  frame_times: external_exports.array(external_exports.number().min(0).max(3600)).min(1).max(VIDEO_ANALYSIS_MAX_FRAMES),
+  duration_sec: external_exports.number().min(0).max(3600).nullable(),
+  audio: videoAudioSignals.nullable()
+}).refine((b) => b.frames.reduce((n, f) => n + f.length, 0) <= VIDEO_ANALYSIS_MAX_TOTAL_CHARS, {
+  message: "frames too large",
+  path: ["frames"]
+}).refine((b) => b.frame_times.length === b.frames.length, { message: "one time per frame", path: ["frame_times"] });
+var videoLampStatus = external_exports.enum(["WORKING", "PARTIAL", "FAULTY", "NOT_VISIBLE"]);
+var videoSmokeStatus = external_exports.enum(["NONE", "WHITE", "BLUE", "BLACK", "NOT_VISIBLE"]);
+var videoWarningLampStatus = external_exports.enum(["NONE", "ON", "NOT_VISIBLE"]);
+var videoVisualFindings = external_exports.object({
+  headlights: videoLampStatus,
+  indicators: videoLampStatus,
+  tail_lights: videoLampStatus,
+  warning_lamps: videoWarningLampStatus,
+  warning_lamps_details: external_exports.string().max(200).nullable(),
+  exhaust_smoke: videoSmokeStatus,
+  visible_issues: external_exports.array(external_exports.string().max(160)).max(5),
+  frames_usable: external_exports.number().int().min(0).max(VIDEO_ANALYSIS_MAX_FRAMES)
+});
+var videoDamageType = external_exports.enum(["DENT", "SCRATCH", "SCUFF", "CHIP", "CRACK", "RUST", "MISSING"]);
+var videoDamageSeverity = external_exports.enum(["MINOR", "MODERATE", "MAJOR", "CRITICAL"]);
+var videoDamageMark = external_exports.object({
+  cx: external_exports.number().min(0).max(100),
+  cy: external_exports.number().min(0).max(100),
+  r: external_exports.number().min(1).max(30),
+  type: videoDamageType,
+  severity: videoDamageSeverity,
+  part: external_exports.string().max(40),
+  part_label: external_exports.string().max(60),
+  label: external_exports.string().max(60),
+  confidence: external_exports.number().int().min(0).max(100)
+});
+var videoDamageScan = external_exports.object({
+  frames: external_exports.array(external_exports.object({ index: external_exports.number().int().min(0), t: external_exports.number().min(0), marks: external_exports.array(videoDamageMark).max(8) })).max(VIDEO_ANALYSIS_MAX_FRAMES),
+  /** Frames the damage model could not finish (timeout / provider error) — their marks are unknown. */
+  failed_frames: external_exports.number().int().min(0).max(VIDEO_ANALYSIS_MAX_FRAMES)
+});
+var videoAnalysisResponse = external_exports.object({
+  findings: videoVisualFindings,
+  damage: videoDamageScan,
+  frames_analyzed: external_exports.number().int().min(1).max(VIDEO_ANALYSIS_MAX_FRAMES),
+  model: external_exports.string(),
+  analyzed_at: external_exports.string(),
+  request_id: external_exports.string()
+});
+var engineSoundRequest = external_exports.object({ audio: videoAudioSignals.nullable() });
+var engineFramesRequest = external_exports.object({ frames: external_exports.array(videoFrameDataUrl).min(1).max(VIDEO_ANALYSIS_MAX_FRAMES) }).refine((b) => b.frames.reduce((n, f) => n + f.length, 0) <= VIDEO_ANALYSIS_MAX_TOTAL_CHARS, { message: "frames too large", path: ["frames"] });
+var qcAnswerRow = external_exports.object({ item_code: external_exports.string(), grade_cap_reason: external_exports.string().nullable(), severity: external_exports.string().nullable(), note: external_exports.string().nullable() });
+var qcAnswersResponse = external_exports.object({ rows: external_exports.array(qcAnswerRow), pending_count: external_exports.number().int().nonnegative(), request_id: external_exports.string() });
+var qcAnswerRequest = external_exports.object({
+  item_code: external_exports.string().min(1),
+  severity: external_exports.enum(["OK", "MINOR", "MODERATE", "MAJOR", "CRITICAL", "NOT_ASSESSABLE"]),
+  note: external_exports.string().trim().max(500).nullable().optional()
+});
 
 // ../../packages/contracts/src/media.ts
 var mediaKind = external_exports.enum(["PHOTO", "VIDEO", "AUDIO", "DOCUMENT"]);
@@ -6083,7 +6416,9 @@ var reportChecklistItem = external_exports.object({
   numeric_value: external_exports.number().nullable(),
   unit: external_exports.string().nullable(),
   note: external_exports.string().nullable(),
-  scored: external_exports.boolean()
+  scored: external_exports.boolean(),
+  /** QC answered this from the owner's photos and videos (ADR-0081). "OK" means nothing visible, not a physical check. */
+  reviewed_from_photos: external_exports.boolean().optional()
 });
 var reportChallan = external_exports.object({
   challan_number: external_exports.string().nullable(),
@@ -6134,6 +6469,8 @@ var reportData = external_exports.object({
   findings: external_exports.array(reportFinding),
   evidence: external_exports.array(reportEvidence),
   valuation: reportValuation,
+  /** QC confirmed damage on this M1, so the pinned value was recalculated after submit (ADR-0077). */
+  valuation_adjusted_after_review: external_exports.boolean().optional(),
   inspector: reportInspector.nullable(),
   documents: external_exports.array(reportDocument),
   disclaimer: reportDisclaimer,
@@ -8074,6 +8411,24 @@ var certificateView = external_exports.object({
   renewable: external_exports.boolean(),
   created_at: external_exports.string()
 });
+var certificateDealerOptionView = external_exports.object({
+  org_id: external_exports.string(),
+  business_name: external_exports.string(),
+  org_status: external_exports.string(),
+  city: external_exports.string().nullable(),
+  state: external_exports.string().nullable(),
+  first_login_at: external_exports.string().nullable()
+});
+var certificateDealersResponse = external_exports.object({ dealers: external_exports.array(certificateDealerOptionView), request_id: external_exports.string() });
+var certificateHistoryItem = external_exports.object({
+  id: external_exports.string(),
+  action: external_exports.string(),
+  actor_type: external_exports.string(),
+  actor_name: external_exports.string().nullable(),
+  reason: external_exports.string().nullable(),
+  created_at: external_exports.string()
+});
+var certificateHistoryResponse = external_exports.object({ items: external_exports.array(certificateHistoryItem), request_id: external_exports.string() });
 var listCertificatesResponse = external_exports.object({
   certificates: external_exports.array(certificateView),
   request_id: external_exports.string()
@@ -8126,6 +8481,150 @@ var inspectorView = external_exports.object({
 });
 var grantInspectorResponse = external_exports.object({ inspector: inspectorView, request_id: external_exports.string() });
 var listInspectorsResponse = external_exports.object({ inspectors: external_exports.array(inspectorView), request_id: external_exports.string() });
+
+// ../../packages/contracts/src/ops-staff.ts
+var OPS_MODULES = [
+  "dealer_onboarding",
+  "add_dealer",
+  "certificates",
+  "qc",
+  "identity",
+  "transfer",
+  "booking",
+  "moderation",
+  "bank_verification",
+  "payments"
+];
+var opsModule = external_exports.enum(OPS_MODULES);
+var opsStaffBlockedReason = external_exports.enum(["FULL_ACCESS", "CONFLICTING_ROLE"]);
+var opsStaffLookupRequest = external_exports.object({ phone_e164: external_exports.string().min(1).max(32) });
+var opsStaffCandidateView = external_exports.object({
+  user_id: external_exports.string(),
+  /** Masked, so a typed mobile confirms the right person without revealing the name of a stranger's account. */
+  name_masked: external_exports.string().nullable(),
+  phone_masked: external_exports.string(),
+  modules: external_exports.array(opsModule),
+  blocked_reason: opsStaffBlockedReason.nullable()
+});
+var opsStaffLookupResponse = external_exports.object({ candidate: opsStaffCandidateView, request_id: external_exports.string() });
+var opsStaffView = external_exports.object({
+  user_id: external_exports.string(),
+  name: external_exports.string().nullable(),
+  phone_masked: external_exports.string(),
+  modules: external_exports.array(opsModule),
+  last_change_at: external_exports.string().nullable(),
+  last_changed_by: external_exports.string().nullable()
+});
+var opsStaffListResponse = external_exports.object({
+  staff: external_exports.array(opsStaffView),
+  next_cursor: external_exports.string().nullable(),
+  request_id: external_exports.string()
+});
+var setOpsStaffModulesRequest = external_exports.object({
+  modules: external_exports.array(opsModule).min(1).max(OPS_MODULES.length),
+  /** The Ops settings PIN (OPS_SETTINGS_CODE). Never logged or echoed. */
+  confirmation_code: external_exports.string().min(1).max(200)
+});
+var opsStaffModulesResponse = external_exports.object({
+  user_id: external_exports.string(),
+  modules: external_exports.array(opsModule),
+  request_id: external_exports.string()
+});
+
+// ../../packages/contracts/src/dealer-signups.ts
+var DEALER_SIGNUP_STATUSES = ["NEW", "NOT_REACHABLE", "CALL_BACK", "VERIFIED", "REJECTED"];
+var dealerSignupStatus = external_exports.enum(DEALER_SIGNUP_STATUSES);
+var dealerSignupKind = external_exports.enum(["DEALER", "BANK"]);
+var dealerSignupQuery = external_exports.object({
+  kind: dealerSignupKind.default("DEALER"),
+  status: dealerSignupStatus.optional(),
+  from: external_exports.string().datetime({ offset: true }).optional(),
+  to: external_exports.string().datetime({ offset: true }).optional(),
+  staff: external_exports.string().min(1).max(64).optional(),
+  q: external_exports.string().trim().min(1).max(120).optional()
+});
+var dealerSignupView = external_exports.object({
+  id: external_exports.string(),
+  kind: dealerSignupKind,
+  status: dealerSignupStatus,
+  version: external_exports.number().int(),
+  attempts: external_exports.number().int(),
+  name: external_exports.string().nullable(),
+  /** Null for a deleted account. */
+  phone_masked: external_exports.string().nullable(),
+  email_masked: external_exports.string().nullable(),
+  account_deleted: external_exports.boolean(),
+  signed_up_at: external_exports.string(),
+  last_status_at: external_exports.string().nullable(),
+  last_status_by: external_exports.string().nullable(),
+  last_note: external_exports.string().nullable()
+});
+var dealerSignupListResponse = external_exports.object({
+  items: external_exports.array(dealerSignupView),
+  next_cursor: external_exports.string().nullable(),
+  request_id: external_exports.string()
+});
+var dealerSignupCountsView = external_exports.object({
+  total: external_exports.number().int(),
+  NEW: external_exports.number().int(),
+  NOT_REACHABLE: external_exports.number().int(),
+  CALL_BACK: external_exports.number().int(),
+  VERIFIED: external_exports.number().int(),
+  REJECTED: external_exports.number().int()
+});
+var dealerSignupKpisView = external_exports.object({
+  signups: external_exports.number().int(),
+  waiting: external_exports.number().int(),
+  oldest_waiting_at: external_exports.string().nullable(),
+  contact_rate: external_exports.number().nullable(),
+  verified_rate: external_exports.number().nullable(),
+  not_reachable_rate: external_exports.number().nullable(),
+  median_first_contact_seconds: external_exports.number().nullable()
+});
+var dealerSignupStaffRowView = external_exports.object({
+  staff_id: external_exports.string(),
+  name: external_exports.string().nullable(),
+  updates: external_exports.number().int(),
+  verified: external_exports.number().int(),
+  rejected: external_exports.number().int()
+});
+var dealerSignupSummaryResponse = external_exports.object({
+  counts: dealerSignupCountsView,
+  kpis: dealerSignupKpisView,
+  per_day: external_exports.array(external_exports.object({ day: external_exports.string(), signups: external_exports.number().int() })),
+  by_staff: external_exports.array(dealerSignupStaffRowView),
+  request_id: external_exports.string()
+});
+var dealerSignupCountResponse = external_exports.object({ new: external_exports.number().int(), request_id: external_exports.string() });
+var dealerSignupEventView = external_exports.object({
+  id: external_exports.string(),
+  from_status: dealerSignupStatus,
+  to_status: dealerSignupStatus,
+  note: external_exports.string().nullable(),
+  actor_name: external_exports.string().nullable(),
+  created_at: external_exports.string()
+});
+var dealerSignupDetailResponse = external_exports.object({
+  signup: dealerSignupView,
+  events: external_exports.array(dealerSignupEventView),
+  whatsapp_welcome_sent: external_exports.boolean(),
+  request_id: external_exports.string()
+});
+var changeDealerSignupStatusRequest = external_exports.object({
+  to_status: dealerSignupStatus.exclude(["NEW"]),
+  expected_version: external_exports.number().int().positive(),
+  note: external_exports.string().trim().max(1e3).nullable().optional()
+});
+var changeDealerSignupStatusResponse = external_exports.object({
+  status: dealerSignupStatus,
+  version: external_exports.number().int(),
+  request_id: external_exports.string()
+});
+var dealerSignupRevealResponse = external_exports.object({
+  phone: external_exports.string().nullable(),
+  email: external_exports.string().nullable(),
+  request_id: external_exports.string()
+});
 
 // ../../packages/contracts/src/institutional.ts
 var documentCategory = external_exports.enum([
@@ -8642,7 +9141,7 @@ var SHOT_LABELS2 = {
   WALK_FRONT_RIGHT: "Front-Right photo"
 };
 var MISSING_KEYS = {
-  ...Object.fromEntries(Object.entries(SHOT_LABELS2).map(([code, label]) => [label, `field.inspect.rr.${code}`])),
+  ...Object.fromEntries(Object.entries(SHOT_LABELS2).map(([code2, label]) => [label, `field.inspect.rr.${code2}`])),
   "Odometer confirmation": "field.inspect.rr.odometer",
   "Previous-owners confirmation": "field.inspect.rr.owners",
   "VIN confirmation": "field.inspect.rr.vin",
@@ -9420,10 +9919,10 @@ function computeValuation(input, partsCatalog = defaultPartsCatalog) {
 }
 function computeDamageRefurbishments(input, partsCatalog) {
   var _a, _b, _c;
-  const items = (_a = input.damageItems) != null ? _a : [];
+  const items2 = (_a = input.damageItems) != null ? _a : [];
   const tier = (_b = input.segmentTier) != null ? _b : "BUDGET";
   const model = (_c = input.model) != null ? _c : "";
-  return items.map(
+  return items2.map(
     (d) => computeRefurbishmentLine({ model, panel: d.panel, severity: d.severity, tier }, partsCatalog)
   );
 }
@@ -10059,6 +10558,8 @@ function toDamageVehicleContext(vehicle) {
 // src/lib/photo-quality.ts
 var TINY_PHOTO_BYTES = 20 * 1024;
 var TINY_PHOTO_PIXELS = 320 * 240;
+var DARK_LUMINANCE = 40;
+var BRIGHT_LUMINANCE = 235;
 var PHOTO_CAPTURE_GUIDANCE = [
   "Stand at a standard distance so the full vehicle is visible.",
   "Keep the vehicle centered with no major side cut off.",
@@ -10081,6 +10582,18 @@ function signalPredicate(key, kind) {
       return null;
   }
 }
+function describeMediaIntegrity(m) {
+  var _a, _b, _c, _d;
+  if (((_b = (_a = m.integrity) == null ? void 0 : _a.risk_score) != null ? _b : 0) <= 70) return { failed: false, failKeys: [], reason: null };
+  const failKeys = ((_d = (_c = m.integrity) == null ? void 0 : _c.signals) != null ? _d : []).filter((s) => s.status === "FAIL").map((s) => s.key);
+  const knownKey = failKeys.find((k) => signalPredicate(k, m.kind) !== null);
+  const known = knownKey !== void 0 ? signalPredicate(knownKey, m.kind) : void 0;
+  return {
+    failed: true,
+    failKeys,
+    reason: known != null ? known : "couldn't be verified \u2014 please retake it"
+  };
+}
 function explainIntegrityFailure(media, labels) {
   var _a, _b, _c, _d;
   const reasons = [];
@@ -10094,6 +10607,98 @@ function explainIntegrityFailure(media, labels) {
     reasons.push({ item: m.item_code, message: `${subject} ${predicate}.` });
   }
   return reasons;
+}
+
+// ../../packages/core/src/modules/inspection/domain/document-match.ts
+var FUELS = ["PETROL", "DIESEL", "CNG", "LPG", "ELECTRIC", "HYBRID"];
+var NAME_NOISE = /* @__PURE__ */ new Set(["INDIA", "LTD", "LIMITED", "PVT", "PRIVATE", "CO", "COMPANY", "MOTOR", "MOTORS", "CORPORATION", "CORP", "AUTOMOBILES", "GENERAL", "INSURANCE", "THE", "AND"]);
+var present2 = (v) => v != null && v.trim() !== "";
+function words(v) {
+  return v.toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim().split(" ").filter((w) => w !== "" && !NAME_NOISE.has(w));
+}
+function parseRcReadNote(note) {
+  var _a;
+  if (!present2(note) || !note.trim().toUpperCase().startsWith("RC:")) return null;
+  const out = { registrationNumber: null, chassisNumber: null, engineNumber: null, makeModel: null, fuel: null, mfgYear: null };
+  const parts = note.trim().slice(3).split("|").map((p) => p.trim()).filter(Boolean);
+  for (const p of parts) {
+    const m = /^(Reg dt|Reg|Chassis|Engine|MFG)\s+(.+)$/i.exec(p);
+    const label = (_a = m == null ? void 0 : m[1]) == null ? void 0 : _a.toUpperCase();
+    if (label === "REG") out.registrationNumber = m[2].trim();
+    else if (label === "CHASSIS") out.chassisNumber = m[2].trim();
+    else if (label === "ENGINE") out.engineNumber = m[2].trim();
+    else if (label === "MFG") {
+      const y = Number(m[2].trim());
+      out.mfgYear = Number.isInteger(y) ? y : null;
+    } else if (label === "REG DT") continue;
+    else if (words(p).length > 0 && words(p).every((w) => FUELS.includes(w))) out.fuel = p;
+    else if (out.makeModel == null && !/confirmed from photo/i.test(p)) out.makeModel = p;
+  }
+  return out;
+}
+var IDENTITY_TOKEN = /^[A-Z0-9][A-Z0-9/-]*$/i;
+function identityValue(segment, note) {
+  var _a, _b;
+  const raw2 = (_b = (_a = segment.exec(note)) == null ? void 0 : _a[1]) == null ? void 0 : _b.trim();
+  return raw2 && IDENTITY_TOKEN.test(raw2) ? raw2 : null;
+}
+function parseVinPlateNote(note) {
+  if (!present2(note)) return null;
+  const vin = identityValue(/(?:^|\|)\s*VIN\s+([^|]+)/i, note);
+  const engineNumber = identityValue(/(?:^|\|)\s*Engine\s+([^|]+)/i, note);
+  return vin || engineNumber ? { vin, engineNumber } : null;
+}
+
+// src/lib/self-identity-check.ts
+var code = (v) => v.toUpperCase().replace(/[^A-Z0-9]/g, "");
+function selfIdentityReads(rcNote, vinNote) {
+  var _a, _b, _c, _d, _e;
+  const rc = parseRcReadNote(rcNote);
+  const plate = parseVinPlateNote(vinNote);
+  const plateVin = (_a = plate == null ? void 0 : plate.vin) != null ? _a : null;
+  const rcChassis = (_b = rc == null ? void 0 : rc.chassisNumber) != null ? _b : null;
+  return {
+    vin: plateVin != null ? plateVin : rcChassis,
+    engineNumber: (_d = (_c = plate == null ? void 0 : plate.engineNumber) != null ? _c : rc == null ? void 0 : rc.engineNumber) != null ? _d : null,
+    registrationNumber: (_e = rc == null ? void 0 : rc.registrationNumber) != null ? _e : null,
+    plateDiffersFromRc: plateVin != null && rcChassis != null && code(plateVin) !== code(rcChassis)
+  };
+}
+function selfIdentityMismatchFields(reads, verdicts) {
+  const out = [];
+  if (reads.plateDiffersFromRc || (verdicts == null ? void 0 : verdicts.vin) === "MISMATCH") out.push("CHASSIS");
+  if ((verdicts == null ? void 0 : verdicts.registration_number) === "MISMATCH") out.push("REGISTRATION");
+  return out;
+}
+
+// src/lib/photo-metrics.ts
+var BLUR_WARN_BELOW = 20;
+function measureGrey(grey, width, height) {
+  let sum = 0;
+  for (let i = 0; i < grey.length; i += 1) sum += grey[i];
+  const meanLuminance = grey.length > 0 ? sum / grey.length : 0;
+  let count = 0;
+  let lapSum = 0;
+  let lapSquares = 0;
+  for (let y = 1; y < height - 1; y += 1) {
+    for (let x = 1; x < width - 1; x += 1) {
+      const i = y * width + x;
+      const lap = grey[i - width] + grey[i + width] + grey[i - 1] + grey[i + 1] - 4 * grey[i];
+      lapSum += lap;
+      lapSquares += lap * lap;
+      count += 1;
+    }
+  }
+  if (count === 0) return { meanLuminance, blurScore: 0 };
+  const mean = lapSum / count;
+  return { meanLuminance, blurScore: lapSquares / count - mean * mean };
+}
+function qualityWarnings(m) {
+  const out = [];
+  if (m.meanLuminance < DARK_LUMINANCE) out.push("DARK");
+  else if (m.meanLuminance > BRIGHT_LUMINANCE) out.push("BRIGHT");
+  else if (m.blurScore < BLUR_WARN_BELOW) out.push("BLURRY");
+  return out;
 }
 
 // src/lib/final-valuation-card.ts
@@ -10130,7 +10735,7 @@ function selectFinalValuationCard(res) {
   };
 }
 
-// src/lib/condition.ts
+// ../../packages/core/src/modules/inspection/domain/condition-assessment.ts
 var COSMETIC_AREAS2 = [
   "PAINT",
   "LAMPS",
@@ -10141,6 +10746,194 @@ var COSMETIC_AREAS2 = [
   "OTHER"
 ];
 var COSMETIC_SEVERITIES2 = ["MINOR", "MODERATE", "MAJOR"];
+var cosmeticRank = (s) => s === "MAJOR" ? 3 : s === "MODERATE" ? 2 : s === "MINOR" ? 1 : 0;
+var answerRank = (s) => s === "CRITICAL" ? 4 : s === "MAJOR" ? 3 : s === "MODERATE" ? 2 : s === "MINOR" ? 1 : 0;
+function summarizeCondition(input) {
+  const evidence = [];
+  const unknowns = [];
+  let majors = 0;
+  let moderates = 0;
+  let minors = 0;
+  let critical = false;
+  const sortedCosmetics = [...input.cosmetics].sort(
+    (a, b) => cosmeticRank(b.severity) - cosmeticRank(a.severity)
+  );
+  for (const c of sortedCosmetics) {
+    evidence.push(`${c.shotCode}: ${c.area} \u2014 ${c.observation} (${c.severity})`);
+    if (c.severity === "MAJOR") majors += 1;
+    else if (c.severity === "MODERATE") moderates += 1;
+    else if (c.severity === "MINOR") minors += 1;
+  }
+  for (const a of input.answers) {
+    const r = answerRank(a.severity);
+    if (r >= 4) {
+      critical = true;
+      evidence.push(`${a.itemCode} recorded ${a.severity}`);
+    } else if (r === 3) {
+      majors += 1;
+      evidence.push(`${a.itemCode} recorded MAJOR`);
+    } else if (r === 2) {
+      moderates += 1;
+      evidence.push(`${a.itemCode} recorded MODERATE`);
+    }
+  }
+  const photographed = new Set(input.photographedShots);
+  const failed = new Set(input.failedShots);
+  for (const shot of input.expectedShots) {
+    if (!photographed.has(shot)) unknowns.push(`No photo: ${shot}`);
+    else if (failed.has(shot)) unknowns.push(`Could not assess: ${shot}`);
+  }
+  let level;
+  if (critical || majors > 0 || moderates >= 3) level = "POOR";
+  else if (moderates > 0 || minors >= 3) level = "FAIR";
+  else if (minors > 0) level = "GOOD";
+  else level = "EXCELLENT";
+  if (input.expectedShots.length > 0 && unknowns.length * 2 >= input.expectedShots.length && (level === "EXCELLENT" || level === "GOOD")) {
+    level = "FAIR";
+  }
+  return { level, evidence, unknowns };
+}
+
+// src/lib/video-analysis/audio-signals.ts
+var WINDOW_SEC = 0.05;
+var SHORT_SEC = 5e-3;
+var BLOCK_WINDOWS = 40;
+var SPIKE_RATIO = 3.5;
+var SPIKE_CONTEXT = 50;
+var SPIKE_REF_PERCENTILE = 0.9;
+var SPIKE_FLOOR = 0.02;
+var SPIKE_REFRACTORY = 10;
+var SILENCE_DBFS = -55;
+function median2(xs) {
+  if (xs.length === 0) return 0;
+  const s = [...xs].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+function percentile(xs, q) {
+  if (xs.length === 0) return 0;
+  const s = [...xs].sort((a, b) => a - b);
+  return s[Math.min(s.length - 1, Math.floor(q * s.length))];
+}
+function round(n, dp) {
+  const f = 10 ** dp;
+  return Math.round(n * f) / f;
+}
+function computeAudioSignals(samples, sampleRate) {
+  if (!(sampleRate > 0) || samples.length < sampleRate) return null;
+  const win = Math.max(1, Math.round(WINDOW_SEC * sampleRate));
+  const shortWin = Math.max(1, Math.round(SHORT_SEC * sampleRate));
+  const rms = [];
+  for (let start = 0; start + win <= samples.length; start += win) {
+    let sum = 0;
+    for (let i = start; i < start + win; i++) sum += samples[i] * samples[i];
+    rms.push(Math.sqrt(sum / win));
+  }
+  if (rms.length === 0) return null;
+  const db = rms.map((r) => 20 * Math.log10(Math.max(r, 1e-9)));
+  const loudnessDbfs = median2(db);
+  const cvOf = (xs) => {
+    const mean = xs.reduce((a, b) => a + b, 0) / xs.length;
+    if (mean <= 0) return 0;
+    const variance = xs.reduce((a, b) => a + (b - mean) ** 2, 0) / xs.length;
+    return Math.sqrt(variance) / mean;
+  };
+  const blockCvs = [];
+  for (let b = 0; b + BLOCK_WINDOWS <= rms.length; b += BLOCK_WINDOWS) blockCvs.push(cvOf(rms.slice(b, b + BLOCK_WINDOWS)));
+  const stabilityCv = blockCvs.length > 0 ? median2(blockCvs) : cvOf(rms);
+  const peaks = [];
+  for (let s = 0; s + shortWin <= samples.length; s += shortWin) {
+    let peak = 0;
+    for (let i = s; i < s + shortWin; i++) {
+      const a = Math.abs(samples[i]);
+      if (a > peak) peak = a;
+    }
+    peaks.push(peak);
+  }
+  let spikes = 0;
+  let lastSpike = -Infinity;
+  for (let i = 0; i < peaks.length; i++) {
+    const p = peaks[i];
+    if (p < SPIKE_FLOOR || i - lastSpike < SPIKE_REFRACTORY) continue;
+    const ref = percentile(peaks.slice(Math.max(0, i - SPIKE_CONTEXT), Math.min(peaks.length, i + SPIKE_CONTEXT + 1)), SPIKE_REF_PERCENTILE);
+    if (p > SPIKE_RATIO * ref) {
+      spikes++;
+      lastSpike = i;
+    }
+  }
+  const durationSec = rms.length * win / sampleRate;
+  return {
+    durationSec: round(durationSec, 2),
+    loudnessDbfs: round(loudnessDbfs, 1),
+    stabilityCv: round(stabilityCv, 3),
+    transientsPerSec: round(spikes / durationSec, 2)
+  };
+}
+var BLOCK_SEC = 1;
+var SETTLE_SEC = 6;
+var IDLE_WINDOW_SEC = 10;
+var MIN_IDLE_SEC = 5;
+function selectIdleWindow(samples, sampleRate) {
+  if (!(sampleRate > 0)) return null;
+  const blockLen = Math.round(BLOCK_SEC * sampleRate);
+  const blocks = [];
+  for (let s = 0; s + blockLen <= samples.length; s += blockLen) {
+    let sum = 0;
+    for (let i = s; i < s + blockLen; i++) sum += samples[i] * samples[i];
+    blocks.push(Math.sqrt(sum / blockLen));
+  }
+  const floor = 10 ** (SILENCE_DBFS / 20);
+  const startBlock = blocks.findIndex((b, i) => b > floor && blocks.slice(i + 1, i + 4).filter((x) => x > floor).length >= 2);
+  if (startBlock < 0) return null;
+  const first = startBlock + Math.round(SETTLE_SEC / BLOCK_SEC);
+  const usable = blocks.length - first;
+  if (usable < MIN_IDLE_SEC) return null;
+  const windowBlocks = Math.min(IDLE_WINDOW_SEC, usable);
+  let best = first;
+  let bestCv = Infinity;
+  for (let s = first; s + windowBlocks <= blocks.length; s++) {
+    const w = blocks.slice(s, s + windowBlocks);
+    const mean = w.reduce((a, b) => a + b, 0) / w.length;
+    if (mean <= floor) continue;
+    const cv = Math.sqrt(w.reduce((a, b) => a + (b - mean) ** 2, 0) / w.length) / mean;
+    if (cv < bestCv) {
+      bestCv = cv;
+      best = s;
+    }
+  }
+  if (bestCv === Infinity) return null;
+  return { start: best * blockLen, length: windowBlocks * blockLen };
+}
+
+// src/lib/video-analysis/frame-sampling.ts
+var DEFAULT_FRAME_COUNT = 10;
+var FRAME_MAX_DIM = 768;
+var FRAME_PAYLOAD_BUDGET = 24e5;
+function usableDuration(d) {
+  return typeof d === "number" && Number.isFinite(d) && d > 0 ? d : null;
+}
+function sampleTimes(duration, count = DEFAULT_FRAME_COUNT) {
+  const n = Math.max(1, Math.floor(count));
+  if (duration == null) return Array.from({ length: n }, (_, i) => round3(0.5 + i));
+  const start = Math.min(0.5, duration * 0.05);
+  const end = duration * 0.95;
+  if (n === 1) return [round3((start + end) / 2)];
+  return Array.from({ length: n }, (_, i) => round3(start + (end - start) * i / (n - 1)));
+}
+function fitFramesToBudget(frames, budget = FRAME_PAYLOAD_BUDGET) {
+  const kept = [];
+  let total = 0;
+  for (const f of frames) {
+    const size = typeof f === "string" ? f.length : f.dataUrl.length;
+    if (kept.length > 0 && total + size > budget) break;
+    kept.push(f);
+    total += size;
+  }
+  return kept;
+}
+function round3(n) {
+  return Math.round(n * 1e3) / 1e3;
+}
 
 // src/lib/photo-dhash.ts
 var NEAR_DUPLICATE_DISTANCE = 5;
@@ -10200,6 +10993,8 @@ export {
   COSMETIC_AREAS2 as COSMETIC_AREAS,
   COSMETIC_SEVERITIES2 as COSMETIC_SEVERITIES,
   DAMAGE_TYPE_VALUES,
+  DEFAULT_FRAME_COUNT,
+  FRAME_MAX_DIM,
   M1_DENT_PROMPT_VERSION,
   NEAR_DUPLICATE_DISTANCE,
   PANEL_GROUPS,
@@ -10217,18 +11012,22 @@ export {
   buildProgress,
   checkVideoDuration,
   collectAngleFindings,
+  computeAudioSignals,
   crossValidateVehicle,
   decideForSavedSeverity,
+  describeMediaIntegrity,
   dhashGrayscale,
   explainIntegrityFailure,
   findNearDuplicate,
   findingToShotRead,
+  fitFramesToBudget,
   humanizeSubmitError,
   isDocumentItem,
   isEvidenceOnlyItem,
   isPhotoGridItem,
   isVideoItem,
   mapAiSeverityToAnswer,
+  measureGrey,
   newestFindingFor,
   normalizeDamageResult,
   parseKeyCount,
@@ -10239,10 +11038,17 @@ export {
   photoSections,
   photoSlots,
   previousOwnersFromRegistry,
+  qualityWarnings,
   resolveShotDisplayName,
+  sampleTimes,
   selectFinalValuationCard,
+  selectIdleWindow,
+  selfIdentityMismatchFields,
+  selfIdentityReads,
   shotLabel,
   stepForItem,
+  summarizeCondition,
   toDamageVehicleContext,
-  totalOwnersFromPrevious
+  totalOwnersFromPrevious,
+  usableDuration
 };

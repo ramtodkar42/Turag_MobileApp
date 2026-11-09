@@ -6,6 +6,8 @@ import com.facebook.react.ReactApplication
 import com.facebook.react.ReactHost
 import com.facebook.react.ReactNativeApplicationEntryPoint.loadReactNative
 import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
+import com.turag.engineclip.EngineClipPackage
+import com.turag.file.TuragFilePackage
 import com.turag.update.InAppUpdatePackage
 import com.turag.voice.VoiceSearchPackage
 
@@ -20,6 +22,8 @@ class MainApplication : Application(), ReactApplication {
           // add(MyReactNativePackage())
           add(VoiceSearchPackage()) // voice search (Android speech recognition)
           add(InAppUpdatePackage()) // Google Play's in-app update
+          add(EngineClipPackage()) // the self-inspection's engine clip, read for QC
+          add(TuragFilePackage()) // a big file's size + SHA-256, read in pieces (video uploads)
         },
     )
   }

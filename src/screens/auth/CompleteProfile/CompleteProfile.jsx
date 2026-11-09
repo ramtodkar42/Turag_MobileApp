@@ -35,6 +35,9 @@ function CompleteProfile({ navigation, route }) {
   const { needsProfile = true, needsConsent = true, prefill } = route.params ?? {};
   const t = useT();
   const emailRef = useRef(null);
+  // Linked from Google: already verified there, so it's locked and needs no
+  // confirmation link (as the web).
+  const googleEmail = prefill?.emailVerified ? prefill.email : null;
 
   const form = useProfileForm({
     needsProfile,
@@ -46,6 +49,7 @@ function CompleteProfile({ navigation, route }) {
         needsConsent,
         values,
         consents,
+        verifiedEmail: googleEmail,
       });
       const titleKey = needsProfile
         ? 'auth.accountCreated'
@@ -130,12 +134,19 @@ function CompleteProfile({ navigation, route }) {
               value={values.email}
               onChangeText={form.setField('email')}
               error={errors.email}
+              readOnly={!!googleEmail}
+              valid={!!googleEmail}
               autoCapitalize="none"
               keyboardType="email-address"
               textContentType="emailAddress"
               autoComplete="email"
               returnKeyType="done"
             />
+            {googleEmail ? (
+              <AppText variant="caption" color={colors.success}>
+                {t('auth.create.emailGoogle')}
+              </AppText>
+            ) : null}
           </View>
 
           <PurposePicker

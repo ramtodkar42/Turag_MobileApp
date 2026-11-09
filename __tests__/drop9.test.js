@@ -117,8 +117,8 @@ describe('traffic challans', () => {
 
 describe('business interest at sign-up', () => {
   test('a dealer / bank is sent to Turag’s team', async () => {
-    global.fetch.mockResolvedValueOnce(reply(200, { whatsapp_queued: true }));
-    expect(await registerBusinessInterest('DEALER')).toEqual({ whatsappQueued: true });
+    global.fetch.mockResolvedValueOnce(reply(200, { whatsapp_queued: true, recorded: true }));
+    expect(await registerBusinessInterest('DEALER')).toEqual({ whatsappQueued: true, recorded: true });
     expect(call(0)).toMatchObject({ method: 'POST', body: { kind: 'DEALER' } });
     expect(call(0).url).toMatch(/\/me\/business-interest$/);
   });

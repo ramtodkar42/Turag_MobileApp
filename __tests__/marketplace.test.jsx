@@ -48,7 +48,7 @@ const hasText = (root, text) =>
 
 // Signed in (a guest gets the login prompts instead - see guest.test.jsx).
 beforeEach(() => setUser({ fullName: 'Test User', role: 'individual' }));
-afterEach(() => clearUser());
+afterEach(() => act(() => clearUser()));
 
 beforeEach(() => {
   jest.useFakeTimers();
@@ -75,7 +75,7 @@ test('Vehicle page shows details, bookmark saves it, Make an offer opens the off
   expect(tiles).toEqual([
     ['Vehicle type', 'Four Wheeler'],
     ['Fuel type', 'Petrol'],
-    ['Registration year', 2023],
+    ['Make year', 2023],
   ]);
   const banner = root.findAll(n => n.type?.name === 'InspectionBanner')[0];
   expect(banner.props).toMatchObject({ label: 'TURAG Verified', verified: true });

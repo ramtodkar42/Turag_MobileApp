@@ -3,23 +3,22 @@ import { Keyboard, StyleSheet, View } from 'react-native';
 import { AppText } from '../../../../components';
 import { colors, spacing } from '../../../../theme';
 import { formatNumber } from '../../../../utils/format';
-import { isValidRegNumber, normalizeRegNumber } from '../../../../utils/validators';
+import { isValidRegNumber, normalizeRegNumber, REG_NUMBER_MAX_LENGTH } from '../../../../utils/validators';
 import { useT } from '../../../../i18n';
 import ChatInput from '../../../chat/Chat/components/ChatInput';
 import { MAX_KM } from '../steps';
 
-const MAX_REG_LENGTH = 10; // MH12CT4590
 const digits = text => text.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
 
 // How each typed answer is read, shown, checked and sent.
 const KINDS = {
   reg: {
     placeholderKey: 'valuation.evaluate.regPlaceholder',
-    clean: text => normalizeRegNumber(text).slice(0, MAX_REG_LENGTH),
+    clean: text => normalizeRegNumber(text).slice(0, REG_NUMBER_MAX_LENGTH),
     show: value => value,
     valid: isValidRegNumber,
     value: text => text,
-    inputProps: { autoCapitalize: 'characters', autoCorrect: false, maxLength: MAX_REG_LENGTH },
+    inputProps: { autoCapitalize: 'characters', autoCorrect: false, maxLength: REG_NUMBER_MAX_LENGTH },
   },
   km: {
     placeholderKey: 'valuation.condition.kmPlaceholder',
@@ -28,7 +27,8 @@ const KINDS = {
       return next === '' || Number(next) <= MAX_KM ? next : prev;
     },
     show: value => formatNumber(value),
-    valid: value => Number(value) > 0,
+    // 0 km is a real answer (a new car), as the web and the server allow.
+    valid: value => value !== '',
     value: Number,
     inputProps: { keyboardType: 'number-pad' },
   },

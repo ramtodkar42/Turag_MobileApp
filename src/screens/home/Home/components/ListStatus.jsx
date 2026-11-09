@@ -29,7 +29,10 @@ function ListStatus({ market, grid, onRetry }) {
       </StatusView>
     );
   }
-  if (market.hasFilters && market.category !== 'all') {
+  // Any filter chosen (grade, tier, price...) on any tab - or a search on a Cars /
+  // Bikes tab: say so, with Clear (never "No vehicles yet" while filters hide them).
+  const filtersChosen = Object.keys(market.filters ?? {}).some(key => key !== 'vehicle');
+  if (filtersChosen || (market.hasFilters && market.category !== 'all')) {
     return (
       <StatusView
         title={t('home.filtered.title')}
@@ -47,9 +50,13 @@ function ListStatus({ market, grid, onRetry }) {
     );
   }
   const searched = market.query.trim();
+  // Nothing at all on a Cars / Bikes tab: "No cars yet" / "No two-wheelers yet" (as the web).
+  let emptyTitle = t('home.empty.title');
+  if (market.category === 'cars') emptyTitle = t('home.empty.cars');
+  else if (market.category === 'bikes') emptyTitle = t('home.empty.bikes');
   return (
     <StatusView
-      title={searched ? t('home.searched.title') : t('home.empty.title')}
+      title={searched ? t('home.searched.title') : emptyTitle}
       message={
         searched
           ? t('home.searched.message', { query: searched })

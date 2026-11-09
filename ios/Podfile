@@ -26,6 +26,9 @@ target 'Turag' do
     :app_path => "#{Pod::Config.instance.installation_root}/.."
   )
 
+  # Turag's own native modules (EngineClip: the engine clip, read for QC).
+  pod 'TuragNative', :path => './TuragNative'
+
   post_install do |installer|
     react_native_post_install(
       installer,

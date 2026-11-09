@@ -3,19 +3,31 @@ import { tNow } from '../i18n';
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE = /^(\+91)?[6-9]\d{9}$/; // Indian mobile, optional +91
 
-// Indian registration number: state (2 letters) + RTO (1-2 digits) + series (0-3 letters) + 4 digits.
-// e.g. MH12CT4590, MH 12 DX 5087, DL3C1234
-const REG_NUMBER = /^([A-Z]{2})(\d{1,2})([A-Z]{0,3})(\d{4})$/;
+// Indian registration numbers, exactly as the backend accepts them
+// (vehicle-registry registration-number.ts):
+// - standard: state (2 letters) + RTO (1-2 digits) + series (1-3 letters) + 4 digits,
+//   e.g. MH12CT4590, MH 12 DX 5087, DL3C1234, DL10CAB1234
+// - Bharat (BH) series: year (2 digits) + BH + 4 digits + 1-2 letters, e.g. 22BH1234AA
+const STANDARD = /^([A-Z]{2})(\d{1,2})([A-Z]{1,3})(\d{4})$/;
+const BH_SERIES = /^(\d{2})(BH)(\d{4})([A-Z]{1,2})$/;
+
+// The longest valid number, typed without spaces (DL10CAB1234).
+export const REG_NUMBER_MAX_LENGTH = 11;
 
 // Keeps letters/digits only, uppercased: "mh 12-ct 4590" -> "MH12CT4590"
-export const normalizeRegNumber = value => value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+export const normalizeRegNumber = value => String(value ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 
-export const isValidRegNumber = value => REG_NUMBER.test(normalizeRegNumber(value));
+const regParts = value => {
+  const plate = normalizeRegNumber(value);
+  return plate.match(STANDARD) ?? plate.match(BH_SERIES);
+};
 
-// "MH12DX5087" -> "MH 12 DX 5087" (for display)
+export const isValidRegNumber = value => !!regParts(value);
+
+// "MH12DX5087" -> "MH 12 DX 5087", "22BH1234AA" -> "22 BH 1234 AA" (for display)
 export const formatRegNumber = value => {
-  const parts = normalizeRegNumber(value).match(REG_NUMBER);
-  return parts ? parts.slice(1).filter(Boolean).join(' ') : value;
+  const parts = regParts(value);
+  return parts ? parts.slice(1).join(' ') : value;
 };
 
 export const isEmail = value => EMAIL.test(value.trim());

@@ -14,6 +14,7 @@ import { loadSession, saveSession } from '../src/api/tokenStorage';
 import { sendLoginOtp, verifyLoginOtp } from '../src/api/services/auth.api';
 import { getNotifications, markAllNotificationsRead } from '../src/api/services/notification.api';
 import { initialRouteFor } from '../src/navigation/authRoutes';
+import * as networkStore from '../src/store/networkStore';
 import { ROUTES } from '../src/navigation/routes';
 
 // A fetch Response look-alike.
@@ -280,6 +281,78 @@ describe('session', () => {
     expect(expired).not.toHaveBeenCalled();
     expect(await loadSession()).toEqual(expect.objectContaining({ refreshToken: 'refresh-new' }));
     await expect(getAccessToken()).resolves.toBe('access-new');
+    stop();
+  });
+
+  const refreshCount = () => fetch.mock.calls.filter(([url]) => url.endsWith('/auth/refresh')).length;
+
+  test('a slow refresh: the screen stops waiting after a minute, but the late new token is still saved', async () => {
+    await signIn('old', 1);
+    const expired = jest.fn();
+    const stop = onSessionExpired(expired);
+    const slowDone = jest.fn();
+    const slow = jest.spyOn(networkStore, 'markSlow').mockReturnValue(slowDone);
+    jest.useFakeTimers();
+    const answerRefresh = heldRefresh();
+    const first = request('/me').catch(e => e);
+
+    await jest.advanceTimersByTimeAsync(59000);
+    // The top bar says the connection is slow meanwhile.
+    expect(slow).toHaveBeenCalledTimes(1);
+    await jest.advanceTimersByTimeAsync(1000);
+    expect(await first).toMatchObject({ code: 'TIMEOUT' });
+
+    // Still running: the next call joins it rather than sending the old token again.
+    const next = getAccessToken();
+    answerRefresh(
+      reply(200, { access_token: 'access-2', expires_in: 900 }, { 'set-cookie': 'tg_refresh=refresh-2; Path=/' }),
+    );
+    await expect(next).resolves.toBe('access-2');
+    expect(refreshCount()).toBe(1);
+    expect(slowDone).toHaveBeenCalled();
+    expect(await loadSession()).toEqual(expect.objectContaining({ refreshToken: 'refresh-2' }));
+    expect(expired).not.toHaveBeenCalled();
+    slow.mockRestore();
+    stop();
+  });
+
+  test('a refresh that never answers is dropped after two minutes; still signed in, the next call tries again', async () => {
+    await signIn('old', 1);
+    jest.useFakeTimers();
+    fetch.mockImplementationOnce(
+      (url, { signal }) =>
+        new Promise((resolve, reject) => signal.addEventListener('abort', () => reject(new Error('aborted')))),
+    );
+    const first = getAccessToken().catch(e => e);
+    await jest.advanceTimersByTimeAsync(60000);
+    expect(await first).toMatchObject({ code: 'TIMEOUT' });
+
+    // Not given up yet: a call now joins it.
+    const second = getAccessToken().catch(e => e);
+    await jest.advanceTimersByTimeAsync(60000);
+    expect(await second).toMatchObject({ code: 'TIMEOUT' });
+    expect(refreshCount()).toBe(1);
+
+    fetch.mockResolvedValueOnce(reply(200, { access_token: 'access-2', expires_in: 900 }));
+    await expect(getAccessToken()).resolves.toBe('access-2');
+    expect(refreshCount()).toBe(2);
+    expect(await loadSession()).toEqual(expect.objectContaining({ refreshToken: 'refresh-1' }));
+  });
+
+  test('a late answer that the session is over still signs the user out', async () => {
+    await signIn('old', 1);
+    const expired = jest.fn();
+    const stop = onSessionExpired(expired);
+    jest.useFakeTimers();
+    const answerRefresh = heldRefresh();
+    const first = getAccessToken().catch(e => e);
+    await jest.advanceTimersByTimeAsync(60000);
+    expect(await first).toMatchObject({ code: 'TIMEOUT' });
+
+    answerRefresh(apiError(401, 'AUTH_REFRESH_REUSE_DETECTED'));
+    await jest.advanceTimersByTimeAsync(0);
+    expect(expired).toHaveBeenCalledTimes(1);
+    expect(await loadSession()).toBeNull();
     stop();
   });
 });

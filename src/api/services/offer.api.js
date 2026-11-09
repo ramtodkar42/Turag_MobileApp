@@ -21,11 +21,9 @@ const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 const realMarket = () => USE_REAL_API.marketplace;
 const real = () => USE_REAL_API.offers;
 
-// offer: { vehicleId, price (rupees), message, idempotencyKey }
-// `idempotencyKey`: the same key for every retry of one offer, so a retry after
-// a network error can't create a second offer.
-// `message`: kept in the form; the backend has no field for it yet, so it is
-// not sent.
+// offer: { vehicleId, price (rupees), idempotencyKey } - the offer API takes only
+// the amount. `idempotencyKey`: the same key for every retry of one offer, so a
+// retry after a network error can't create a second offer.
 // Returns { offerId, status, amount (rupees), expiresAt }.
 export const submitOffer = async ({ vehicleId, price, idempotencyKey }) => {
   if (!realMarket()) {

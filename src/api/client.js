@@ -72,6 +72,10 @@ export class ApiError extends Error {
   }
 }
 
+// "Taking longer than usual": a request's time limit, or a wait the session gives
+// up on while the call itself runs on (session.js).
+export const timeoutError = () => new ApiError({ code: ERROR_CODES.TIMEOUT, message: MESSAGES.timeout });
+
 // Set by the session (src/api/session.js) so this file doesn't depend on it.
 // { getAccessToken(): Promise<string|null>, refreshAccessToken(): Promise<string|null> }
 let authHandler = null;
@@ -132,7 +136,7 @@ const toApiError = (status, data) => {
 // connection is slow (store/networkStore markSlow).
 const SLOW_AFTER_MS = 8000;
 
-async function send(path, { method, body, headers, token, timeoutMs }) {
+async function send(path, { method, body, headers, token, timeoutMs, slowNotice }) {
   // Known offline: fail straight away instead of waiting out the full timeout.
   if (!getOnline()) {
     throw new ApiError({ code: ERROR_CODES.NETWORK, message: MESSAGES.network });
@@ -146,10 +150,11 @@ async function send(path, { method, body, headers, token, timeoutMs }) {
     (typeof FormData !== 'undefined' && body instanceof FormData) ||
     (typeof Blob !== 'undefined' && body instanceof Blob);
   // Not for file uploads or the calls that are slow by nature (AI estimates):
-  // those have their own longer timeout and progress on screen.
+  // those have their own longer timeout and progress on screen. `slowNotice`
+  // decides instead (the token refresh: kept open long, but not slow by nature).
   let slowDone = null;
   const slowTimer =
-    !isForm && timeoutMs <= REQUEST_TIMEOUT_MS
+    !isForm && (slowNotice ?? timeoutMs <= REQUEST_TIMEOUT_MS)
       ? setTimeout(() => {
           slowDone = markSlow();
         }, SLOW_AFTER_MS)
@@ -175,10 +180,7 @@ async function send(path, { method, body, headers, token, timeoutMs }) {
     if (!timedOut) {
       reportOffline();
     }
-    throw new ApiError({
-      code: timedOut ? ERROR_CODES.TIMEOUT : ERROR_CODES.NETWORK,
-      message: timedOut ? MESSAGES.timeout : MESSAGES.network,
-    });
+    throw timedOut ? timeoutError() : new ApiError({ code: ERROR_CODES.NETWORK, message: MESSAGES.network });
   } finally {
     clearTimeout(timer);
     clearTimeout(slowTimer);
@@ -198,7 +200,7 @@ async function send(path, { method, body, headers, token, timeoutMs }) {
   return { data, headers: res.headers, status: res.status };
 }
 
-// request(path, { method, body, auth = true, idempotent, idempotencyKey, headers, timeoutMs, raw })
+// request(path, { method, body, auth = true, idempotent, idempotencyKey, headers, timeoutMs, raw, slowNotice })
 // Returns the parsed JSON body, or { data, headers, status } when `raw` is true.
 export async function request(path, options = {}) {
   const {
@@ -210,11 +212,12 @@ export async function request(path, options = {}) {
     headers: extraHeaders,
     timeoutMs = REQUEST_TIMEOUT_MS,
     raw = false,
+    slowNotice,
   } = options;
 
   const key = idempotencyKey ?? (idempotent ? newIdempotencyKey() : null);
   const headers = key ? { 'Idempotency-Key': key, ...extraHeaders } : extraHeaders;
-  const call = token => send(path, { method, body, headers, token, timeoutMs });
+  const call = token => send(path, { method, body, headers, token, timeoutMs, slowNotice });
 
   let token = null;
   if (auth) {

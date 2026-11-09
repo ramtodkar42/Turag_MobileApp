@@ -77,7 +77,7 @@ export default {
   'selling.create.location.required': 'ज़रूरी',
   'selling.create.location.missing': 'मानचित्र से अपना शहर और राज्य चुनें।',
   'selling.create.location.privacy': 'खरीदारों को सिर्फ़ इलाका और शहर दिखता है। आपका पूरा पता निजी रहता है और हैंडओवर के लिए इस्तेमाल होता है।',
-  'selling.create.submit': 'लिस्टिंग बनाएँ',
+  'selling.create.submit': 'लिस्ट करें और समीक्षा के लिए भेजें',
   'selling.create.error': 'लिस्टिंग नहीं बन सकी। कृपया फिर से कोशिश करें।',
   'selling.create.valuationRequired': 'यह वाहन लिस्ट करने से पहले मान्य मूल्यांकन ज़रूरी है।',
   'selling.create.needsInspection': 'इस वाहन को लिस्ट करने से पहले एक पूर्ण निरीक्षण ज़रूरी है। पहले इसका निरीक्षण करें या इंस्पेक्टर बुक करें।',

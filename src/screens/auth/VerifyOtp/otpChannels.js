@@ -42,15 +42,21 @@ const otpChannels = {
         return { reset: [route, params] };
       }
       // Came from Google (as the web): attach the Google email so next time
-      // it signs straight in (best effort), and prefill Create Account.
-      await linkGoogle(google.token).catch(() => false);
+      // it signs straight in (best effort), and prefill Create Account. Once it's
+      // linked, the email is verified (by Google): Create Account shows it locked
+      // and sends no link to confirm it.
+      const linked = await linkGoogle(google.token).catch(() => false);
       return {
         reset: [
           route,
           route === ROUTES.COMPLETE_PROFILE
             ? {
                 ...params,
-                prefill: { fullName: google.name, email: google.email },
+                prefill: {
+                  fullName: google.name,
+                  email: google.email,
+                  emailVerified: !!linked && !!google.email,
+                },
               }
             : params,
         ],

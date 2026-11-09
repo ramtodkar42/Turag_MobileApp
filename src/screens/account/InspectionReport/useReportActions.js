@@ -1,13 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Linking, Share } from 'react-native';
+import { ApiError } from '../../../api/client';
 import { getReportPdf, shareReport } from '../../../api/services/report.api';
 import { tNow } from '../../../i18n';
 
-// The PDF is rendered by the backend's worker: while it's "being prepared",
-// ask again every few seconds for up to about a minute.
-const POLL_MS = 3000;
-const POLL_TRIES = 20;
+// The PDF is made by the backend's worker. While it's GENERATING the screen says
+// "Preparing your report…" and keeps asking, as the backend team asks: every 3 s
+// at first, then every 6 s, for up to 3 minutes while the screen is open. A
+// network blip (or a server hiccup) while waiting is tried again, not shown as
+// a failure; only three in a row end the wait.
+const FAST_POLL_MS = 3000;
+const SLOW_POLL_MS = 6000;
+const FAST_FOR_MS = 30000;
+const MAX_WAIT_MS = 3 * 60000;
+const MAX_BLIPS = 3;
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+const isBlip = e => e instanceof ApiError && (e.isNetworkError || e.status >= 500);
 
 // "Download PDF" and "Share report" on the report screen (as the web's).
 // download(): gets the PDF link and opens it (the phone's viewer can save /
@@ -28,12 +36,30 @@ export default function useReportActions({ inspectionId, title }) {
   const download = useCallback(async () => {
     setDownloading(true);
     setMessage(null);
+    const startedAt = Date.now();
     try {
-      let pdf = await getReportPdf(inspectionId);
-      for (let i = 0; pdf.status === 'GENERATING' && i < POLL_TRIES && mounted.current; i += 1) {
+      let pdf;
+      let blips = 0;
+      for (;;) {
+        try {
+          pdf = await getReportPdf(inspectionId);
+          blips = 0;
+        } catch (e) {
+          blips += 1;
+          if (!isBlip(e) || blips >= MAX_BLIPS) {
+            throw e;
+          }
+          pdf = { status: 'GENERATING' };
+        }
+        const waited = Date.now() - startedAt;
+        if (pdf.status !== 'GENERATING' || waited >= MAX_WAIT_MS || !mounted.current) {
+          break;
+        }
         setMessage({ text: tNow('account.report.pdf.preparing'), tone: 'info' });
-        await wait(POLL_MS);
-        pdf = await getReportPdf(inspectionId);
+        await wait(waited < FAST_FOR_MS ? FAST_POLL_MS : SLOW_POLL_MS);
+        if (!mounted.current) {
+          return;
+        }
       }
       if (!mounted.current) {
         return;

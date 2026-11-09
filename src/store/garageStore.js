@@ -78,6 +78,10 @@ export const useGarage = () => store.use(s => s.items);
 export const useIsInGarage = vehicleId =>
   store.use(s => !!vehicleId && s.items.some(v => v.vehicleId === vehicleId));
 
+// This vehicle's Garage entry (by backend vehicleId), or null.
+export const useGarageEntry = vehicleId =>
+  store.use(s => (vehicleId ? s.items.find(v => v.vehicleId === vehicleId) ?? null : null));
+
 // { loaded, loading, error } for the Garage tab.
 export const useGarageStatus = () => {
   const loaded = store.use(s => s.loaded);

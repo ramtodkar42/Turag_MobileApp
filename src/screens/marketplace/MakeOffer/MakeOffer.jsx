@@ -18,7 +18,9 @@ import useOfferForm from './useOfferForm';
 const SUCCESS_DELAY = 1500;
 
 // Make an offer: the vehicle's photos edge to edge (back / bookmark on them,
-// as its page), then "Your Offer" - price (required) + message (optional).
+// as its page), then "Your Offer" - the price. (No note to the seller: the offer
+// API takes only the amount; a buyer-seller message needs masking and moderation
+// first, so the backend team will add it later as its own feature.)
 // After sending, the "Successful!" sheet shows for SUCCESS_DELAY, then the
 // app returns to the marketplace.
 function MakeOffer({ navigation, route }) {
@@ -70,14 +72,6 @@ function MakeOffer({ navigation, route }) {
             }
             keyboardType="number-pad"
             returnKeyType="done"
-          />
-          <TextField
-            label={t('marketplace.offer.message')}
-            optional
-            placeholder={t('marketplace.offer.messagePlaceholder')}
-            value={form.message}
-            onChangeText={form.setMessage}
-            maxLength={200}
           />
         </View>
 

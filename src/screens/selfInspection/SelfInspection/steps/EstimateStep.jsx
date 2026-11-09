@@ -4,6 +4,7 @@ import { colors, fonts, radius, spacing } from '../../../../theme';
 import { fs, ms } from '../../../../utils/responsive';
 import { useT } from '../../../../i18n';
 import { missingLabel, shotName } from '../labels';
+import ConditionSummary from '../components/ConditionSummary';
 import EstimateCard from '../components/EstimateCard';
 import MissingList from '../components/MissingList';
 import SectionCard from '../components/SectionCard';
@@ -44,6 +45,7 @@ function EstimateStep({ si, vehicleLabel, onGoStep, onGoMissing }) {
           footnote={t('selfInspection.estimate.liveFootnote')}
         />
       )}
+      {inspector && si.condition ? <ConditionSummary condition={si.condition} /> : null}
       <SectionCard title={t('selfInspection.review.title')} subtitle={t('selfInspection.review.subtitle')}>
         <View style={styles.steps}>
           {['photos', 'documents', 'checklist'].map(key => {

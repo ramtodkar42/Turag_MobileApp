@@ -421,3 +421,30 @@ test('Quick filters: Location, Price, Car / Bike, Make, Model first, on one line
   const { ScrollView } = require('react-native');
   expect(root.findAllByType(ScrollView).filter(v => v.props.horizontal)).toHaveLength(1);
 });
+
+describe('empty results say what really happened (as the web)', () => {
+  const statusTitle = root =>
+    root.findAll(n => n.props.title && n.props.message !== undefined && !n.props.price).map(n => n.props.title)[0];
+
+  test('a grade filter that hides everything on All: "No vehicles found" with Clear, never "No vehicles yet"', async () => {
+    const api = require('../src/api/services/vehicle.api');
+    const spy = jest.spyOn(api, 'getMarketplaceVehicles').mockResolvedValue({ items: [], closest: [], nextCursor: null });
+    const root = await renderHome();
+    await pickFilter(root, 'Grade', 'Grade B & above');
+    expect(statusTitle(root)).toBe('No vehicles found');
+    expect(root.findAll(n => n.props.title === 'Clear filters' && n.props.onPress)).toHaveLength(1);
+    spy.mockRestore();
+  });
+
+  test('an empty Bikes tab never shows cars as the "closest" bikes', async () => {
+    const api = require('../src/api/services/vehicle.api');
+    const car = { id: 'lst_car', name: 'Honda City', year: 2021, fuel: 'Petrol', price: 900000, category: 'cars', image: null };
+    const spy = jest.spyOn(api, 'getMarketplaceVehicles').mockResolvedValue({ items: [], closest: [car], nextCursor: null });
+    const root = await renderHome();
+    await act(async () => tab(root, 'Bikes').props.onPress());
+    await settle();
+    expect(cardTitles(root)).toEqual([]);
+    expect(statusTitle(root)).toBe('No two-wheelers yet');
+    spy.mockRestore();
+  });
+});

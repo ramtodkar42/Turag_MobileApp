@@ -17,7 +17,7 @@ import { colors, spacing } from '../../../theme';
 import { fs } from '../../../utils/responsive';
 import { formatINR, formatNumber } from '../../../utils/format';
 import { newIdempotencyKey } from '../../../api/client';
-import { createListing } from '../../../api/services/sellerListing.api';
+import { createListing, submitListing } from '../../../api/services/sellerListing.api';
 import useMyOrganizations from '../../../hooks/useMyOrganizations';
 import { loadGarage } from '../../../store/garageStore';
 import { ROUTES } from '../../../navigation/routes';
@@ -105,6 +105,9 @@ function CreateListing({ navigation, route }) {
         idempotencyKey: key.current.value,
         vehicle,
       });
+      // One action = create + send for review, as the web. If the review half
+      // fails, the draft is kept and My listing offers "Submit for review".
+      await submitListing(listing.id).catch(() => null);
       loadGarage();
       navigation.replace(ROUTES.MY_LISTING, { listingId: listing.id });
     } catch (e) {

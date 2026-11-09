@@ -13,6 +13,8 @@ const TARGETS = [
   { pattern: /^\/sell\/([^/?#]+)\/?$/, route: ROUTES.MY_LISTING, param: 'listingId' },
   // booking_assigned / booking_cancelled (the inspector's copy)
   { pattern: /^\/ops\/bookings\/([^/?#]+)\/?$/, route: ROUTES.JOB_DETAILS, param: 'bookingId' },
+  // kyc_approved / kyc_rejected: the identity check's result (manual review or DigiLocker)
+  { pattern: /^\/account\/verification\/?$/, route: ROUTES.IDENTITY_VERIFICATION },
 ];
 
 // link -> { route, params } or null.

@@ -14,6 +14,13 @@ import { codeLabel } from '../../i18n/vehicleLabels';
 function VehicleGridCard({ vehicle, width, onPress }) {
   const t = useT();
   const saved = useIsSaved(vehicle.id);
+  // Sold (a launch-preview listing) or reserved (an offer was accepted), as the web's card.
+  let status = null;
+  if (vehicle.sold) {
+    status = { label: t('marketplace.sold'), tone: 'sold' };
+  } else if (vehicle.reserved) {
+    status = { label: t('marketplace.reserved'), tone: 'reserved' };
+  }
 
   return (
     <VehicleCard
@@ -23,6 +30,7 @@ function VehicleGridCard({ vehicle, width, onPress }) {
       meta={[String(vehicle.year), codeLabel(t, 'marketplace.fuel', vehicle.fuelCode, vehicle.fuel)]}
       price={formatPriceShort(vehicle.price)}
       badge={vehicle.verified ? t('common.verified') : undefined}
+      status={status}
       topRight={
         <FavoriteButton active={saved} onPress={() => requireLogin('save') && toggleSaved(vehicle)} />
       }

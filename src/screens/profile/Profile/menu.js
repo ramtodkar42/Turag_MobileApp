@@ -46,6 +46,7 @@ export const PROFILE_MENU = [
       { labelKey: 'profile.item.verified', web: '/verified' },
       { labelKey: 'profile.item.about', web: '/about' },
       { labelKey: 'profile.item.faqs', web: '/faq' },
+      { labelKey: 'profile.item.careers', web: '/career' },
       { labelKey: 'profile.item.contactSupport', web: '/contact' },
     ],
   },

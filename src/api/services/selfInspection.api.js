@@ -18,7 +18,8 @@ export const USABLE_MEDIA = new Set(['UPLOADED', 'PROCESSING', 'PROCESSED', 'INT
 
 // The inspection, its checklist sections for its mode and its media.
 // Hidden as on the web: a gate item carrying a full `shots` matrix (e.g. XM1),
-// which isn't answered as a condition.
+// which isn't answered as a condition, and the questions only QC answers in this
+// mode (chassis, pillars, modifications, theft marker): the server refuses them here.
 // Returns { inspection, sections: [{ group_code, label, items }], media }.
 export const getSelfInspection = async inspectionId => {
   const { inspection } = await request(ENDPOINTS.inspection(inspectionId));
@@ -31,7 +32,10 @@ export const getSelfInspection = async inspectionId => {
       group_code: s.group_code,
       label: s.label,
       items: (s.items ?? []).filter(
-        it => (it.applicable_modes ?? []).includes(inspection.mode) && !(it.gate && it.evidence_requirement?.shots),
+        it =>
+          (it.applicable_modes ?? []).includes(inspection.mode) &&
+          !it.qc_answered_modes?.includes(inspection.mode) &&
+          !(it.gate && it.evidence_requirement?.shots),
       ),
     }))
     .filter(s => s.items.length > 0);
@@ -58,12 +62,48 @@ export const recordSelfAnswer = (inspectionId, itemCode, body) =>
 // One evidence file for an (item, shot): kind 'PHOTO' | 'DOCUMENT' | 'VIDEO'.
 // Exact duplicates are refused before uploading (DUPLICATE_FILE).
 // gps (optional): { lat, lng, accuracyM? }. Returns { mediaId, status }.
-export const uploadSelfEvidence = ({ inspectionId, itemCode, shotCode, kind, file, gps }) =>
-  uploadInspectionFile({ inspectionId, itemCode, shotCode, kind, file, gps });
+// onProgress({ stage: 'preparing' | 'uploading' | 'finishing', fraction? }): see uploadInspectionFile.
+export const uploadSelfEvidence = ({ inspectionId, itemCode, shotCode, kind, file, gps, onProgress }) =>
+  uploadInspectionFile({ inspectionId, itemCode, shotCode, kind, file, gps, onProgress });
 
 export const deleteSelfMedia = mediaId => deleteInspectionFile(mediaId);
 
-// Persists the AI damage finding against its walkaround photo (advisory only).
+// Self-inspection: the server reads a stored photo itself (walkaround damage, tyre
+// tread, VIN and odometer scans) and saves the result. The app sends neither the image
+// nor the result. Safe to repeat: a photo already read isn't charged again. Returns the
+// media row (a walkaround photo's finding is its ai_finding); a failed read throws, and
+// the photo then counts as "could not assess", which never holds the user up.
+export const analyzeMedia = async mediaId => {
+  const data = await request(ENDPOINTS.mediaAnalyze(mediaId), { method: 'POST', timeoutMs: UPLOAD_TIMEOUT_MS });
+  return data?.media ?? null;
+};
+
+// Self-inspection, after the engine clip uploads: up to 10 stills from it (JPEG data
+// URLs). The server's worker hides plates and faces before any AI sees them; the result
+// is for QC only, so nothing comes back.
+export const submitEngineFrames = (inspectionId, frames) =>
+  request(ENDPOINTS.inspectionEngineFrames(inspectionId), { method: 'POST', body: { frames }, timeoutMs: UPLOAD_TIMEOUT_MS });
+
+// Self-inspection: the engine's idle as measured on the phone ({ durationSec,
+// loudnessDbfs, stabilityCv, transientsPerSec }), or null when it couldn't be measured.
+// For QC only, labelled unverified.
+export const reportEngineSound = (inspectionId, signals) =>
+  request(ENDPOINTS.inspectionEngineSound(inspectionId), {
+    method: 'POST',
+    body: {
+      audio: signals
+        ? {
+            duration_sec: signals.durationSec,
+            loudness_dbfs: signals.loudnessDbfs,
+            stability_cv: signals.stabilityCv,
+            transients_per_sec: signals.transientsPerSec,
+          }
+        : null,
+    },
+  });
+
+// The inspector's inspection only: persists the AI damage finding against its
+// walkaround photo (advisory only). The server refuses this on a self-inspection.
 export const saveAiFinding = (mediaId, finding) =>
   request(`/media/${encodeURIComponent(mediaId)}/ai-finding`, {
     method: 'POST',

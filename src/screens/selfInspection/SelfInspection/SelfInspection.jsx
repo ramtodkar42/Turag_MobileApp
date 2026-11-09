@@ -32,6 +32,7 @@ import ProgressRing from './components/ProgressRing';
 import StepTabs from './components/StepTabs';
 import RetakeBanner from './components/RetakeBanner';
 import { InspectorModeContext } from './inspectorMode';
+import IdentityMismatchBanner from './components/IdentityMismatchBanner';
 import PhotosStep from './steps/PhotosStep';
 import DocumentsStep from './steps/DocumentsStep';
 import ChecklistStep from './steps/ChecklistStep';
@@ -210,14 +211,24 @@ function SelfInspection({ navigation, route }) {
 
   // "What's left": jump to the step, opened on that photo group / document /
   // question - and remember to come back to Estimate on "back".
-  const goMissing = entry => {
-    goStep(entry.step);
-    if (entry.itemCode) {
+  const openItem = (nextStep, itemCode) => {
+    goStep(nextStep);
+    if (itemCode) {
       // After the step has opened (a question scrolls into view).
-      setTimeout(() => setFocusItem(entry.itemCode), FOCUS_AFTER_MS);
+      setTimeout(() => setFocusItem(itemCode), FOCUS_AFTER_MS);
       setTimeout(() => setFocusItem(null), FOCUS_AFTER_MS + FOCUS_FOR_MS);
     }
+  };
+  const goMissing = entry => {
+    openItem(entry.step, entry.itemCode);
     setReturnTo('review');
+  };
+
+  // The identity warning's "Check details": the card to scan again.
+  const checkIdentity = field => {
+    setReturnTo(null);
+    if (field === 'CHASSIS') openItem('photos', 'A1');
+    else openItem('documents', 'P1');
   };
 
   // Choosing a step yourself (tabs, Back / Next) is ordinary navigation again.
@@ -400,6 +411,12 @@ function SelfInspection({ navigation, route }) {
       </Card>
 
       <RetakeBanner shots={si.retakeShots} items={si.allItems} style={styles.retake} />
+      <IdentityMismatchBanner
+        fields={si.identityMismatch}
+        vehicle={[v?.make, v?.model].filter(Boolean).join(' ')}
+        onCheck={checkIdentity}
+        style={styles.mismatch}
+      />
 
       <StepTabs current={step} progress={progress} estimateLabel={estimateText} onSelect={selectStep} />
 
@@ -411,6 +428,7 @@ function SelfInspection({ navigation, route }) {
               focusItem={focusItem}
               scans={scans}
               videos={videos}
+              scrollRef={scrollRef}
               onTakePhoto={onTakePhoto}
               onAddVideo={onAddVideo}
               onAddDocument={onAddDocument}
@@ -484,6 +502,10 @@ const styles = StyleSheet.create({
   },
   retake: {
     marginTop: spacing.md,
+  },
+  mismatch: {
+    marginTop: spacing.md,
+    marginBottom: spacing.md,
   },
   bar: {
     gap: spacing.sm,

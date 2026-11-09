@@ -1,8 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { AppText, FillImage } from '../../../../components';
 import { colors, fonts, radius, spacing } from '../../../../theme';
 import { fs, ms } from '../../../../utils/responsive';
+import { scrollToView } from '../../../../utils/scrollToView';
 import { useT } from '../../../../i18n';
 import { isDocumentItem, isPhotoGridItem, mapAiSeverityToAnswer, newestFindingFor } from '../../../../vendor/selfInspectionLogic';
 import { slotKey, uploadKindFor } from '../useSelfInspection';
@@ -11,6 +12,7 @@ import AiSuggestion from '../components/AiSuggestion';
 import EvidenceList from '../components/EvidenceList';
 import FactAnswer, { isFactItem } from '../components/FactAnswer';
 import ItemAnswer from '../components/ItemAnswer';
+import { useInspectorMode } from '../inspectorMode';
 import SectionCard from '../components/SectionCard';
 import StatusPill from '../components/StatusPill';
 
@@ -18,11 +20,21 @@ import StatusPill from '../components/StatusPill';
 // (original RC, PUC, flood, keys, servicing and its follow-ups), then the condition
 // questions, one card each. Follow-ups join only after their question's matching
 // answer. focusItem: scroll to that question (a jump from the "what's left" list).
+// Answering a question moves on to the next one by itself.
+const ADVANCE_DELAY_MS = 350;
+const HIGHLIGHT_MS = 1600;
+
 function ChecklistStep({ si, focusItem, scrollRef, onGoStep, onAddDocument }) {
   const t = useT();
+  const inspector = useInspectorMode();
   const questions = si.partition.checklist;
   const sections = [
-    { key: 'facts', titleKey: 'selfInspection.checklist.sectionFacts', items: questions.filter(q => q.gate === true) },
+    {
+      key: 'facts',
+      // The owner tells us about their vehicle; the officer records it about this one.
+      titleKey: inspector ? 'selfInspection.checklist.sectionFactsInspector' : 'selfInspection.checklist.sectionFacts',
+      items: questions.filter(q => q.gate === true),
+    },
     { key: 'condition', titleKey: 'selfInspection.checklist.sectionCondition', items: questions.filter(q => q.gate !== true) },
   ].filter(s => s.items.length > 0);
 
@@ -30,13 +42,38 @@ function ChecklistStep({ si, focusItem, scrollRef, onGoStep, onAddDocument }) {
   const cards = useRef({});
   useEffect(() => {
     if (!focusItem) return;
-    const card = cards.current[focusItem];
-    const list = scrollRef?.current;
-    const host = list?.getInnerViewNode?.() ?? list?.getNativeScrollRef?.();
-    if (card?.measureLayout && host) {
-      card.measureLayout(host, (_x, y) => list.scrollTo({ y: Math.max(0, y - spacing.lg), animated: true }), () => {});
-    }
+    scrollToView(scrollRef, cards.current[focusItem], spacing.lg);
   }, [focusItem, scrollRef]);
+
+  // A question answered for the first time (a tap, or its details saved): a moment
+  // later - long enough to see it saved - the page glides on to the next question
+  // still open (a follow-up it just opened, or the one after), outlined for a moment
+  // so it's clear where to go. Nothing after it: back up to a required one still open.
+  const [advanceFrom, setAdvanceFrom] = useState(null);
+  const [highlight, setHighlight] = useState(null);
+  const onAnswered = useCallback(code => setAdvanceFrom({ code }), []);
+  const latest = useRef({ items: [], local: {} });
+  useEffect(() => {
+    latest.current = { items: sections.flatMap(s => s.items), local: si.local };
+  });
+  useEffect(() => {
+    if (!advanceFrom) return undefined;
+    const timer = setTimeout(() => {
+      const { items, local } = latest.current;
+      const open = q => local[q.item_code]?.saved !== true;
+      const from = items.findIndex(q => q.item_code === advanceFrom.code);
+      const next = items.slice(from + 1).find(open) ?? items.slice(0, Math.max(from, 0)).find(q => q.mandatory && open(q));
+      if (!next) return;
+      scrollToView(scrollRef, cards.current[next.item_code], spacing.lg);
+      setHighlight(next.item_code);
+    }, ADVANCE_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [advanceFrom, scrollRef]);
+  useEffect(() => {
+    if (!highlight) return undefined;
+    const timer = setTimeout(() => setHighlight(null), HIGHLIGHT_MS);
+    return () => clearTimeout(timer);
+  }, [highlight]);
 
   const photosSummary = q => {
     const shots = q.evidence_requirement?.shot_codes ?? [];
@@ -111,7 +148,11 @@ function ChecklistStep({ si, focusItem, scrollRef, onGoStep, onAddDocument }) {
           cards.current[q.item_code] = node;
         }}
         collapsable={false}
-        style={[styles.question, done && styles.questionDone, focusItem === q.item_code && styles.questionFocus]}
+        style={[
+          styles.question,
+          done && styles.questionDone,
+          (focusItem === q.item_code || highlight === q.item_code) && styles.questionFocus,
+        ]}
       >
         <View style={styles.head}>
           <View style={styles.flex}>
@@ -130,7 +171,11 @@ function ChecklistStep({ si, focusItem, scrollRef, onGoStep, onAddDocument }) {
         </View>
         {isPhotoGridItem(q) ? photosSummary(q) : q.evidence_requirement ? singleEvidence(q) : null}
         {q.item_code === 'B1' ? aiSuggestion(q) : null}
-        {isFactItem(q) ? <FactAnswer si={si} item={q} /> : isDocumentItem(q) ? null : <ItemAnswer si={si} item={q} />}
+        {isFactItem(q) ? (
+          <FactAnswer si={si} item={q} onAnswered={onAnswered} />
+        ) : isDocumentItem(q) ? null : (
+          <ItemAnswer si={si} item={q} onAnswered={onAnswered} />
+        )}
       </View>
     );
   };

@@ -4,7 +4,7 @@ import { AppText, Button } from '../../../../components';
 import { spacing } from '../../../../theme';
 import { useT } from '../../../../i18n';
 import { applyOcr, confirmOcr, editOcr, isOcrDone, typeOcr } from './ocrConfirm';
-import { formatMaskedVinNote, vinEvidence } from './identityNote';
+import { formatMaskedVinNote, formatVinNote, vinEvidence } from './identityNote';
 import OcrField from './OcrField';
 
 const valueOf = state => (state.status === 'CONFIRMED' ? state.detected : state.value).trim();
@@ -12,9 +12,10 @@ const valueOf = state => (state.status === 'CONFIRMED' ? state.detected : state.
 // A1 (as the web's VIN card): the VIN and the engine number - each confirmed
 // or typed. The engine number may be "not visible" (only the VIN is saved).
 // read: the AI's read ({} / null when typing it in). onSave(note) saves A1.
+// plainNote: a self-inspection, whose note holds the values (identityNote).
 // draft restores what was entered when the step is reopened; onDraftChange
 // reports edits up so the wizard keeps that draft across Next / Back.
-function VinForm({ read, fromPhoto, disabled, saving, onSave, onRetake, draft, onDraftChange }) {
+function VinForm({ read, fromPhoto, plainNote, disabled, saving, onSave, onRetake, draft, onDraftChange }) {
   const t = useT();
   const [vin, setVin] = useState(() => draft?.vin ?? applyOcr(read?.vin));
   const [engine, setEngine] = useState(() => draft?.engine ?? applyOcr(read?.engineNumber));
@@ -28,11 +29,11 @@ function VinForm({ read, fromPhoto, disabled, saving, onSave, onRetake, draft, o
   }, [vin, engine, engineHidden]);
 
   const canSave = isOcrDone(vin) && (engineHidden || isOcrDone(engine));
-  // Save a MASKED note on the item; send the confirmed plaintext to verify.
   const save = () => {
     const vinVal = valueOf(vin);
     const engineVal = engineHidden ? null : valueOf(engine);
-    onSave(formatMaskedVinNote(!!engineVal), vinEvidence(vinVal, engineVal));
+    const note = plainNote ? formatVinNote(vinVal, engineVal) : formatMaskedVinNote(!!engineVal);
+    onSave(note, vinEvidence(vinVal, engineVal));
   };
 
   return (

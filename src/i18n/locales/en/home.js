@@ -95,6 +95,8 @@ export default {
   'home.filtered.message': 'No vehicles match your search or filters.',
   'home.clearFilters': 'Clear filters',
   'home.empty.title': 'No vehicles yet',
+  'home.empty.cars': 'No cars yet',
+  'home.empty.bikes': 'No two-wheelers yet',
   'home.empty.message': "Verified vehicles will show up here as soon as they're listed.",
   'home.searched.title': 'No vehicles found',
   'home.searched.message': 'No vehicles match “{query}” right now.',

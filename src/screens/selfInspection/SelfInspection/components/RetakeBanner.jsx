@@ -5,9 +5,10 @@ import { ms } from '../../../../utils/responsive';
 import { useT } from '../../../../i18n';
 import { itemName, shotName } from '../labels';
 
-// After "Retake photos": which photos the photo check flagged and still need
-// taking again. They're also listed in "Before you can submit", and Submit
-// waits for them. shots: si.retakeShots; items: si.allItems.
+// Which photos the photo check flagged and still need taking again. After "Retake
+// photos" they're also listed in "Before you can submit", and Submit waits for them.
+// One flagged just after upload is only a warning until then.
+// shots: si.retakeShots; items: si.allItems.
 function RetakeBanner({ shots, items, style }) {
   const t = useT();
   if (!shots?.length) {

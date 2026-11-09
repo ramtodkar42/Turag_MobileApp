@@ -75,6 +75,14 @@ export const REQUEST_TIMEOUT_MS = isLocalBackend ? 60000 : 20000;
 export const UPLOAD_TIMEOUT_MS = 60000;
 export const VIDEO_UPLOAD_TIMEOUT_MS = 10 * 60000;
 
+// Renewing the 15-minute sign-in pass (src/api/session.js). A screen waits for it
+// at most REFRESH_WAIT_MS (then says it's taking longer; the user stays signed in).
+// The call itself stays open until REFRESH_TIMEOUT_MS: the server may already have
+// swapped the refresh token, and only its reply carries the new one. Giving up
+// early and trying again with the old token makes the server sign the user out.
+export const REFRESH_WAIT_MS = 60000;
+export const REFRESH_TIMEOUT_MS = 2 * 60000;
+
 // Switched off for now, as the web:
 // inspectorBooking: customers can't book an inspector while the product focuses on
 //   AI Self Inspection (decision 2026-11-03); Book an inspector says "coming soon".

@@ -25,6 +25,8 @@ export default {
   // Uploads
   'valuation.upload.tooLarge': 'File is larger than {mb} MB',
   'valuation.upload.failed': 'Upload failed. Try again.',
+  'valuation.upload.readFailed': 'Couldn\'t read this file on your phone. Please try again, or take it again.',
+  'valuation.upload.videoNeedsUpdate': 'To upload videos, please update the app to the latest version.',
   'valuation.upload.duplicatePhoto': 'This photo is already uploaded. Please take a new one.',
   'valuation.upload.duplicateDocument': 'This file is already uploaded.',
   'valuation.upload.fileError': 'Could not open this file. Please choose another one.',

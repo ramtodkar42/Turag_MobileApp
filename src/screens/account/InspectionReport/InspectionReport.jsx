@@ -14,6 +14,7 @@ import {
   StatusView,
   TitledCard,
   ChallanCard,
+  ValueCard,
 } from '../../../components';
 import { colors, fonts, spacing } from '../../../theme';
 import { fs, ms } from '../../../utils/responsive';
@@ -26,7 +27,6 @@ import {
 } from '../../../api/services/report.api';
 import { codeLabel } from '../../../i18n/vehicleLabels';
 import { useT } from '../../../i18n';
-import EstimateSummary from '../../valuation/components/EstimateSummary';
 import { DOCUMENT_STATUS, SEVERITY } from '../statuses';
 import ReportActions from './components/ReportActions';
 import VerifyReportCard from './components/VerifyReportCard';
@@ -39,8 +39,9 @@ const titleCase = code =>
     .replace(/\b\w/g, c => c.toUpperCase());
 
 // The inspection report for a booking (as the web's report page): grade and
-// score, verification, the Turag value with price bands, findings (worst
-// first) and documents; Download PDF and Share report at the bottom.
+// score, verification, the final estimated value, findings (worst first), what
+// was checked from the owner's photos, and documents; Download PDF and Share
+// report at the bottom.
 // params: { inspectionId }
 function InspectionReport({ navigation, route }) {
   const t = useT();
@@ -193,17 +194,17 @@ function InspectionReport({ navigation, route }) {
           ) : null}
         </Card>
 
-        {/* Value */}
-        {report.valuation ? (
-          <EstimateSummary
-            bands
-            vehicle={vehicle}
-            valuation={report.valuation}
-            label={t('account.report.value')}
+        {/* Value: only the final estimated value, or "pending" (as the web's report). */}
+        {report.finalValue != null ? (
+          <ValueCard
+            label={t('account.report.finalValue')}
+            value={formatINR(report.finalValue)}
             description={t('account.report.valueNote')}
             style={styles.card}
           />
-        ) : null}
+        ) : (
+          <InfoNote style={styles.card}>{t('account.report.valuationPending')}</InfoNote>
+        )}
 
         {/* Findings */}
         <TitledCard title={t('account.report.findings')} style={styles.card}>
@@ -243,6 +244,11 @@ function InspectionReport({ navigation, route }) {
                       {finding.note}
                     </AppText>
                   ) : null}
+                  {finding.reviewedFromPhotos ? (
+                    <AppText variant="caption" style={styles.rowNote}>
+                      {t('account.report.reviewedFromPhotos')}
+                    </AppText>
+                  ) : null}
                   {finding.cost ? (
                     <AppText variant="caption" style={styles.rowNote}>
                       {t('account.report.repairCost', {
@@ -255,6 +261,29 @@ function InspectionReport({ navigation, route }) {
             })
           )}
         </TitledCard>
+
+        {/* Checked from the owner's photos (a self-inspection): honest about what an "OK" means. */}
+        {report.photoReviewed.length > 0 ? (
+          <TitledCard title={t('account.report.photoReviewed')} style={styles.card}>
+            <AppText variant="caption" style={styles.rowNote}>
+              {t('account.report.reviewedFromPhotos')}
+            </AppText>
+            {report.photoReviewed.map((item, index) => {
+              const severity = SEVERITY[item.severity] ?? SEVERITY.NOT_ASSESSABLE;
+              return (
+                <View
+                  key={item.code ?? index}
+                  style={[styles.docRow, index > 0 && styles.rowDivider]}
+                >
+                  <AppText variant="label" color={colors.heading} style={styles.rowTitle}>
+                    {item.label}
+                  </AppText>
+                  <Badge label={t(severity.labelKey)} tone={severity.tone} size="sm" />
+                </View>
+              );
+            })}
+          </TitledCard>
+        ) : null}
 
         {/* Documents */}
         {report.documents.length > 0 ? (

@@ -3,14 +3,15 @@ import { StyleSheet, View } from 'react-native';
 import { Button, KeyValueRow, TextField } from '../../../../components';
 import { colors, radius, spacing } from '../../../../theme';
 import { useT } from '../../../../i18n';
-import { RC_FIELDS, formatMaskedRcNote, hasRcDetails, rcEvidence, rcFromRead } from './identityNote';
+import { RC_FIELDS, formatMaskedRcNote, formatRcNote, hasRcDetails, rcEvidence, rcFromRead } from './identityNote';
 
 // P1 (as the web's RC card): the vehicle details read from the RC, shown for
 // checking - Confirm & save, or Edit to correct them. Typing them in (no
 // photo) starts in edit mode. Owner details are never read or saved.
+// plainNote: a self-inspection, whose note holds the values (identityNote).
 // draft restores what was entered when the step is reopened; onDraftChange
 // reports edits up so the wizard keeps that draft across Next / Back.
-function RcForm({ read, fromPhoto, disabled, saving, onSave, onRetake, draft, onDraftChange }) {
+function RcForm({ read, fromPhoto, plainNote, disabled, saving, onSave, onRetake, draft, onDraftChange }) {
   const t = useT();
   const [fields, setFields] = useState(() => draft?.fields ?? rcFromRead(read));
   const [editing, setEditing] = useState(() => draft?.editing ?? !fromPhoto);
@@ -58,7 +59,7 @@ function RcForm({ read, fromPhoto, disabled, saving, onSave, onRetake, draft, on
 
       <Button
         title={t('inspector.identity.confirmSave')}
-        onPress={() => onSave(formatMaskedRcNote(fields), rcEvidence(fields))}
+        onPress={() => onSave(plainNote ? formatRcNote(fields) : formatMaskedRcNote(fields), rcEvidence(fields))}
         disabled={disabled || !hasRcDetails(fields)}
         loading={saving}
       />

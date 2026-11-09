@@ -222,12 +222,14 @@ export const acceptConsents = async ({ terms, privacy, marketing, whatsapp }) =>
 // web): tells Turag's team to reach out (and sends a WhatsApp welcome when
 // WhatsApp updates are on). Changes no roles - business accounts are given only
 // after Turag verifies the organisation. kind: 'DEALER' | 'BANK'.
+// recorded: false when the server couldn't save the sign-up (it ignores a repeat of one
+// it did save, so this can safely be tried again).
 export const registerBusinessInterest = async kind => {
   if (!real()) {
-    return { whatsappQueued: false };
+    return { whatsappQueued: false, recorded: true };
   }
   const data = await request(ENDPOINTS.BUSINESS_INTEREST, { method: 'POST', body: { kind } });
-  return { whatsappQueued: !!data?.whatsapp_queued };
+  return { whatsappQueued: !!data?.whatsapp_queued, recorded: !!data?.recorded };
 };
 
 // Verify the account's own mobile (as the web's Account page): a code goes to

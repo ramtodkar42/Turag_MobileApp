@@ -1,5 +1,7 @@
-// The A1 / P1 note saved after a confirmed VIN / RC read. Same fixed format as
-// the web (not translated), so stored answers don't depend on the app language.
+// The A1 / P1 note saved after a confirmed VIN / RC read. Same fixed formats as
+// the web (not translated), so stored answers don't depend on the app language:
+// a self-inspection saves the values (formatVinNote / formatRcNote) and an inspector's
+// inspection saves a masked line.
 
 // RC fields kept from a read: vehicle identity only - owner details are never
 // shown or saved.
@@ -24,14 +26,39 @@ export const rcFromRead = read =>
 
 export const hasRcDetails = fields => RC_FIELDS.some(([key]) => String(fields[key] ?? '').trim());
 
-// What gets SAVED as the item note: a MASKED line only (as the web). The ID
-// numbers (VIN / chassis / engine / registration) and the owner name are NEVER
-// written - the plaintext reads live only in the identity-verify request body.
+// A self-inspection's notes. QC's identity check reads the VIN, chassis and registration
+// from them on the server, so these exact formats matter: "VIN x | Engine y" and
+// "RC: Reg x | Chassis y | Engine z | make model variant | fuel | MFG n | Reg dt d".
+export const formatVinNote = (vin, engineNumber) => {
+  const engine = engineNumber?.trim();
+  return engine ? `VIN ${vin.trim()} | Engine ${engine}` : `VIN ${vin.trim()}`;
+};
+
+export const formatRcNote = fields => {
+  const f = key => String(fields[key] ?? '').trim();
+  const name = [f('make'), f('model'), f('variant')].filter(Boolean).join(' ');
+  const parts = [
+    f('registrationNumber') && `Reg ${f('registrationNumber')}`,
+    f('chassisNumber') && `Chassis ${f('chassisNumber')}`,
+    f('engineNumber') && `Engine ${f('engineNumber')}`,
+    name,
+    f('fuel'),
+    f('mfgYear') && `MFG ${f('mfgYear')}`,
+    f('regDate') && `Reg dt ${f('regDate')}`,
+  ].filter(Boolean);
+  return parts.length ? `RC: ${parts.join(' | ')}` : 'RC: confirmed from photo';
+};
+
+// An inspector's inspection: a MASKED line only, word for word the web's
+// (formatMaskedIdentityNote / formatMaskedRcNote). The ID numbers (VIN / chassis /
+// engine / registration) and the owner name are NEVER written - the plaintext
+// reads live only in the identity-verify request body. The RC line keeps the
+// web's " | " parts, which QC's document check reads (make & model, fuel, MFG year).
 // Fixed English (not translated), so stored answers don't depend on language.
 export const formatMaskedVinNote = hasEngine =>
   hasEngine
-    ? 'VIN read confirmed from plate photo; engine no. confirmed (values withheld)'
-    : 'VIN read confirmed from plate photo (value withheld)';
+    ? 'VIN + engine read confirmed from plate photo (values withheld — verified against RC baseline)'
+    : 'VIN read confirmed from plate photo (value withheld — verified against RC baseline)';
 
 export const formatMaskedRcNote = fields => {
   const f = key => String(fields[key] ?? '').trim();
@@ -40,9 +67,9 @@ export const formatMaskedRcNote = fields => {
   if (name) parts.push(name);
   if (f('fuel')) parts.push(f('fuel'));
   if (f('mfgYear')) parts.push(`MFG ${f('mfgYear')}`);
-  return parts.length
-    ? `RC: ${parts.join(' · ')} (ID numbers withheld)`
-    : 'RC: confirmed from photo (details withheld)';
+  if (f('regDate')) parts.push(`Reg dt ${f('regDate')}`);
+  parts.push('VIN/engine/reg values withheld — verified against RC baseline');
+  return `RC: ${parts.join(' | ')}`;
 };
 
 // The CONFIRMED plaintext reads sent to identity-verify for baseline matching

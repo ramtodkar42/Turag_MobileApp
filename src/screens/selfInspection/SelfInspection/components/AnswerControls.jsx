@@ -14,10 +14,13 @@ const COSTED = new Set(['MODERATE', 'MAJOR', 'CRITICAL']);
 // "I can't check this" for number items - plus what the server needs, shown
 // only when relevant: why it can't be checked, the repair cost for moderate
 // or worse, and a note (required for critical).
+// graded: a number item the inspection officer also grades (tyre tread): the
+// number and the six choices together, as the web's inspector capture.
 // state: { severity, note, cost, num, naReason, saving, saved, error }.
 function AnswerControls({
   label,
   numeric,
+  graded = false,
   numericPlaceholder,
   state,
   disabled,
@@ -53,13 +56,16 @@ function AnswerControls({
               inputStyle={styles.numberInput}
             />
           ) : null}
-          <Pressable onPress={() => onSeverity(na ? 'OK' : 'NOT_ASSESSABLE')} disabled={disabled} accessibilityRole="button" hitSlop={8}>
-            <AppText variant="caption" style={styles.link}>
-              {t(na ? 'selfInspection.answer.canEnter' : 'selfInspection.answer.cantCheck')}
-            </AppText>
-          </Pressable>
+          {graded ? null : (
+            <Pressable onPress={() => onSeverity(na ? 'OK' : 'NOT_ASSESSABLE')} disabled={disabled} accessibilityRole="button" hitSlop={8}>
+              <AppText variant="caption" style={styles.link}>
+                {t(na ? 'selfInspection.answer.canEnter' : 'selfInspection.answer.cantCheck')}
+              </AppText>
+            </Pressable>
+          )}
         </View>
-      ) : (
+      ) : null}
+      {!numeric || graded ? (
         <View style={styles.choices} accessibilityRole="radiogroup" accessibilityLabel={label}>
           {SEVERITY_CHOICES.map(choice => (
             <ChoiceChip
@@ -71,7 +77,7 @@ function AnswerControls({
             />
           ))}
         </View>
-      )}
+      ) : null}
 
       {na ? (
         <FadeIn>
@@ -103,7 +109,7 @@ function AnswerControls({
         </FadeIn>
       ) : null}
 
-      {sev && !na && !numeric ? (
+      {sev && !na && (!numeric || graded) ? (
         <FadeIn>
           <TextField
             label={t(sev === 'CRITICAL' ? 'selfInspection.answer.noteRequired' : 'selfInspection.answer.noteOptional')}

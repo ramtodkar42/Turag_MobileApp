@@ -25,6 +25,8 @@ const iconPaths = {
   check: 'M20 6L9 17l-5-5',
   more: 'M5 12h.01M12 12h.01M19 12h.01',
   close: 'M18 6L6 18M6 6l12 12',
+  // An exclamation mark (e.g. white on a red circle: something needs another try).
+  alert: 'M12 5v9M12 19h.01',
   translate:
     'M4 3h7a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM13 12h7a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1zM5.5 9.5l2-5 2 5M6 8h3M14.5 14.5h5M17 14.5c0 2.5-1.5 4-3 4.5M17 16.5c.5 1 1.5 2 2.5 2.5M3 15a4 4 0 0 0 4 4h1M21 9a4 4 0 0 0-4-4h-2',
   home: 'M3 10.5L12 3l9 7.5M5 9v11h14V9M10 20v-6h4v6',

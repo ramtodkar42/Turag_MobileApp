@@ -7,8 +7,11 @@ import { fs } from '../../utils/responsive';
 
 // Marketplace grid card. Parent decides columns via getGridColumns().
 // bottomLeft: on the photo's bottom-left corner (e.g. the Turag tier).
-function VehicleCard({ image, loading, title, meta = [], price, badge, topRight, bottomLeft, onPress, style }) {
+// status: { label, tone: 'sold' | 'reserved' } - shown top-left instead of the
+// badge, as the web's card (a sold one's photo is dimmed).
+function VehicleCard({ image, loading, title, meta = [], price, badge, status, topRight, bottomLeft, onPress, style }) {
   const details = [...meta, price].filter(Boolean);
+  const sold = status?.tone === 'sold';
 
   return (
     <Pressable
@@ -16,8 +19,17 @@ function VehicleCard({ image, loading, title, meta = [], price, badge, topRight,
       style={({ pressed }) => [styles.card, pressed && styles.pressed, style]}
     >
       <View>
-        <VehicleImage source={image} loading={loading} style={styles.image} />
-        {badge ? <Badge label={badge} tone="verified" size="sm" style={styles.badge} /> : null}
+        <VehicleImage source={image} loading={loading} style={[styles.image, sold && styles.dimmed]} />
+        {status ? (
+          <Badge
+            label={status.label}
+            tone={sold ? 'sold' : 'warningOnPhoto'}
+            size="sm"
+            style={styles.badge}
+          />
+        ) : badge ? (
+          <Badge label={badge} tone="verified" size="sm" style={styles.badge} />
+        ) : null}
         {topRight ? <View style={styles.topRight}>{topRight}</View> : null}
         {bottomLeft ? <View style={styles.bottomLeft}>{bottomLeft}</View> : null}
       </View>
@@ -49,6 +61,9 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     aspectRatio: 1.3,
+  },
+  dimmed: {
+    opacity: 0.8,
   },
   badge: {
     position: 'absolute',

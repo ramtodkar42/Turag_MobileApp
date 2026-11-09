@@ -43,6 +43,7 @@ export default {
   'profile.fallbackName': 'Turag User',
   'profile.role.individual': 'Consumer',
   'profile.role.inspector': 'Inspection Officer',
+  'profile.role.dealer': 'Dealer',
   'profile.consent.ACCOUNT_TERMS': 'Account Terms',
   'profile.consent.PRIVACY_POLICY': 'Privacy Policy',
   'profile.consent.MARKETING': 'Offers and updates',
@@ -138,4 +139,5 @@ export default {
   'profile.photo.saved': 'Photo updated',
   'profile.item.verified': 'Turag Verified',
   'profile.item.about': 'About',
+  'profile.item.careers': 'Careers',
 };

@@ -23,7 +23,7 @@ import useConfirmDialog from '../../../hooks/useConfirmDialog';
 import { getInspectorJob } from '../../../api/services/inspector.api';
 import { ROUTES } from '../../../navigation/routes';
 import { useT } from '../../../i18n';
-import { BOOKING_STATUS } from '../../account/statuses';
+import { INSPECTOR_JOB_STATUS } from '../../account/statuses';
 import { isJobExpired } from '../constants';
 import StartInspection from './components/StartInspection';
 
@@ -65,7 +65,7 @@ function JobDetails({ navigation, route }) {
   }
 
   const expired = isJobExpired(job);
-  const status = BOOKING_STATUS[job.status] ?? BOOKING_STATUS.REQUESTED;
+  const status = INSPECTOR_JOB_STATUS[job.status] ?? INSPECTOR_JOB_STATUS.REQUESTED;
   const kind = t(`account.booking.kind.${job.category === 'TWO_WHEELER' ? 'TWO_WHEELER' : 'PASSENGER'}`);
   const place = [job.address, [job.city, job.pincode].filter(Boolean).join(' ')].filter(Boolean).join(', ');
   // Where, as the web: the building / flat first, the landmark last.

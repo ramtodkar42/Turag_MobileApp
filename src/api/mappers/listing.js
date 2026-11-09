@@ -88,6 +88,8 @@ const vehicleFields = item => ({
   tier: TIERS.includes(item.tier) ? item.tier : null,
   price: toRupees(item.ask_price),
   reserved: item.status === 'RESERVED',
+  // A launch-preview showcase listing: shown as SOLD and never open for offers (as the web).
+  sold: item.is_showcase === true,
   fairPrice: mapFairPrice(item.fair_price),
   publishedAt: item.published_at ?? null,
 });

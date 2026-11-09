@@ -15,7 +15,8 @@ const ROUND = ms(40);
 // "Verified" badge, dots below. When the listing has categorised photos, tabs
 // (Exterior 7, Engine 1, ...) under it pick which group shows, like the web
 // (showTabs={false}: no tabs - the first group, e.g. on the offer screen).
-function VehicleGallery({ vehicle, onBack, loading = false, showTabs = true, style }) {
+// canSave={false}: no bookmark (the seller viewing their own listing, as the web).
+function VehicleGallery({ vehicle, onBack, loading = false, showTabs = true, canSave = true, style }) {
   const t = useT();
   const insets = useSafeAreaInsets();
   const saved = useIsSaved(vehicle.id);
@@ -52,15 +53,17 @@ function VehicleGallery({ vehicle, onBack, loading = false, showTabs = true, sty
           </IconButton>
         }
         topRight={
-          <IconButton
-            onPress={() => requireLogin('save') && toggleSaved(vehicle)}
-            size={ROUND}
-            backgroundColor={colors.white}
-            accessibilityLabel={t(saved ? 'common.removeFromSaved' : 'common.saveVehicle')}
-            style={styles.round}
-          >
-            <Icon name="bookmark" size={ms(18)} color={saved ? colors.primary : colors.heading} filled={saved} />
-          </IconButton>
+          canSave ? (
+            <IconButton
+              onPress={() => requireLogin('save') && toggleSaved(vehicle)}
+              size={ROUND}
+              backgroundColor={colors.white}
+              accessibilityLabel={t(saved ? 'common.removeFromSaved' : 'common.saveVehicle')}
+              style={styles.round}
+            >
+              <Icon name="bookmark" size={ms(18)} color={saved ? colors.primary : colors.heading} filled={saved} />
+            </IconButton>
+          ) : null
         }
         bottomLeft={
           vehicle.verified ? (

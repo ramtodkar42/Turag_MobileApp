@@ -25,12 +25,19 @@ export const isFactItem = item =>
 // every value against the checklist. Yes / No saves as OK / MAJOR; a choice or a
 // date carries its value with OK. An answer that needs details (flood: Yes) is held
 // until they're typed and saved with it.
-function FactAnswer({ si, item }) {
+// onAnswered(code): the fact got its first answer (a tap, a date, or its details
+// saved) and it saved - the page can move on. A typed key count doesn't count.
+function FactAnswer({ si, item, onAnswered }) {
   const t = useT();
   const code = item.item_code;
   const state = si.local[code] ?? blankAnswer();
   const disabled = si.submitting;
   const label = itemName(t, item);
+  const answer = async patch => {
+    const first = state.saved !== true;
+    const ok = await si.record(code, patch);
+    if (ok && first) onAnswered?.(code);
+  };
   const choiceLabel = (value, fallback) => {
     const key = `selfInspection.fact.choice.${value}`;
     const text = t(key);
@@ -47,8 +54,8 @@ function FactAnswer({ si, item }) {
     return (
       <View style={styles.wrap}>
         <View style={styles.row} accessibilityRole="radiogroup" accessibilityLabel={label}>
-          <Chip label={t('selfInspection.fact.yes')} selected={state.severity === 'OK'} disabled={disabled} onPress={() => si.record(code, { severity: 'OK' })} />
-          <Chip label={t('selfInspection.fact.no')} selected={state.severity === 'MAJOR'} disabled={disabled} onPress={() => si.record(code, { severity: 'MAJOR' })} />
+          <Chip label={t('selfInspection.fact.yes')} selected={state.severity === 'OK'} disabled={disabled} onPress={() => answer({ severity: 'OK' })} />
+          <Chip label={t('selfInspection.fact.no')} selected={state.severity === 'MAJOR'} disabled={disabled} onPress={() => answer({ severity: 'MAJOR' })} />
         </View>
         {error}
       </View>
@@ -71,7 +78,7 @@ function FactAnswer({ si, item }) {
                   si.updateLocal(code, c => ({ ...c, value: choice.value, severity: 'OK', saved: false }));
                 } else {
                   // Any other answer saves at once and drops details of the previous one.
-                  si.record(code, { value: choice.value, severity: 'OK', note: '' });
+                  answer({ value: choice.value, severity: 'OK', note: '' });
                 }
               }}
             />
@@ -94,7 +101,7 @@ function FactAnswer({ si, item }) {
               fullWidth={false}
               loading={state.saving === true}
               disabled={disabled || !state.note.trim()}
-              onPress={() => si.record(code, { value: state.value, severity: 'OK', note: state.note })}
+              onPress={() => answer({ value: state.value, severity: 'OK', note: state.note })}
               style={styles.left}
             />
           </View>
@@ -112,7 +119,7 @@ function FactAnswer({ si, item }) {
           value={state.value || null}
           minDate={EARLIEST_DATE}
           maxDate={toIsoDate(new Date())}
-          onChange={value => si.record(code, { value, severity: 'OK' })}
+          onChange={value => answer({ value, severity: 'OK' })}
         />
         {error}
       </View>
@@ -129,7 +136,7 @@ function FactAnswer({ si, item }) {
             label={n}
             selected={state.saved === true && state.num === n}
             disabled={disabled}
-            onPress={() => si.record(code, { num: n, severity: 'OK' })}
+            onPress={() => answer({ num: n, severity: 'OK' })}
           />
         ))}
       </View>

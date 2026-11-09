@@ -43,6 +43,7 @@ export default {
   'profile.fallbackName': 'Turag उपयोगकर्ता',
   'profile.role.individual': 'उपभोक्ता',
   'profile.role.inspector': 'निरीक्षण अधिकारी',
+  'profile.role.dealer': 'डीलर',
   'profile.consent.ACCOUNT_TERMS': 'खाते की शर्तें',
   'profile.consent.PRIVACY_POLICY': 'गोपनीयता नीति',
   'profile.consent.MARKETING': 'ऑफ़र और अपडेट',
@@ -138,4 +139,5 @@ export default {
   'profile.photo.saved': 'फ़ोटो अपडेट हो गई',
   'profile.item.verified': 'Turag सत्यापित',
   'profile.item.about': 'हमारे बारे में',
+  'profile.item.careers': 'करियर',
 };

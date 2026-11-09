@@ -10,6 +10,8 @@ const TONES = {
   warning: { bg: colors.warningLight, text: colors.warning },
   danger: { bg: colors.dangerLight, text: colors.danger },
   neutral: { bg: colors.input, text: colors.body },
+  // Solid brand red: a sold vehicle (marketplace cards).
+  sold: { bg: colors.primary, text: colors.white },
   // White pills for on top of photos (Garage cards).
   warningOnPhoto: { bg: colors.white, text: colors.warning },
   successOnPhoto: { bg: colors.white, text: colors.success },

@@ -45,12 +45,15 @@ const VERDICT_TONE = { MATCH: 'verified', MISMATCH: 'danger' };
 
 // Self-inspection A1 / P1 (as the web's VIN / RC cards): a photo of the VIN
 // plate / the RC is read by AI, the user confirms or corrects what it read, and
-// only then it's (1) saved as the item's answer with a MASKED note, and (2) the
-// confirmed plaintext is checked against the registry baseline (identity-verify)
-// to show per-field verdicts. Typing it in works too.
-// kind: 'VIN' | 'RC'. onConfirm(note, evidence) saves the item; resolves true once saved.
+// only then it's (1) saved as the item's answer, and (2) the confirmed plaintext is
+// checked against the registry baseline (identity-verify) to show per-field verdicts.
+// Typing it in works too.
+// kind: 'VIN' | 'RC'. onConfirm(note, evidence, scanFile) saves the item; resolves true
+// once saved. scanFile: the photo behind the values, or null when they were typed.
+// plainNote: a self-inspection. Its note holds the values, and its screen runs the
+// registry check itself and warns about a mismatch. Otherwise the note is masked.
 // draft / onDraft keep the read + typed details alive across step navigation.
-function IdentityExtractCard({ inspectionId, kind, disabled, onConfirm, draft, onDraft, embedded = false, style }) {
+function IdentityExtractCard({ inspectionId, kind, plainNote = false, disabled, onConfirm, draft, onDraft, embedded = false, style }) {
   const t = useT();
   const copy = COPY[kind];
   const photo = useIdentityRead(inspectionId, kind, {
@@ -98,16 +101,16 @@ function IdentityExtractCard({ inspectionId, kind, disabled, onConfirm, draft, o
     }
   };
 
-  // Confirm → save the masked note on the item, then check the confirmed
-  // plaintext against the registry baseline.
+  // Confirm → save the note on the item, then check the confirmed plaintext
+  // against the registry baseline.
   const save = async (note, evidence) => {
     setSaving(true);
     setStatus(null);
     // The confirmed plaintext goes along too (the self-inspection's live estimate uses it).
-    const ok = await onConfirm(note, evidence);
+    const ok = await onConfirm(note, evidence, photo.scanFile);
     setSaving(false);
     setStatus(ok ? 'saved' : 'failed');
-    if (ok && evidence) {
+    if (ok && evidence && !plainNote) {
       runVerify(evidence);
     }
   };
@@ -115,6 +118,7 @@ function IdentityExtractCard({ inspectionId, kind, disabled, onConfirm, draft, o
   const formProps = {
     read: photo.read,
     fromPhoto: photo.fromPhoto,
+    plainNote,
     disabled,
     saving,
     onSave: save,

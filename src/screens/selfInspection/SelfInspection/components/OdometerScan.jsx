@@ -1,17 +1,21 @@
 import { useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { AppText, Button, OptionSheet, Spinner, TextField } from '../../../../components';
+import { AppText, Button, Spinner, TextField } from '../../../../components';
 import { colors, fonts, spacing } from '../../../../theme';
 import { fs, ms } from '../../../../utils/responsive';
 import { useT } from '../../../../i18n';
 import { formatNumber } from '../../../../utils/format';
 import { readOdometerPhoto } from '../../../../api/services/aiScan.api';
-import { pickPhotoWithBase64, takePhotoWithBase64 } from '../../../../utils/pickVideo';
+import { takePhotoWithBase64 } from '../../../../utils/pickVideo';
 import { parseOdometerKm } from '../../../../vendor/selfInspectionLogic';
 
 // "Read it from a photo" for the odometer (the web's OdoExtractCard): a
 // dashboard photo is read by AI on Turag's server, the user confirms or corrects the km, and
-// only a confirmed number is saved (onConfirmKm). Unreadable -> type it in.
+// only a confirmed number is saved (onConfirmKm(km, photo)). Unreadable -> type it in.
+// Camera only (as the web): the photo is kept as the odometer evidence QC sees, so it
+// must be of this dashboard, now - never an old picture from the gallery.
+// photo: the file behind the number (no base64), or null if no photo was taken. It's
+// passed on even when the number was typed after a failed read.
 function OdometerScan({ disabled, onConfirmKm }) {
   const t = useT();
   // 'pending' | 'reading' | 'detected' | 'manual'
@@ -19,23 +23,25 @@ function OdometerScan({ disabled, onConfirmKm }) {
   const [detected, setDetected] = useState(null);
   const [typed, setTyped] = useState('');
   const [error, setError] = useState('');
-  const [sourceOpen, setSourceOpen] = useState(false);
   const run = useRef(0);
+  const scanFile = useRef(null);
 
-  const read = async source => {
+  const read = async () => {
     const id = ++run.current;
     let asset;
     try {
-      asset = source === 'camera' ? await takePhotoWithBase64() : await pickPhotoWithBase64();
-    } catch {
-      setError(t('selfInspection.odometer.photoError'));
+      asset = await takePhotoWithBase64();
+    } catch (e) {
+      setError(t(e?.message === 'camera_permission' ? 'selfInspection.odometer.cameraOff' : 'selfInspection.odometer.photoError'));
       return;
     }
     if (!asset?.base64) return;
+    const { base64, ...file } = asset;
+    scanFile.current = file;
     setPhase('reading');
     setError('');
     try {
-      const reading = await readOdometerPhoto(asset.base64);
+      const reading = await readOdometerPhoto(base64);
       if (id !== run.current) return;
       const km = reading == null ? null : parseOdometerKm(String(reading));
       if (km == null) {
@@ -60,7 +66,7 @@ function OdometerScan({ disabled, onConfirmKm }) {
       setError(t('selfInspection.error.number'));
       return;
     }
-    onConfirmKm(km);
+    onConfirmKm(km, scanFile.current);
   };
 
   return (
@@ -79,7 +85,7 @@ function OdometerScan({ disabled, onConfirmKm }) {
             variant="outline"
             fullWidth={false}
             disabled={disabled}
-            onPress={() => setSourceOpen(true)}
+            onPress={read}
             style={styles.start}
           />
         </>
@@ -90,9 +96,9 @@ function OdometerScan({ disabled, onConfirmKm }) {
             <AppText style={styles.value}>{`${formatNumber(String(detected))} km`}</AppText>
           </AppText>
           <View style={styles.row}>
-            <Button title={t('selfInspection.confirm')} size="sm" fullWidth={false} disabled={disabled} onPress={() => onConfirmKm(detected)} />
+            <Button title={t('selfInspection.confirm')} size="sm" fullWidth={false} disabled={disabled} onPress={() => onConfirmKm(detected, scanFile.current)} />
             <Button title={t('selfInspection.edit')} size="sm" variant="outline" fullWidth={false} disabled={disabled} onPress={() => setPhase('manual')} />
-            <Button title={t('selfInspection.retake')} size="sm" variant="ghost" fullWidth={false} disabled={disabled} onPress={() => setSourceOpen(true)} />
+            <Button title={t('selfInspection.retake')} size="sm" variant="ghost" fullWidth={false} disabled={disabled} onPress={read} />
           </View>
         </>
       ) : (
@@ -107,7 +113,7 @@ function OdometerScan({ disabled, onConfirmKm }) {
           />
           <View style={styles.row}>
             <Button title={t('selfInspection.save')} size="sm" fullWidth={false} disabled={disabled} onPress={saveTyped} />
-            <Button title={t('selfInspection.retake')} size="sm" variant="ghost" fullWidth={false} disabled={disabled} onPress={() => setSourceOpen(true)} />
+            <Button title={t('selfInspection.retake')} size="sm" variant="ghost" fullWidth={false} disabled={disabled} onPress={read} />
           </View>
         </>
       )}
@@ -116,16 +122,6 @@ function OdometerScan({ disabled, onConfirmKm }) {
           {error}
         </AppText>
       ) : null}
-      <OptionSheet
-        visible={sourceOpen}
-        title={t('selfInspection.odometer.addPhoto')}
-        options={[
-          { value: 'camera', label: t('selfInspection.source.camera') },
-          { value: 'gallery', label: t('selfInspection.source.gallery') },
-        ]}
-        onSelect={source => setTimeout(() => read(source), 350)}
-        onClose={() => setSourceOpen(false)}
-      />
     </View>
   );
 }

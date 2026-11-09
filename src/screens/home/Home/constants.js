@@ -139,6 +139,15 @@ export const DEFAULT_FILTERS = {};
 export const visibleFilters = filters =>
   QUICK_FILTERS.filter(item => !item.hideFor?.includes(filters.vehicle));
 
+// The tab a price range belongs to: bike ranges on Bikes, car ranges on All. A
+// remembered price search tapped on another tab goes there instead of being
+// dropped (each tab only lists its own ranges). null: not a known range.
+export const priceCategory = value => {
+  if (BIKE_PRICES.some(option => option.value === value)) return 'bikes';
+  if (CAR_PRICES.some(option => option.value === value)) return 'all';
+  return null;
+};
+
 // A filter's options for the other choices.
 export const optionsOf = (item, filters) => (item.getOptions ? item.getOptions(filters) : item.options ?? []);
 

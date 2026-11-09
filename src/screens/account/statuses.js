@@ -10,6 +10,17 @@ export const BOOKING_STATUS = {
   CANCELLED: { labelKey: 'account.booking.status.CANCELLED', tone: 'neutral' },
 };
 
+// The same bookings as the inspection officer sees them (the web's inspector job
+// badges): their own job, not "an inspector".
+export const INSPECTOR_JOB_STATUS = {
+  PENDING_PAYMENT: { labelKey: 'inspector.status.PENDING_PAYMENT', tone: 'neutral' },
+  REQUESTED: { labelKey: 'inspector.status.REQUESTED', tone: 'warning' },
+  ASSIGNED: { labelKey: 'inspector.status.ASSIGNED', tone: 'success' },
+  ON_SITE: { labelKey: 'inspector.status.ON_SITE', tone: 'success' },
+  FULFILLED: { labelKey: 'inspector.status.FULFILLED', tone: 'neutral' },
+  CANCELLED: { labelKey: 'inspector.status.CANCELLED', tone: 'neutral' },
+};
+
 // Progress steps (cancelled bookings show a note instead).
 export const BOOKING_STEPS = ['REQUESTED', 'ASSIGNED', 'ON_SITE', 'FULFILLED'];
 

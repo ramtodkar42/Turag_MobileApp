@@ -100,7 +100,7 @@ describe('My jobs', () => {
     expect(cards.map(c => c.props.job.id)).toEqual(['job_mock_2', 'job_mock_1']); // by time
     expect(hasText(root, 'To do')).toBe(true);
     expect([...new Set(root.findAllByType(Badge).map(b => b.props.label))]).toEqual(
-      expect.arrayContaining(['Inspector on site', 'Inspector assigned']),
+      expect.arrayContaining(['In progress', 'Assigned to you']),
     );
     expect(hasText(root, 'Flat 1009, Sahyadri Residency, Baner, Pune 411045')).toBe(true);
     // No accept / decline: jobs are assigned automatically.

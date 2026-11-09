@@ -5,7 +5,7 @@ import { colors, radius, shadows, spacing } from '../../../../theme';
 import { fs, ms } from '../../../../utils/responsive';
 import { formatSlot } from '../../../../utils/date';
 import { useT } from '../../../../i18n';
-import { BOOKING_STATUS } from '../../../account/statuses';
+import { INSPECTOR_JOB_STATUS } from '../../../account/statuses';
 
 // One job (as the web's job board card): time, status, vehicle type,
 // address and pincode. Tapping opens the job. expired: the slot passed before
@@ -13,7 +13,7 @@ import { BOOKING_STATUS } from '../../../account/statuses';
 // still be opened to read it and chat.
 function JobCard({ job, expired = false, onPress }) {
   const t = useT();
-  const status = BOOKING_STATUS[job.status] ?? BOOKING_STATUS.REQUESTED;
+  const status = INSPECTOR_JOB_STATUS[job.status] ?? INSPECTOR_JOB_STATUS.REQUESTED;
   const kind = t(`account.booking.kind.${job.category === 'TWO_WHEELER' ? 'TWO_WHEELER' : 'PASSENGER'}`);
 
   let action = null;

@@ -13,7 +13,14 @@ import { readIdentityPhoto } from './aiScan.api';
 import { ENDPOINTS } from '../endpoints';
 import { mapValuation, mapVehicle } from '../mappers/valuation';
 import { sampleValuation, sampleVehicle } from '../mock/valuation';
-import { newClientAssetId, putToUploadTarget, readFileForUpload } from '../upload';
+import {
+  canStreamFiles,
+  fileInfoForUpload,
+  newClientAssetId,
+  putFileToUploadTarget,
+  putToUploadTarget,
+  readFileForUpload,
+} from '../upload';
 import { normalizeRegNumber } from '../../utils/validators';
 import { tNow } from '../../i18n';
 
@@ -179,12 +186,26 @@ export const DUPLICATE_FILE = 'DUPLICATE_FILE';
 // object, and complete is idempotent, so a retry never adds a second photo.
 // kind: 'DOCUMENT' | 'PHOTO'. gps (optional): { lat, lng, accuracyM? } where it was taken.
 // Returns { mediaId, status }.
-export const uploadInspectionFile = async ({ inspectionId, itemCode, shotCode, kind, file, gps }) => {
+// onProgress (optional), for the screen: { stage: 'preparing' } while the file is
+// read and fingerprinted, { stage: 'uploading', fraction } as it goes up (a fraction
+// for videos), { stage: 'finishing' } while the server checks it.
+export const uploadInspectionFile = async ({ inspectionId, itemCode, shotCode, kind, file, gps, onProgress }) => {
   if (!real()) {
     await wait(1000);
     return { mediaId: `med_mock_${shotCode}_${newClientAssetId().slice(3)}`, status: 'PROCESSED' };
   }
-  const { blob, byteSize, checksum, contentType } = await readFileForUpload(file);
+  const report = progress => onProgress?.(progress);
+  report({ stage: 'preparing' });
+  // A video (tens of MB) is hashed natively in pieces and sent straight from the
+  // file; photos and documents (a few MB) are read here. A video is never read
+  // into memory - that runs the phone out of memory - so a build without the
+  // native part asks for the app to be updated instead.
+  const isVideo = kind === 'VIDEO';
+  if (isVideo && !canStreamFiles()) {
+    throw new ApiError({ code: 'APP_UPDATE_NEEDED', message: tNow('valuation.upload.videoNeedsUpdate') });
+  }
+  const info = isVideo ? await fileInfoForUpload(file) : await readFileForUpload(file);
+  const { byteSize, checksum, contentType } = info;
   if (await isDuplicateFile(inspectionId, checksum)) {
     throw new ApiError({
       code: DUPLICATE_FILE,
@@ -219,9 +240,19 @@ export const uploadInspectionFile = async ({ inspectionId, itemCode, shotCode, k
     }),
   );
   // A walkaround video is far bigger than a photo: it gets longer to go up.
-  await withRetry(() => putToUploadTarget(upload, blob, kind === 'VIDEO' ? VIDEO_UPLOAD_TIMEOUT_MS : undefined));
+  report({ stage: 'uploading', fraction: isVideo ? 0 : undefined });
+  const timeoutMs = isVideo ? VIDEO_UPLOAD_TIMEOUT_MS : undefined;
+  await withRetry(() =>
+    isVideo
+      ? putFileToUploadTarget(upload, info, timeoutMs, fraction => report({ stage: 'uploading', fraction }))
+      : putToUploadTarget(upload, info.blob, timeoutMs),
+  );
+  report({ stage: 'finishing' });
+  // The server downloads the whole file to check its fingerprint and type: a video
+  // gets twice as long for that.
+  const completeTimeoutMs = isVideo ? 2 * UPLOAD_TIMEOUT_MS : UPLOAD_TIMEOUT_MS;
   const done = await withRetry(() =>
-    request(ENDPOINTS.mediaComplete(mediaId), { method: 'POST', timeoutMs: UPLOAD_TIMEOUT_MS }),
+    request(ENDPOINTS.mediaComplete(mediaId), { method: 'POST', timeoutMs: completeTimeoutMs }),
   );
   return { mediaId, status: done.media?.status ?? null };
 };

@@ -3,6 +3,7 @@ import { NativeModules, Platform, StyleSheet } from 'react-native';
 import { AppText, Button, Header, OTPInput, ScreenContainer } from '../../../components';
 import { colors, spacing } from '../../../theme';
 import { ms } from '../../../utils/responsive';
+import { errorText, OTP_ERROR_KEYS } from '../../../utils/errorText';
 import useCountdown from '../../../hooks/useCountdown';
 import ResendOtp from './components/ResendOtp';
 import otpChannels from './otpChannels';
@@ -57,7 +58,7 @@ function VerifyOtp({ navigation, route }) {
         navigation.navigate(...next.navigate);
       }
     } catch (e) {
-      setError(e.message || t('auth.verify.invalid'));
+      setError(errorText(e, OTP_ERROR_KEYS, 'auth.verify.invalid'));
       setLoading(false);
       verifying.current = false;
     }
@@ -142,7 +143,7 @@ function VerifyOtp({ navigation, route }) {
       }
       restart(updates?.resendAfter ?? undefined);
     } catch (e) {
-      setError(e.message || t('auth.verify.resendError'));
+      setError(errorText(e, OTP_ERROR_KEYS, 'auth.verify.resendError'));
     } finally {
       setResending(false);
     }

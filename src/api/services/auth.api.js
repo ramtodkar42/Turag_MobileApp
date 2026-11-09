@@ -1,7 +1,7 @@
 // Auth API: phone OTP sign-in, session refresh / logout.
 // Real backend when USE_REAL_API.auth is true (src/api/config.js), mock otherwise.
 import { request, readCookie } from '../client';
-import { USE_REAL_API } from '../config';
+import { REFRESH_TIMEOUT_MS, USE_REAL_API } from '../config';
 import { ENDPOINTS } from '../endpoints';
 import { mapUser } from '../mappers/user';
 import { mockRefresh, mockStartOtp, mockVerifyOtp } from '../mock/auth';
@@ -211,6 +211,10 @@ export const refreshSession = async refreshToken => {
     body: { refresh_token: refreshToken },
     auth: false,
     raw: true,
+    // Kept open past the screen's wait, so a slow reply's new token is still saved
+    // (config.js REFRESH_TIMEOUT_MS); the "slow connection" bar still shows.
+    timeoutMs: REFRESH_TIMEOUT_MS,
+    slowNotice: true,
   });
   return {
     accessToken: res.data.access_token,

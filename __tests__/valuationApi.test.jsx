@@ -467,3 +467,252 @@ test('base64 decoder matches Node for every padding length', () => {
     expect(Buffer.from(base64ToBytes(bytes.toString('base64'))).equals(bytes)).toBe(true);
   }
 });
+
+describe('a walkaround video: never held in memory', () => {
+  const { NativeModules } = require('react-native');
+  const SIZE = 62914560; // a 2-minute walkaround, about 60 MB
+  const SHA = 'ab'.repeat(32);
+  // The last request made, kept by the fake (each new one replaces it).
+  const last = { xhr: null };
+  const sent = () => last.xhr;
+
+  // XMLHttpRequest as React Native has it: send({ uri }) streams the file natively.
+  class FakeXhr {
+    constructor() {
+      this.headers = {};
+      this.upload = {};
+      last.xhr = this;
+    }
+    open(method, url) {
+      this.method = method;
+      this.url = url;
+    }
+    setRequestHeader(name, value) {
+      this.headers[name] = value;
+    }
+    send(body) {
+      this.body = body;
+      this.status = FakeXhr.status;
+      Promise.resolve().then(() => {
+        if (FakeXhr.fail) return this.onerror();
+        // Progress as React Native reports it: a quarter, a byte more (same percent), all of it.
+        this.upload.onprogress?.({ loaded: SIZE / 4, total: SIZE });
+        this.upload.onprogress?.({ loaded: SIZE / 4 + 1, total: SIZE });
+        this.upload.onprogress?.({ loaded: SIZE, total: SIZE });
+        return this.onload();
+      });
+    }
+  }
+
+  beforeEach(async () => {
+    await signIn();
+    NativeModules.TuragFile = { digest: jest.fn(async () => ({ size: SIZE, sha256: SHA })) };
+    FakeXhr.status = 200;
+    FakeXhr.fail = false;
+    global.XMLHttpRequest = FakeXhr;
+    last.xhr = null;
+  });
+  afterEach(() => {
+    delete NativeModules.TuragFile;
+    delete global.XMLHttpRequest;
+  });
+
+  const video = { uri: '/data/walkaround.mp4', type: 'video/mp4' };
+  const upload = () =>
+    uploadInspectionFile({ inspectionId: 'insp_1', itemCode: 'XWALK', shotCode: 'WALK_VIDEO', kind: 'VIDEO', file: video });
+
+  test('size + SHA-256 come from the phone in pieces; the PUT goes straight from the file', async () => {
+    fetch
+      .mockResolvedValueOnce(reply(200, { duplicate: false }))
+      .mockResolvedValueOnce(
+        reply(201, { media_id: 'med_v', upload: { url: 'https://store/v', method: 'PUT', headers: { 'Content-Type': 'video/mp4' } } }),
+      )
+      .mockResolvedValueOnce(reply(200, { media: { id: 'med_v', status: 'UPLOADED' } }));
+
+    const result = await upload();
+
+    expect(NativeModules.TuragFile.digest).toHaveBeenCalledWith('file:///data/walkaround.mp4');
+    // The file itself is never fetched into JavaScript.
+    expect(fetch.mock.calls.some(([url]) => String(url).startsWith('file://'))).toBe(false);
+    expect(bodyOf(fetch.mock.calls[0])).toEqual({ checksum_sha256: SHA });
+    expect(bodyOf(fetch.mock.calls[1])).toEqual(
+      expect.objectContaining({ kind: 'VIDEO', content_type: 'video/mp4', byte_size: SIZE, checksum_sha256: SHA }),
+    );
+    expect(sent()).toEqual(
+      expect.objectContaining({
+        method: 'PUT',
+        url: 'https://store/v',
+        headers: { 'Content-Type': 'video/mp4' },
+        body: { uri: 'file:///data/walkaround.mp4' },
+      }),
+    );
+    expect(urlOf(fetch.mock.calls[2])).toMatch(/\/media\/med_v\/complete$/);
+    expect(result).toEqual({ mediaId: 'med_v', status: 'UPLOADED' });
+  });
+
+  test('the screen hears each step: preparing, uploading with its percent, then the server check', async () => {
+    fetch
+      .mockResolvedValueOnce(reply(200, { duplicate: false }))
+      .mockResolvedValueOnce(reply(201, { media_id: 'med_v', upload: { url: 'https://store/v', method: 'PUT', headers: {} } }))
+      .mockResolvedValueOnce(reply(200, { media: { id: 'med_v', status: 'UPLOADED' } }));
+    const steps = [];
+    await uploadInspectionFile({
+      inspectionId: 'insp_1',
+      itemCode: 'XWALK',
+      shotCode: 'WALK_VIDEO',
+      kind: 'VIDEO',
+      file: video,
+      onProgress: step => steps.push(step),
+    });
+    expect(steps).toEqual([
+      { stage: 'preparing' },
+      { stage: 'uploading', fraction: 0 },
+      { stage: 'uploading', fraction: 0.25 },
+      { stage: 'uploading', fraction: 1 },
+      { stage: 'finishing' },
+    ]);
+  });
+
+  test('the store refusing it, or the connection dropping, reads as an upload problem - never "Network request failed"', async () => {
+    const target = reply(201, { media_id: 'med_v', upload: { url: 'https://store/v', method: 'PUT', headers: {} } });
+    fetch.mockResolvedValueOnce(reply(200, { duplicate: false })).mockResolvedValueOnce(target);
+    FakeXhr.status = 403;
+    await expect(upload()).rejects.toMatchObject({ status: 403, message: 'Upload failed. Try again.' });
+    // No type from the target: the file's own is sent.
+    expect(sent().headers).toEqual({ 'Content-Type': 'video/mp4' });
+
+    fetch.mockResolvedValueOnce(reply(200, { duplicate: false })).mockResolvedValueOnce(target).mockResolvedValueOnce(target);
+    FakeXhr.fail = true;
+    await expect(upload()).rejects.toMatchObject({ code: 'NETWORK_ERROR', message: "Can't reach Turag. Check your internet connection and try again." });
+  });
+
+  test("a file the phone can't read says so", async () => {
+    NativeModules.TuragFile.digest.mockRejectedValueOnce(new Error('ENOENT'));
+    await expect(upload()).rejects.toMatchObject({
+      code: 'FILE_UNREADABLE',
+      message: "Couldn't read this file on your phone. Please try again, or take it again.",
+    });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  test('photos keep the in-memory path; a build without the native part asks for an update instead of reading the video', async () => {
+    const bytes = Buffer.from('a photo');
+    global.FileReader = class {
+      readAsDataURL(b) {
+        this.result = `data:image/jpeg;base64,${b.b64}`;
+        this.onload();
+      }
+    };
+    fetch.mockResolvedValueOnce({ blob: () => Promise.resolve({ type: 'image/jpeg', b64: bytes.toString('base64') }) });
+    fetch.mockResolvedValueOnce(reply(200, { duplicate: true }));
+    await expect(
+      uploadInspectionFile({ inspectionId: 'insp_1', itemCode: 'B1', shotCode: 'WALK_FRONT', kind: 'PHOTO', file: { uri: '/data/p.jpg' } }),
+    ).rejects.toMatchObject({ code: 'DUPLICATE_FILE' });
+    expect(urlOf(fetch.mock.calls[0])).toBe('file:///data/p.jpg');
+    expect(NativeModules.TuragFile.digest).not.toHaveBeenCalled();
+
+    // Reading a 60 MB video into memory runs the phone out of memory: never tried.
+    delete NativeModules.TuragFile;
+    fetch.mockReset();
+    await expect(upload()).rejects.toMatchObject({
+      code: 'APP_UPDATE_NEEDED',
+      message: 'To upload videos, please update the app to the latest version.',
+    });
+    expect(fetch).not.toHaveBeenCalled();
+    delete global.FileReader;
+  });
+
+  // React Native's own file body on Android is a one-time stream: a resend after a
+  // hiccup went out empty and the store refused the upload at "100%".
+  describe("on Android: Turag's own uploader, which reads the file again whenever it resends", () => {
+    const { DeviceEventEmitter, Platform } = require('react-native');
+    const target = () =>
+      reply(201, { media_id: 'med_v', upload: { url: 'https://store/v', method: 'PUT', headers: { 'content-type': 'video/mp4' } } });
+    // The native side's progress events (its id first), then its answer.
+    const answer = (status, body = '') =>
+      jest.fn(async id => {
+        DeviceEventEmitter.emit('TuragFileUploadProgress', { id, sent: SIZE / 2, total: SIZE });
+        DeviceEventEmitter.emit('TuragFileUploadProgress', { id: 'another_upload', sent: 1, total: SIZE });
+        DeviceEventEmitter.emit('TuragFileUploadProgress', { id, sent: SIZE, total: SIZE });
+        return { status, body };
+      });
+    let os;
+    beforeEach(() => {
+      os = jest.replaceProperty(Platform, 'OS', 'android');
+      NativeModules.TuragFile.upload = answer(200);
+    });
+    afterEach(() => os.restore());
+
+    test('the file goes straight from the phone with its type; only its own progress counts', async () => {
+      fetch
+        .mockResolvedValueOnce(reply(200, { duplicate: false }))
+        .mockResolvedValueOnce(target())
+        .mockResolvedValueOnce(reply(200, { media: { id: 'med_v', status: 'UPLOADED' } }));
+      const steps = [];
+      const result = await uploadInspectionFile({
+        inspectionId: 'insp_1',
+        itemCode: 'XWALK',
+        shotCode: 'WALK_VIDEO',
+        kind: 'VIDEO',
+        file: video,
+        onProgress: step => steps.push(step),
+      });
+      expect(NativeModules.TuragFile.upload).toHaveBeenCalledWith(
+        expect.stringMatching(/^up_/),
+        'file:///data/walkaround.mp4',
+        'https://store/v',
+        'PUT',
+        { 'content-type': 'video/mp4' },
+        10 * 60000,
+      );
+      expect(sent()).toBeNull(); // not through XMLHttpRequest
+      expect(steps).toEqual([
+        { stage: 'preparing' },
+        { stage: 'uploading', fraction: 0 },
+        { stage: 'uploading', fraction: 0.5 },
+        { stage: 'uploading', fraction: 1 },
+        { stage: 'finishing' },
+      ]);
+      expect(result).toEqual({ mediaId: 'med_v', status: 'UPLOADED' });
+    });
+
+    test('the storage refusing it is an upload refusal with its status (413: too big), never sent twice', async () => {
+      NativeModules.TuragFile.upload = answer(
+        413,
+        '<?xml version="1.0"?><Error><Code>EntityTooLarge</Code><Message>The object exceeded the maximum allowed size</Message></Error>',
+      );
+      fetch.mockResolvedValueOnce(reply(200, { duplicate: false })).mockResolvedValueOnce(target());
+      const failure = await upload().catch(e => e);
+      expect(failure).toMatchObject({ status: 413, code: 'UPLOAD_REFUSED', message: 'Upload failed. Try again.' });
+      expect(NativeModules.TuragFile.upload).toHaveBeenCalledTimes(1);
+    });
+
+    test('a dropped connection is a network problem, tried once more', async () => {
+      NativeModules.TuragFile.upload = jest.fn(async () => {
+        throw new Error('Broken pipe');
+      });
+      fetch.mockResolvedValueOnce(reply(200, { duplicate: false })).mockResolvedValueOnce(target());
+      const failure = await upload().catch(e => e);
+      expect(failure).toMatchObject({ code: 'NETWORK_ERROR' });
+      expect(NativeModules.TuragFile.upload).toHaveBeenCalledTimes(2);
+
+      NativeModules.TuragFile.upload = jest.fn(async () => {
+        throw new Error('timeout');
+      });
+      fetch.mockResolvedValueOnce(reply(200, { duplicate: false })).mockResolvedValueOnce(target());
+      await expect(upload()).rejects.toMatchObject({ code: 'TIMEOUT' });
+    });
+
+    test('an iPhone keeps the XMLHttpRequest path', async () => {
+      os.restore();
+      os = jest.replaceProperty(Platform, 'OS', 'ios');
+      fetch
+        .mockResolvedValueOnce(reply(200, { duplicate: false }))
+        .mockResolvedValueOnce(target())
+        .mockResolvedValueOnce(reply(200, { media: { id: 'med_v', status: 'UPLOADED' } }));
+      await upload();
+      expect(NativeModules.TuragFile.upload).not.toHaveBeenCalled();
+      expect(sent().body).toEqual({ uri: 'file:///data/walkaround.mp4' });
+    });
+  });
+});

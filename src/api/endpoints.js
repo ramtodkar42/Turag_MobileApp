@@ -41,6 +41,7 @@ export const ENDPOINTS = {
     `/inspections/${encodeURIComponent(inspectionId)}/media/check-duplicate`,
   mediaComplete: mediaId => `/media/${encodeURIComponent(mediaId)}/complete`,
   media: mediaId => `/media/${encodeURIComponent(mediaId)}`,
+  mediaAnalyze: mediaId => `/media/${encodeURIComponent(mediaId)}/analyze`,
   SAVED_VEHICLES: '/saved-vehicles',
   savedVehicle: id => `/saved-vehicles/${encodeURIComponent(id)}`,
   savedListing: listingId => `/saved-listings/${encodeURIComponent(listingId)}`,
@@ -59,6 +60,8 @@ export const ENDPOINTS = {
   AI_IDENTITY_EXTRACT: '/ai/identity-extract', // RC / VIN plate
   AI_DAMAGE_SCAN: '/ai/damage-scan', // one walkaround photo's damage
   inspectionIdentityVerify: id => `/inspections/${encodeURIComponent(id)}/identity-verify`,
+  inspectionEngineFrames: id => `/inspections/${encodeURIComponent(id)}/engine-frames`,
+  inspectionEngineSound: id => `/inspections/${encodeURIComponent(id)}/engine-sound`,
   inspectionMedia: id => `/inspections/${encodeURIComponent(id)}/media`,
   inspectionReferenceValuation: id => `/inspections/${encodeURIComponent(id)}/reference-valuation`,
   inspectionResume: id => `/inspections/${encodeURIComponent(id)}/resume`,

@@ -37,6 +37,11 @@ const noteBody = note => note.replace(/^RC:\s*/, '').replace(/\s*\|\s*/g, ' · '
 export const detailContent = ({ t, si, item, scans, onAddDocument }) => {
   const { local, inspection } = si;
   const code = item.item_code;
+  // The inspection officer's doorstep inspection: wording for them, and the RC / VIN
+  // questions are graded (OK to critical, or can't check) as on the web - the scan is
+  // the evidence beside the grade, not the answer.
+  const officer = inspection.mode !== 'M1';
+  const forOfficer = key => (officer ? `${key}Inspector` : key);
 
   // A saved scan with "Change"; otherwise the scan itself.
   const scanBody = (savedText, scan) =>
@@ -58,9 +63,10 @@ export const detailContent = ({ t, si, item, scans, onAddDocument }) => {
       embedded
       inspectionId={inspection.id}
       kind={kind}
+      plainNote={inspection.mode === 'M1'}
       disabled={si.submitting}
-      onConfirm={async (note, evidence) => {
-        const ok = await confirm(note, evidence);
+      onConfirm={async (note, evidence, scanFile) => {
+        const ok = await confirm(note, evidence, scanFile);
         if (ok) scans.hide(code);
         return ok;
       }}
@@ -88,23 +94,36 @@ export const detailContent = ({ t, si, item, scans, onAddDocument }) => {
     );
   };
 
+  // The officer's RC / VIN: the scan (until it's read) with the grade under it. A
+  // grade alone answers the question too (a plate that can't be read: can't check).
+  const graded = scan => (
+    <View style={styles.body}>
+      {scan}
+      <ItemAnswer si={si} item={item} />
+    </View>
+  );
+
   switch (code) {
     case 'P1':
       return {
         title: t('selfInspection.documents.rcTitle'),
-        hint: t('selfInspection.documents.rcHint'),
-        body: scanBody(local.P1?.note ? noteBody(local.P1.note) : t('selfInspection.documents.rcConfirmed'), identity('RC', si.confirmRc)),
+        hint: t(forOfficer('selfInspection.documents.rcHint')),
+        body: officer
+          ? graded(scanBody(local.P1?.note ? noteBody(local.P1.note) : null, identity('RC', si.confirmRc)))
+          : scanBody(local.P1?.note ? noteBody(local.P1.note) : t('selfInspection.documents.rcConfirmed'), identity('RC', si.confirmRc)),
       };
     case 'A1':
       return {
         title: t('selfInspection.documents.vinTitle'),
-        hint: t('selfInspection.documents.vinHint'),
-        body: scanBody(local.A1?.note ? noteBody(local.A1.note) : t('selfInspection.documents.recorded'), identity('VIN', si.confirmVin)),
+        hint: t(forOfficer('selfInspection.documents.vinHint')),
+        body: officer
+          ? graded(scanBody(local.A1?.note ? noteBody(local.A1.note) : null, identity('VIN', si.confirmVin)))
+          : scanBody(local.A1?.note ? noteBody(local.A1.note) : t('selfInspection.documents.recorded'), identity('VIN', si.confirmVin)),
       };
     case 'O1':
       return {
         title: t('selfInspection.documents.odoTitle'),
-        hint: t('selfInspection.documents.odoHint'),
+        hint: t(forOfficer('selfInspection.documents.odoHint')),
         body: (
           <View style={styles.body}>
             <ItemAnswer si={si} item={item} />
@@ -112,9 +131,10 @@ export const detailContent = ({ t, si, item, scans, onAddDocument }) => {
               <FadeIn style={styles.scan}>
                 <OdometerScan
                   disabled={si.submitting}
-                  onConfirmKm={km => {
+                  onConfirmKm={(km, photo) => {
                     scans.hide('O1');
                     si.record('O1', { num: String(km), severity: 'OK', naReason: '' });
+                    if (photo) si.keepScanPhoto('O1', photo);
                   }}
                 />
               </FadeIn>
@@ -152,7 +172,7 @@ export const detailContent = ({ t, si, item, scans, onAddDocument }) => {
           }
         : {
             title: t('selfInspection.documents.ownersTitle'),
-            hint: t('selfInspection.documents.ownersHint'),
+            hint: t(forOfficer('selfInspection.documents.ownersHint')),
             body: <ItemAnswer si={si} item={item} />,
           };
     default:

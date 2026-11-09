@@ -31,6 +31,32 @@ export const pickImageFromGallery = async () => {
 // so it's resized here. Returns the photo like pickImageFromGallery, or null.
 // Throws 'camera_permission' when the camera isn't allowed.
 const AVATAR_SIZE = 512;
+
+// The account keeps only JPEG photos (the server checks the bytes; the web always
+// re-encodes too), but the gallery can hand back a PNG (screenshots), HEIC or WebP.
+// So the picked photo is saved again as a JPEG. If that can't be done on this
+// phone, the original is kept (a JPEG still uploads; anything else gets the
+// server's "choose a JPG" message, as before).
+const AVATAR_JPEG_QUALITY = 85;
+const asJpeg = async asset => {
+  try {
+    // Loaded on first use: the native image library is only needed here.
+    const { loadImage } = require('react-native-nitro-image');
+    const image = await loadImage({ filePath: asset.uri });
+    const path = await image.saveToTemporaryFileAsync('jpg', AVATAR_JPEG_QUALITY);
+    const name = String(asset.fileName || 'profile').replace(/\.[^.]*$/, '');
+    return {
+      ...asset,
+      uri: `file://${String(path).replace(/^file:\/\//, '')}`,
+      type: 'image/jpeg',
+      fileName: `${name}.jpg`,
+      fileSize: undefined,
+    };
+  } catch {
+    return asset;
+  }
+};
+
 export const pickProfilePhoto = async source => {
   const options = {
     mediaType: 'photo',
@@ -57,7 +83,7 @@ export const pickProfilePhoto = async source => {
     throw new Error(result.errorMessage || 'Could not open the photo.');
   }
   const asset = result.assets?.[0];
-  return asset ? { ...asset, type: asset.type || 'image/jpeg' } : null;
+  return asset ? asJpeg({ ...asset, type: asset.type || 'image/jpeg' }) : null;
 };
 
 // Takes a photo with the phone's camera (front: the selfie camera) and returns

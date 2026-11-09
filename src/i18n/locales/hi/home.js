@@ -95,6 +95,8 @@ export default {
   'home.filtered.message': 'आपकी खोज या फ़िल्टर से कोई वाहन मेल नहीं खाता।',
   'home.clearFilters': 'फ़िल्टर हटाएं',
   'home.empty.title': 'अभी कोई वाहन नहीं',
+  'home.empty.cars': 'अभी कोई कार नहीं',
+  'home.empty.bikes': 'अभी कोई टू-व्हीलर नहीं',
   'home.empty.message': 'सत्यापित वाहन लिस्ट होते ही यहाँ दिखेंगे।',
   'home.searched.title': 'कोई वाहन नहीं मिला',
   'home.searched.message': 'अभी “{query}” से कोई वाहन मेल नहीं खाता।',

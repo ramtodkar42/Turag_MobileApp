@@ -9,6 +9,7 @@ import fixture from './fixtures/passengerChecklistCurrent.json';
 import olderFixture from './fixtures/passengerChecklist.json';
 import {
   activeItemsFor,
+  buildAiFinding,
   buildMissingList,
   parseOdometerKm,
   parseOwnerCount,
@@ -26,7 +27,7 @@ const sectionsFor = (source, mode) =>
     .map(s => ({
       group_code: s.group_code,
       label: s.label,
-      items: s.items.filter(it => it.applicable_modes.includes(mode) && !(it.gate && it.evidence_requirement?.shots)),
+      items: s.items.filter(it => it.applicable_modes.includes(mode) && !it.qc_answered_modes?.includes(mode) && !(it.gate && it.evidence_requirement?.shots)),
     }))
     .filter(s => s.items.length > 0);
 const m1Sections = sectionsFor(fixture, 'M1');
@@ -37,14 +38,20 @@ const inspection = {
   status: 'IN_PROGRESS',
   mode: 'M1',
   category: 'PASSENGER',
-  checklist_version: 2,
+  checklist_version: 4,
   vehicle_id: 'veh_1',
   vehicle: { make: 'Maruti Suzuki', model: 'Swift', variant: 'VXi', mfg_year: 2019, category: 'PASSENGER', fuel: 'PETROL' },
   items: [],
 };
 
+// The test renderer's views can't be measured: the scroll itself is checked on its own.
+jest.mock('../src/utils/scrollToView', () => ({ scrollToView: jest.fn() }));
+
 jest.mock('../src/api/services/selfInspection.api', () => ({
   USABLE_MEDIA: new Set(['UPLOADED', 'PROCESSING', 'PROCESSED', 'INTEGRITY_FLAGGED', 'REDACTION_HELD']),
+  analyzeMedia: jest.fn(),
+  submitEngineFrames: jest.fn(async () => ({})),
+  reportEngineSound: jest.fn(async () => ({})),
   getSelfInspection: jest.fn(),
   getReferenceValuation: jest.fn(async () => null),
   listSelfInspectionMedia: jest.fn(async () => []),
@@ -79,11 +86,18 @@ jest.mock('../src/api/services/aiScan.api', () => ({
 
 jest.mock('../src/utils/fileToBase64', () => ({ fileToBase64: jest.fn(async () => 'BASE64') }));
 jest.mock('../src/utils/photoDhash', () => ({ photoDhash: jest.fn(async () => null) }));
+jest.mock('../src/utils/photoQuality', () => ({ photoQualityWarnings: jest.fn(async () => []) }));
+jest.mock('../src/utils/engineClip', () => ({
+  extractEngineFrames: jest.fn(async () => ['data:image/jpeg;base64,AAAA']),
+  measureEngineSound: jest.fn(async () => ({ durationSec: 10, loudnessDbfs: -22, stabilityCv: 0.1, transientsPerSec: 0.3 })),
+}));
 jest.mock('../src/utils/pickImage', () => ({ pickImageFromGallery: jest.fn(async () => null) }));
 
 const api = require('../src/api/services/selfInspection.api');
 const vision = require('../src/api/services/aiScan.api');
 const { photoDhash } = require('../src/utils/photoDhash');
+const { photoQualityWarnings } = require('../src/utils/photoQuality');
+const engineClip = require('../src/utils/engineClip');
 const { pickImageFromGallery } = require('../src/utils/pickImage');
 // The jest location mock: Baner, Pune.
 const BANER = { lat: 18.559, lng: 73.7868, accuracyM: 10 };
@@ -161,9 +175,28 @@ const openExterior = async () => {
   return root;
 };
 
+// What the server's read saves against a walkaround photo.
+const serverFinding = {
+  shotCode: 'WALK_FRONT',
+  v2: {
+    hasDamage: true,
+    part: 'FRONT_BUMPER',
+    type: 'SCRATCH',
+    severity: 'MINOR',
+    confidence: 82,
+    repairCostMinor: 200000,
+    reasoning: 'Light scratch on the bumper',
+    promptVersion: 'm1-dent-v4',
+    cosmetic: [],
+  },
+  plate: null,
+};
+
 beforeEach(() => {
   jest.clearAllMocks();
   api.getSelfInspection.mockResolvedValue({ inspection, sections: m1Sections, media: [] });
+  api.analyzeMedia.mockImplementation(async id => ({ id, ai_finding: buildAiFinding(serverFinding) }));
+  api.listSelfInspectionMedia.mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -282,7 +315,7 @@ describe('Self-inspection screen', () => {
     expect(hasText(root, 'still checking')).toBe(false);
   });
 
-  test('a tile opens the camera; the photo is uploaded and the AI checks walkaround photos', async () => {
+  test('a tile opens the camera; the photo is uploaded and the server checks walkaround photos', async () => {
     const root = await openExterior();
     await act(async () => pressable(root, 'Add Front photo').props.onPress());
     expect(navigation.navigate).toHaveBeenCalledWith(ROUTES.VEHICLE_CAMERA, {
@@ -298,12 +331,25 @@ describe('Self-inspection screen', () => {
       kind: 'PHOTO',
       file,
       gps: BANER, // where it was taken (best effort, as the web)
+      onProgress: expect.any(Function), // where the upload is, for the screen
     });
-    expect(vision.scanDamagePhoto).toHaveBeenCalledWith('BASE64', expect.objectContaining({ itemCode: 'B1', shotHint: 'WALK_FRONT' }));
-    expect(api.saveAiFinding).toHaveBeenCalledWith(
-      'med_WALK_FRONT',
-      expect.objectContaining({ shot_code: 'WALK_FRONT', has_damage: true, damage_type: 'SCRATCH', repair_cost_minor: 200000 }),
-    );
+    // The server reads the stored photo and saves the result: no image or result leaves the app.
+    expect(api.analyzeMedia).toHaveBeenCalledWith('med_WALK_FRONT');
+    expect(vision.scanDamagePhoto).not.toHaveBeenCalled();
+    expect(api.saveAiFinding).not.toHaveBeenCalled();
+    // Its finding shows on the photo.
+    await act(async () => root.findAll(n => n.props.accessibilityLabel === 'Front' && n.props.onPress)[0].props.onPress());
+    expect(hasText(root, 'Damage spotted')).toBe(true);
+  });
+
+  test('a failed server read holds nothing up: the photo stays, marked as not checked', async () => {
+    api.analyzeMedia.mockRejectedValueOnce(new Error('503'));
+    const root = await openExterior();
+    await act(async () => pressable(root, 'Add Front photo').props.onPress());
+    await rerender({ captured: { key: 'B1:WALK_FRONT', file: { uri: 'file:///f.jpg', type: 'image/jpeg' } } });
+    expect(hasText(root, 'Photo 2 of 14')).toBe(true);
+    await act(async () => root.findAll(n => n.props.accessibilityLabel === 'Front' && n.props.onPress)[0].props.onPress());
+    expect(hasText(root, 'AI check unavailable')).toBe(true);
   });
 
   test('photos are camera only: no Gallery option, Take photo opens the camera', async () => {
@@ -362,6 +408,48 @@ describe('Self-inspection screen', () => {
     expect(api.recordSelfAnswer).toHaveBeenCalledWith('insp_1', 'PUC_M1', { severity: 'MAJOR' });
     await act(async () => radio(root, 'Yes', question(root, 'Is the PUC document available?')).props.onPress());
     expect(api.recordSelfAnswer).toHaveBeenLastCalledWith('insp_1', 'PUC_M1', { severity: 'OK' });
+  });
+
+  test('an answer moves on by itself: the page glides to the next open question and outlines it', async () => {
+    const { scrollToView } = require('../src/utils/scrollToView');
+    const { StyleSheet } = require('react-native');
+    const { colors } = require('../src/theme');
+    const root = await render();
+    await act(async () => tab(root, 'Checklist').props.onPress());
+    const outlined = title => StyleSheet.flatten(question(root, title).props.style).borderColor === colors.primary;
+    const settle = () => act(async () => new Promise(resolve => setTimeout(resolve, 400)));
+    const rc = 'Is the physical original RC (hard copy) available with you?';
+    scrollToView.mockClear();
+
+    await act(async () => radio(root, 'No', question(root, rc)).props.onPress());
+    await settle();
+    expect(scrollToView).toHaveBeenCalledTimes(1);
+    expect(outlined('Is the PUC document available?')).toBe(true);
+
+    await act(async () => radio(root, 'Yes', question(root, 'Is the PUC document available?')).props.onPress());
+    await settle();
+    expect(outlined('Has the vehicle ever been flooded?')).toBe(true);
+    expect(outlined('Is the PUC document available?')).toBe(false);
+
+    // Changing an answer already given stays where it is.
+    scrollToView.mockClear();
+    await act(async () => radio(root, 'Yes', question(root, rc)).props.onPress());
+    await settle();
+    expect(scrollToView).not.toHaveBeenCalled();
+  });
+
+  test('an answer that asks for more (a repair cost, why it can\'t be checked) waits for it', async () => {
+    const { scrollToView } = require('../src/utils/scrollToView');
+    const root = await render();
+    await act(async () => tab(root, 'Checklist').props.onPress());
+    const settle = () => act(async () => new Promise(resolve => setTimeout(resolve, 400)));
+    scrollToView.mockClear();
+    const body = () => question(root, 'Body panel condition');
+    const choices = within => within.findAll(n => n.props.accessibilityRole === 'radio' && n.props.onPress);
+    // The worst grades ask for a repair cost: nothing moves yet.
+    await act(async () => choices(body()).slice(-2)[0].props.onPress());
+    await settle();
+    expect(scrollToView).not.toHaveBeenCalled();
   });
 
   test('flood "Yes" waits for its details and saves them with the value; "No" saves at once', async () => {
@@ -545,7 +633,57 @@ describe('Self-inspection screen', () => {
       expect(api.uploadSelfEvidence).toHaveBeenCalledWith(
         expect.objectContaining({ itemCode: 'XWALK_M1', shotCode: 'WALK_INT_EXT_VIDEO', kind: 'VIDEO' }),
       );
-      expect(hasText(root, 'Your saved video')).toBe(true);
+      expect(hasText(root, 'Video saved')).toBe(true);
+    });
+
+    describe('the engine clip, read for QC', () => {
+      const engine = { key: 'XENGVID_M1:ENG_START_VIDEO', minS: 30, maxS: 45 };
+      const useEngineClip = async () => {
+        const root = await openPhotos();
+        await openPill(root, 'Engine video');
+        await rerender({ recorded: { ...engine, file: { ...clip(40), uri: 'file:///engine.mp4' } } });
+        await act(async () => root.findAll(n => n.props.title === 'Use this video' && n.props.onPress)[0].props.onPress());
+        await act(async () => {});
+        return root;
+      };
+
+      test('after it uploads: stills for the server, then the measured sound', async () => {
+        await useEngineClip();
+        expect(engineClip.extractEngineFrames).toHaveBeenCalledWith(expect.objectContaining({ uri: 'file:///engine.mp4', duration: 40 }));
+        expect(api.submitEngineFrames).toHaveBeenCalledWith('insp_1', ['data:image/jpeg;base64,AAAA']);
+        expect(api.reportEngineSound).toHaveBeenCalledWith('insp_1', {
+          durationSec: 10,
+          loudnessDbfs: -22,
+          stabilityCv: 0.1,
+          transientsPerSec: 0.3,
+        });
+      });
+
+      test('nothing readable: no stills sent, and the sound is reported as not measured', async () => {
+        engineClip.extractEngineFrames.mockResolvedValueOnce([]);
+        engineClip.measureEngineSound.mockRejectedValueOnce(new Error('decoder'));
+        await useEngineClip();
+        expect(api.submitEngineFrames).not.toHaveBeenCalled();
+        expect(api.reportEngineSound).toHaveBeenCalledWith('insp_1', null);
+      });
+
+      test('a failure is never shown, and the stills failing still measures the sound', async () => {
+        engineClip.extractEngineFrames.mockRejectedValueOnce(new Error('no frames'));
+        api.reportEngineSound.mockRejectedValueOnce(new Error('offline'));
+        const root = await useEngineClip();
+        expect(api.reportEngineSound).toHaveBeenCalledTimes(1);
+        expect(hasText(root, 'offline')).toBe(false);
+        expect(hasText(root, 'Video saved')).toBe(true);
+      });
+
+      test('the walkaround video is not read', async () => {
+        const root = await openWalkaround();
+        await rerender({ recorded: { ...walk, file: clip(90) } });
+        await act(async () => root.findAll(n => n.props.title === 'Use this video' && n.props.onPress)[0].props.onPress());
+        expect(api.uploadSelfEvidence).toHaveBeenCalled();
+        expect(engineClip.extractEngineFrames).not.toHaveBeenCalled();
+        expect(api.reportEngineSound).not.toHaveBeenCalled();
+      });
     });
 
     test('a clip that is too long or too short is refused, with the reason', async () => {
@@ -597,11 +735,440 @@ describe('Self-inspection screen', () => {
   });
 });
 
+describe('a self-inspection follows the new server rules', () => {
+  const valuationApi = require('../src/api/services/valuation.api');
+  const reportApi = require('../src/api/services/report.api');
+  const { launchCamera } = require('react-native-image-picker');
+  const VIN = 'MA3JMT12345678901';
+  const button = (root, title) => root.findAll(n => n.props.title === title && n.props.onPress)[0];
+  const settle = (ms = 20) => act(async () => { await new Promise(resolve => setTimeout(resolve, ms)); });
+  let verify;
+  let read;
+
+  beforeEach(() => {
+    verify = jest.spyOn(valuationApi, 'verifyInspectionIdentity').mockResolvedValue({ vin: 'MATCH', registration_number: 'MATCH' });
+    read = jest.spyOn(valuationApi, 'extractInspectionIdentity').mockResolvedValue({ isVinPlate: true, vin: VIN, engineNumber: null });
+    api.deleteSelfMedia.mockResolvedValue();
+  });
+  afterEach(() => {
+    verify.mockRestore();
+    read.mockRestore();
+  });
+
+  // On the VIN card: takes the photo, confirms the read, and saves.
+  const scanVin = async root => {
+    launchCamera.mockResolvedValueOnce({ assets: [{ uri: 'file:///vin.jpg', base64: 'B64', type: 'image/jpeg', fileSize: 900 }] });
+    await act(async () => button(root, 'Add VIN photo').props.onPress());
+    await settle();
+    await act(async () => button(root, 'Yes').props.onPress());
+    await act(async () => button(root, 'Engine not visible').props.onPress());
+    await act(async () => button(root, 'Confirm & save').props.onPress());
+    await settle();
+  };
+  const openVin = async params => {
+    const root = await openPhotos(params);
+    await openPill(root, 'VIN');
+    return root;
+  };
+
+  describe('RC and VIN notes', () => {
+    test('the VIN note holds the value, in the format the server reads', async () => {
+      const root = await openVin();
+      await scanVin(root);
+      expect(api.recordSelfAnswer).toHaveBeenCalledWith('insp_1', 'A1', { severity: 'OK', text_note: `VIN ${VIN}` });
+    });
+
+    test('an inspector keeps the masked note', async () => {
+      api.getSelfInspection.mockResolvedValue({ inspection: { ...inspection, mode: 'M2' }, sections: sectionsFor(fixture, 'M2'), media: [] });
+      const root = await openVin({ bookingId: 'bkg_1' });
+      await scanVin(root);
+      expect(api.recordSelfAnswer).toHaveBeenCalledWith('insp_1', 'A1', {
+        severity: 'OK',
+        text_note: 'VIN read confirmed from plate photo (value withheld — verified against RC baseline)',
+      });
+    });
+  });
+
+  describe('scan photos', () => {
+    test('a confirmed VIN scan keeps its photo and asks the server to read it', async () => {
+      const root = await openVin();
+      await scanVin(root);
+      expect(api.uploadSelfEvidence).toHaveBeenCalledTimes(1);
+      const sent = api.uploadSelfEvidence.mock.calls[0][0];
+      expect(sent).toMatchObject({ inspectionId: 'insp_1', itemCode: 'A1', shotCode: 'VIN_PLATE', kind: 'PHOTO' });
+      expect(sent.file).toMatchObject({ uri: 'file:///vin.jpg' });
+      expect(sent.file.base64).toBeUndefined();
+      expect(api.analyzeMedia).toHaveBeenCalledWith('med_VIN_PLATE');
+    });
+
+    test('the same photo confirmed again is only read again', async () => {
+      const root = await openVin();
+      await scanVin(root);
+      await act(async () => root.findAll(n => n.props.accessibilityRole === 'button' && n.props.onPress && n.findAll(c => c.props.children === 'Change').length)[0].props.onPress());
+      await act(async () => button(root, 'Confirm & save').props.onPress());
+      await settle();
+      expect(api.uploadSelfEvidence).toHaveBeenCalledTimes(1);
+      expect(api.analyzeMedia).toHaveBeenCalledTimes(2);
+    });
+
+    test('a typed VIN has no photo to keep', async () => {
+      const root = await openVin();
+      await act(async () => button(root, 'Enter manually').props.onPress());
+      const field = root.findAll(n => n.props.onChangeText && n.props.label === 'VIN / chassis number')[0];
+      await act(async () => field.props.onChangeText(VIN));
+      await act(async () => button(root, 'Engine not visible').props.onPress());
+      await act(async () => button(root, 'Confirm & save').props.onPress());
+      await settle();
+      expect(api.recordSelfAnswer).toHaveBeenCalledWith('insp_1', 'A1', { severity: 'OK', text_note: `VIN ${VIN}` });
+      expect(api.uploadSelfEvidence).not.toHaveBeenCalled();
+    });
+
+    test('a failed upload is silent: the answer stays saved', async () => {
+      api.uploadSelfEvidence.mockRejectedValueOnce(new Error('offline'));
+      const root = await openVin();
+      await scanVin(root);
+      expect(api.analyzeMedia).not.toHaveBeenCalled();
+      expect(hasText(root, 'offline')).toBe(false);
+    });
+
+    test('an odometer scan keeps its photo too', async () => {
+      vision.readOdometerPhoto.mockResolvedValueOnce(42000);
+      launchCamera.mockResolvedValueOnce({ assets: [{ uri: 'file:///odo.jpg', base64: 'B64', type: 'image/jpeg' }] });
+      const root = await openPhotos();
+      await act(async () => button(root, 'Read it from a photo').props.onPress());
+      // Camera only (as the web): no gallery choice for the odometer evidence.
+      expect(root.findAll(n => n.props.onSelect && n.props.options && n.props.title === 'Add odometer photo')).toHaveLength(0);
+      await act(async () => button(root, 'Add odometer photo').props.onPress());
+      await settle(400);
+      await act(async () => button(root, 'Confirm').props.onPress());
+      await settle();
+      expect(api.recordSelfAnswer).toHaveBeenCalledWith('insp_1', 'O1', { severity: 'OK', numeric_value: 42000 });
+      expect(api.uploadSelfEvidence).toHaveBeenCalledWith(expect.objectContaining({ itemCode: 'O1', shotCode: 'ODOMETER', kind: 'PHOTO' }));
+      expect(api.analyzeMedia).toHaveBeenCalledWith('med_ODOMETER');
+    });
+
+    test('nothing is kept on an inspector inspection, or one pinned to an older checklist', async () => {
+      api.getSelfInspection.mockResolvedValue({ inspection: { ...inspection, mode: 'M2' }, sections: sectionsFor(fixture, 'M2'), media: [] });
+      let root = await openVin({ bookingId: 'bkg_1' });
+      await scanVin(root);
+      expect(api.uploadSelfEvidence).not.toHaveBeenCalled();
+      act(() => tree.unmount());
+      api.getSelfInspection.mockResolvedValue({ inspection: { ...inspection, checklist_version: 2 }, sections: sectionsFor(olderFixture, 'M1'), media: [] });
+      root = await openVin();
+      await scanVin(root);
+      expect(api.uploadSelfEvidence).not.toHaveBeenCalled();
+    });
+
+    const flaggedScan = { id: 'med_scan', item_code: 'A1', shot_code: 'VIN_PLATE', kind: 'PHOTO', status: 'PROCESSED', derivatives: [], integrity: { risk_score: 90, signals: [] } };
+
+    test('a flagged scan photo is dropped on reopening: the user is never told to retake it', async () => {
+      api.getSelfInspection.mockResolvedValue({ inspection, sections: m1Sections, media: [flaggedScan] });
+      const root = await render();
+      expect(api.deleteSelfMedia).toHaveBeenCalledWith('med_scan');
+      expect(hasText(root, 'Take this photo again')).toBe(false);
+    });
+
+    test('it is not listed among the photos to retake after a failed check', async () => {
+      api.getSelfInspection.mockResolvedValue({ inspection: { ...inspection, status: 'INTEGRITY_FAILED' }, sections: m1Sections, media: [flaggedScan] });
+      const root = await render();
+      expect(hasText(root, 'Retake photos')).toBe(true);
+      expect(hasText(root, 'Chassis')).toBe(false);
+      // Not while it's submitted: only after reopening.
+      expect(api.deleteSelfMedia).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('tyre tread photos', () => {
+    const takeTyre = async (root, index, shotCode) => {
+      const thumbs = root.findAll(n => n.props.accessibilityState?.selected !== undefined && n.props.accessibilityRole === 'button' && n.props.onPress);
+      await act(async () => thumbs[index].props.onPress());
+      await act(async () => button(root, 'Take photo').props.onPress());
+      await rerender({ captured: { key: `XTYRE:${shotCode}`, file: { uri: `file:///${shotCode}.jpg`, type: 'image/jpeg' } } });
+    };
+
+    test('a tread photo goes to the server read; a rim photo does not', async () => {
+      const root = await openPhotos();
+      await openPill(root, 'Tyres');
+      await takeTyre(root, 4, 'TYRE_RIGHT_FRONT_TREAD');
+      expect(api.analyzeMedia).toHaveBeenCalledWith('med_TYRE_RIGHT_FRONT_TREAD');
+      api.analyzeMedia.mockClear();
+      await takeTyre(root, 0, 'WHEEL_RIGHT_FRONT_RIM');
+      expect(api.uploadSelfEvidence).toHaveBeenCalledWith(expect.objectContaining({ shotCode: 'WHEEL_RIGHT_FRONT_RIM' }));
+      expect(api.analyzeMedia).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('the identity warning', () => {
+    const TITLE = 'This document may belong to a different vehicle';
+    const saved = (rc, vin) => ({
+      ...inspection,
+      items: [
+        { item_code: 'P1', severity: 'OK', text_note: rc },
+        { item_code: 'A1', severity: 'OK', text_note: vin },
+      ],
+    });
+    const RC = `RC: Reg MH12AB1234 | Chassis ${VIN} | Engine K12M123456 | Maruti Suzuki Swift`;
+
+    test('the saved reads go to the registry check; a mismatch warns and can be checked', async () => {
+      api.getSelfInspection.mockResolvedValue({ inspection: saved(RC, `VIN ${VIN}`), sections: m1Sections, media: [] });
+      verify.mockResolvedValue({ vin: 'MATCH', registration_number: 'MISMATCH' });
+      const root = await render();
+      await settle();
+      expect(verify).toHaveBeenCalledWith('insp_1', { vin: VIN, engineNumber: 'K12M123456', frontPlate: 'MH12AB1234' });
+      expect(hasText(root, TITLE)).toBe(true);
+      expect(hasText(root, 'Registration on the captured document does not match Maruti Suzuki Swift')).toBe(true);
+      // Never blocks: only a way back to the card.
+      await act(async () => tab(root, 'Photos').props.onPress());
+      await act(async () => button(root, 'Check details').props.onPress());
+      await settle(500);
+      expect(hasText(root, 'Document 1 of 4')).toBe(true);
+    });
+
+    test('a chassis mismatch opens the VIN card', async () => {
+      api.getSelfInspection.mockResolvedValue({ inspection: saved(RC, `VIN ${VIN}`), sections: m1Sections, media: [] });
+      verify.mockResolvedValue({ vin: 'MISMATCH', registration_number: 'MATCH' });
+      const root = await render();
+      await settle();
+      expect(hasText(root, 'VIN / chassis on the captured document does not match')).toBe(true);
+      await act(async () => button(root, 'Check details').props.onPress());
+      await settle(500);
+      expect(hasText(root, 'Chassis / VIN number')).toBe(true);
+    });
+
+    test('the plate and the RC disagreeing warns even if the check fails', async () => {
+      api.getSelfInspection.mockResolvedValue({ inspection: saved(RC, 'VIN MA3JMT99999999999'), sections: m1Sections, media: [] });
+      verify.mockRejectedValue(new Error('offline'));
+      const root = await render();
+      await settle();
+      expect(hasText(root, TITLE)).toBe(true);
+    });
+
+    test('all matching: no warning', async () => {
+      api.getSelfInspection.mockResolvedValue({ inspection: saved(RC, `VIN ${VIN}`), sections: m1Sections, media: [] });
+      const root = await render();
+      await settle();
+      expect(hasText(root, TITLE)).toBe(false);
+    });
+
+    test('masked notes from before hold no values: no check, no warning', async () => {
+      api.getSelfInspection.mockResolvedValue({
+        inspection: saved('RC: Maruti Swift · Petrol (ID numbers withheld)', 'VIN read confirmed from plate photo (value withheld)'),
+        sections: m1Sections,
+        media: [],
+      });
+      const root = await render();
+      await settle();
+      expect(verify).not.toHaveBeenCalled();
+      expect(hasText(root, TITLE)).toBe(false);
+    });
+
+    test('an inspector inspection is not checked from its saved notes (it checks its own reads)', async () => {
+      api.getSelfInspection.mockResolvedValue({ inspection: { ...saved(RC, `VIN ${VIN}`), mode: 'M2' }, sections: sectionsFor(fixture, 'M2'), media: [] });
+      await render({ bookingId: 'bkg_1' });
+      await settle();
+      expect(verify).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('a photo flagged just after upload', () => {
+    const front = root => root.findAll(n => n.props.accessibilityLabel === 'Front' && n.props.onPress)[0];
+    const upload = async root => {
+      await act(async () => pressable(root, 'Add Front photo').props.onPress());
+      await rerender({ captured: { key: 'B1:WALK_FRONT', file: { uri: 'file:///f.jpg', type: 'image/jpeg' } } });
+    };
+    const flagged = risk => [{ id: 'med_WALK_FRONT', item_code: 'B1', shot_code: 'WALK_FRONT', kind: 'PHOTO', integrity: { risk_score: risk, signals: [] } }];
+
+    test('named in the banner with a note under it; Submit is not held up; a retake replaces it', async () => {
+      api.listSelfInspectionMedia.mockResolvedValue(flagged(90));
+      const root = await openExterior();
+      await upload(root);
+      await settle(1700);
+      expect(hasText(root, 'Take this photo again')).toBe(true);
+      await act(async () => front(root).props.onPress());
+      expect(hasText(root, "We couldn't verify this upload")).toBe(true);
+      await act(async () => pressable(root, 'Retake Front photo').props.onPress());
+      api.listSelfInspectionMedia.mockResolvedValue([]);
+      await rerender({ captured: { key: 'B1:WALK_FRONT', file: { uri: 'file:///f2.jpg', type: 'image/jpeg' } } });
+      expect(api.deleteSelfMedia).toHaveBeenCalledWith('med_WALK_FRONT');
+      expect(hasText(root, 'Take this photo again')).toBe(false);
+    });
+
+    test('a clean photo gets no warning, and the check stops', async () => {
+      api.listSelfInspectionMedia.mockResolvedValue(flagged(10));
+      const root = await openExterior();
+      await upload(root);
+      await settle(1700);
+      expect(hasText(root, 'Take this photo again')).toBe(false);
+      expect(api.listSelfInspectionMedia).toHaveBeenCalledTimes(1);
+    });
+
+    test('removing the flagged photo clears the banner', async () => {
+      api.listSelfInspectionMedia.mockResolvedValue(flagged(90));
+      const root = await openExterior();
+      await upload(root);
+      await settle(1700);
+      await act(async () => front(root).props.onPress());
+      await act(async () => button(root, 'Remove').props.onPress());
+      await settle();
+      expect(hasText(root, 'Take this photo again')).toBe(false);
+    });
+  });
+
+  describe('photo quality', () => {
+    test('a dark photo gets a note and waits there; it can be kept', async () => {
+      photoQualityWarnings.mockResolvedValueOnce(['DARK']);
+      const root = await openExterior();
+      await act(async () => pressable(root, 'Add Front photo').props.onPress());
+      await rerender({ captured: { key: 'B1:WALK_FRONT', file: { uri: 'file:///f.jpg', type: 'image/jpeg' } } });
+      expect(api.uploadSelfEvidence).toHaveBeenCalledTimes(1);
+      expect(hasText(root, 'This photo looks dark')).toBe(true);
+      expect(hasText(root, 'Photo 1 of 14')).toBe(true);
+      expect(button(root, 'Next photo')).toBeDefined();
+    });
+
+    test('a look-alike and a quality note show together', async () => {
+      photoDhash.mockResolvedValue('ffff0000ffff0000');
+      const root = await openExterior();
+      await act(async () => pressable(root, 'Add Front photo').props.onPress());
+      await rerender({ captured: { key: 'B1:WALK_FRONT', file: { uri: 'file:///a.jpg', type: 'image/jpeg' } } });
+      photoQualityWarnings.mockResolvedValueOnce(['BLURRY']);
+      await act(async () => pressable(root, 'Add Front-left corner photo').props.onPress());
+      await rerender({ captured: { key: 'B1:WALK_FRONT_LEFT', file: { uri: 'file:///b.jpg', type: 'image/jpeg' } } });
+      expect(hasText(root, 'This looks a lot like your Front photo')).toBe(true);
+      expect(hasText(root, 'This photo may be blurry')).toBe(true);
+      photoDhash.mockResolvedValue(null);
+    });
+
+    test('an inspector inspection is not measured', async () => {
+      api.getSelfInspection.mockResolvedValue({ inspection: { ...inspection, mode: 'M2' }, sections: sectionsFor(fixture, 'M2'), media: [] });
+      const root = await openPhotos({ bookingId: 'bkg_1' });
+      await openPill(root, 'Exterior');
+      await act(async () => pressable(root, 'Add Front photo').props.onPress());
+      await rerender({ bookingId: 'bkg_1', captured: { key: 'B1:WALK_FRONT', file: { uri: 'file:///f.jpg', type: 'image/jpeg' } } });
+      expect(api.uploadSelfEvidence).toHaveBeenCalledTimes(1);
+      expect(photoQualityWarnings).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('after QC approval', () => {
+    const open = async (status = 'VERIFIED', mode = 'M1') => {
+      api.getSelfInspection.mockResolvedValue({ inspection: { ...inspection, status, mode }, sections: sectionsFor(fixture, mode), media: [] });
+      const root = await render(mode === 'M2' ? { bookingId: 'bkg_1' } : {});
+      await settle();
+      return root;
+    };
+    let report;
+    beforeEach(() => {
+      report = jest.spyOn(reportApi, 'getInspectionReport').mockResolvedValue({
+        valuationCard: { valueMinor: 41000000, confidenceLevel: 'HIGH' },
+        valuation: { estimatedValue: 410000 },
+        valuationReason: null,
+        valuationAdjusted: true,
+      });
+    });
+    afterEach(() => report.mockRestore());
+
+    test('the saved value, and why it changed: no new estimate', async () => {
+      const root = await open();
+      expect(report).toHaveBeenCalledWith('insp_1');
+      expect(api.estimateFinalValue).not.toHaveBeenCalled();
+      expect(hasText(root, '₹4,10,000')).toBe(true);
+      expect(hasText(root, 'This value was updated after our team reviewed your photos')).toBe(true);
+    });
+
+    test('not changed: the usual footnote', async () => {
+      report.mockResolvedValue({ valuationCard: { valueMinor: 41000000, confidenceLevel: 'HIGH' }, valuation: null, valuationReason: null, valuationAdjusted: false });
+      const root = await open('PUBLISHED');
+      expect(hasText(root, 'This value was updated')).toBe(false);
+      expect(hasText(root, "Final estimated value from Turag's valuation engine")).toBe(true);
+    });
+
+    test('no value on the report: says why; a failed load says so too', async () => {
+      report.mockResolvedValueOnce({ valuationCard: null, valuation: null, valuationReason: 'Not enough data', valuationAdjusted: false });
+      let root = await open();
+      expect(hasText(root, 'Not enough data')).toBe(true);
+      act(() => tree.unmount());
+      report.mockRejectedValueOnce(new Error('Could not load the report'));
+      root = await open();
+      expect(hasText(root, 'Could not load the report')).toBe(true);
+    });
+
+    test('still with QC: the estimate as before', async () => {
+      await open('PENDING_QC');
+      expect(report).not.toHaveBeenCalled();
+      expect(api.estimateFinalValue).toHaveBeenCalledTimes(1);
+    });
+
+    test('an inspector inspection keeps the estimate', async () => {
+      await open('VERIFIED', 'M2');
+      expect(report).not.toHaveBeenCalled();
+      expect(api.estimateFinalValue).toHaveBeenCalledTimes(1);
+    });
+  });
+});
+
 // The inspection officer's doorstep inspection (M2) uses the same screen, as
 // the web's inspector capture is the M1 flow's M2 equivalent.
 describe('inspector (M2) on the same capture screen', () => {
   const m2Sections = sectionsFor(fixture, 'M2');
   const m2 = { ...inspection, mode: 'M2' };
+
+  test('the AI read stays on the phone, and its result is saved from here', async () => {
+    api.getSelfInspection.mockResolvedValue({ inspection: m2, sections: m2Sections, media: [] });
+    const root = await render({ bookingId: 'bkg_1' });
+    await act(async () => tab(root, 'Photos').props.onPress());
+    await openPill(root, 'Exterior');
+    await act(async () => pressable(root, 'Add Front photo').props.onPress());
+    await rerender({ bookingId: 'bkg_1', captured: { key: 'B1:WALK_FRONT', file: { uri: 'file:///front.jpg', type: 'image/jpeg' } } });
+    expect(vision.scanDamagePhoto).toHaveBeenCalledWith('BASE64', expect.objectContaining({ itemCode: 'B1' }));
+    expect(api.saveAiFinding).toHaveBeenCalledWith(
+      'med_WALK_FRONT',
+      expect.objectContaining({ shot_code: 'WALK_FRONT', has_damage: true, damage_type: 'SCRATCH', repair_cost_minor: 200000 }),
+    );
+    expect(api.analyzeMedia).not.toHaveBeenCalled();
+  });
+
+  test('the condition level from the photos and answers goes with the final value, and shows on review', async () => {
+    const finding = {
+      ...serverFinding,
+      v2: { ...serverFinding.v2, cosmetic: [{ area: 'PAINT', observation: 'Faded roof paint', severity: 'MAJOR' }] },
+    };
+    const media = m2Sections
+      .flatMap(sec => sec.items)
+      .find(item => item.item_code === 'B1')
+      .evidence_requirement.shot_codes.map(shot => ({
+        id: `med_${shot}`,
+        item_code: 'B1',
+        shot_code: shot,
+        kind: 'PHOTO',
+        status: 'PROCESSED',
+        derivatives: [],
+        ai_finding: shot === 'WALK_FRONT' ? buildAiFinding(finding) : buildAiFinding({ ...serverFinding, shotCode: shot, v2: { ...serverFinding.v2, hasDamage: false } }),
+      }));
+    api.getSelfInspection.mockResolvedValue({ inspection: m2, sections: m2Sections, media });
+    let root = await render({ bookingId: 'bkg_1' });
+    await act(async () => tab(root, 'Estimate').props.onPress());
+    expect(hasText(root, 'Visual condition')).toBe(true);
+    expect(hasText(root, 'Poor')).toBe(true);
+    act(() => tree.unmount());
+
+    api.getSelfInspection.mockResolvedValue({ inspection: { ...m2, status: 'PENDING_QC' }, sections: m2Sections, media });
+    root = await render({ bookingId: 'bkg_1' });
+    expect(api.estimateFinalValue).toHaveBeenCalledWith({
+      vehicle_id: 'veh_1',
+      stage: 'DECLARED',
+      inspection_id: 'insp_1',
+      declared_condition: 'POOR',
+    });
+  });
+
+  test('no photos yet: the condition is capped, and the unseen angles are counted', async () => {
+    api.getSelfInspection.mockResolvedValue({ inspection: m2, sections: m2Sections, media: [] });
+    const root = await render({ bookingId: 'bkg_1' });
+    await act(async () => tab(root, 'Estimate').props.onPress());
+    expect(hasText(root, 'Fair')).toBe(true);
+    expect(hasText(root, "angles couldn't be judged")).toBe(true);
+  });
 
   test('inspector wording: title and badge', async () => {
     api.getSelfInspection.mockResolvedValue({ inspection: m2, sections: m2Sections, media: [] });
@@ -648,5 +1215,289 @@ describe('inspector (M2) on the same capture screen', () => {
     const reasons = tree.root.findByType(SelectField).props.options.map(o => o.value);
     expect(reasons).toHaveLength(10);
     expect(reasons).toEqual(expect.arrayContaining(['VEHICLE_STATIC', 'OWNER_REFUSED']));
+  });
+});
+
+describe('as the web: the inspector grades, the owner answers', () => {
+  const m2Sections = sectionsFor(fixture, 'M2');
+  const m2 = { ...inspection, mode: 'M2' };
+  const settle = (ms = 20) => act(async () => { await new Promise(resolve => setTimeout(resolve, ms)); });
+  const radio = (root, label, within) =>
+    (within ?? root).findAll(n => n.props.accessibilityRole === 'radio' && n.props.onPress).find(n => n.findAll(c => c.props.children === label).length);
+  const question = (root, title) =>
+    root
+      .findAll(n => n.props.collapsable === false && n.findAll(c => [c.props.children].flat().includes(title)).length)
+      .slice(-1)[0];
+  const answersFor = code => api.recordSelfAnswer.mock.calls.filter(([, item]) => item === code).map(([, , body]) => body);
+
+  beforeEach(() => {
+    api.deleteSelfMedia.mockResolvedValue();
+    api.listSelfInspectionMedia.mockResolvedValue([]);
+  });
+
+  test('the inspector grades the VIN plate: a grade, or N/A with a reason, without a scan', async () => {
+    api.getSelfInspection.mockResolvedValue({ inspection: m2, sections: m2Sections, media: [] });
+    const root = await openPhotos({ bookingId: 'bkg_1' });
+    await openPill(root, 'VIN');
+    await act(async () => radio(root, 'Major').props.onPress());
+    expect(answersFor('A1')).toContainEqual({ severity: 'MAJOR' });
+
+    await act(async () => radio(root, 'N/A').props.onPress());
+    const why = root.findAll(n => n.props.options && n.props.onChange && n.props.label === "Why can't you check it?")[0];
+    await act(async () => why.props.onChange('NO_KEY'));
+    expect(answersFor('A1')).toContainEqual({ severity: 'NOT_ASSESSABLE', na_reason: 'NO_KEY' });
+  });
+
+  test('the owner VIN is answered by its scan only (no grades)', async () => {
+    api.getSelfInspection.mockResolvedValue({ inspection, sections: m1Sections, media: [] });
+    const root = await openPhotos();
+    await openPill(root, 'VIN');
+    expect(radio(root, 'Major')).toBeUndefined();
+  });
+
+  test('the inspector grades tyre tread with its depth; the owner only types the depth', async () => {
+    api.getSelfInspection.mockResolvedValue({ inspection: m2, sections: m2Sections, media: [] });
+    let root = await render({ bookingId: 'bkg_1' });
+    await act(async () => tab(root, 'Checklist').props.onPress());
+    const tread = () => question(root, 'Tyre tread depth');
+    await act(async () => radio(root, 'Major', tread()).props.onPress());
+    expect(answersFor('H1')).toContainEqual({ severity: 'MAJOR' });
+    const depth = tread().findAll(n => n.props.keyboardType === 'number-pad' && n.props.onChangeText)[0];
+    await act(async () => depth.props.onChangeText('2'));
+    await settle(900);
+    expect(answersFor('H1')).toContainEqual({ severity: 'MAJOR', numeric_value: 2 });
+    act(() => tree.unmount());
+
+    api.getSelfInspection.mockResolvedValue({ inspection, sections: m1Sections, media: [] });
+    root = await render();
+    await act(async () => tab(root, 'Checklist').props.onPress());
+    expect(radio(root, 'Major', question(root, 'Tyre tread depth'))).toBeUndefined();
+  });
+
+  test('the inspector types previous owners (the RC count is the owner flow only)', async () => {
+    api.getSelfInspection.mockResolvedValue({
+      inspection: { ...m2, vehicle: { ...m2.vehicle, registry_owner_count: 2 } },
+      sections: m2Sections,
+      media: [],
+    });
+    const root = await render({ bookingId: 'bkg_1' });
+    await settle();
+    expect(answersFor('O2')).toEqual([]);
+    await act(async () => tab(root, 'Documents').props.onPress());
+    await openPill(root, 'Owners');
+    expect(hasText(root, 'before the current owner')).toBe(true);
+  });
+
+  test('the inspector extra photos of one angle are kept (the owner ones are tidied to one)', async () => {
+    const two = [
+      { id: 'med_old', item_code: 'B1', shot_code: 'WALK_FRONT', kind: 'PHOTO', status: 'PROCESSED', derivatives: [], created_at: '2026-11-07T10:00:00Z' },
+      { id: 'med_new', item_code: 'B1', shot_code: 'WALK_FRONT', kind: 'PHOTO', status: 'PROCESSED', derivatives: [], created_at: '2026-11-07T10:01:00Z' },
+    ];
+    jest.useFakeTimers();
+    try {
+      api.getSelfInspection.mockResolvedValue({ inspection: m2, sections: m2Sections, media: two });
+      await render({ bookingId: 'bkg_1' });
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(6000);
+      });
+      expect(api.deleteSelfMedia).not.toHaveBeenCalled();
+      act(() => tree.unmount());
+
+      api.getSelfInspection.mockResolvedValue({ inspection, sections: m1Sections, media: two });
+      await render();
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(6000);
+      });
+      expect(api.deleteSelfMedia).toHaveBeenCalledWith('med_old');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test('the inspector photos get the live photo check too', async () => {
+    api.getSelfInspection.mockResolvedValue({ inspection: m2, sections: m2Sections, media: [] });
+    api.listSelfInspectionMedia.mockResolvedValue([
+      { id: 'med_WALK_FRONT', item_code: 'B1', shot_code: 'WALK_FRONT', kind: 'PHOTO', status: 'PROCESSED', integrity: { risk_score: 90, signals: [{ key: 'exact_duplicate', status: 'FAIL' }] } },
+    ]);
+    const root = await render({ bookingId: 'bkg_1' });
+    await act(async () => tab(root, 'Photos').props.onPress());
+    await openPill(root, 'Exterior');
+    await act(async () => pressable(root, 'Add Front photo').props.onPress());
+    await rerender({ bookingId: 'bkg_1', captured: { key: 'B1:WALK_FRONT', file: { uri: 'file:///front.jpg', type: 'image/jpeg' } } });
+    await settle(1700);
+    expect(api.listSelfInspectionMedia).toHaveBeenCalledWith('insp_1');
+    expect(hasText(root, 'Take this photo again')).toBe(true);
+  });
+
+  test('inspector wording on the checklist: about the vehicle, not your vehicle', async () => {
+    api.getSelfInspection.mockResolvedValue({ inspection: m2, sections: m2Sections, media: [] });
+    const root = await render({ bookingId: 'bkg_1' });
+    await act(async () => tab(root, 'Checklist').props.onPress());
+    expect(hasText(root, 'About the vehicle')).toBe(true);
+    expect(hasText(root, 'About your vehicle')).toBe(false);
+  });
+
+  test('the owner emptied number is no answer: never saved as OK without it', async () => {
+    api.getSelfInspection.mockResolvedValue({ inspection, sections: m1Sections, media: [] });
+    const root = await render();
+    await act(async () => tab(root, 'Checklist').props.onPress());
+    const keys = () => question(root, 'How many keys are available with the vehicle?');
+    const other = () => keys().findAll(n => n.props.keyboardType === 'number-pad' && n.props.onChangeText)[0];
+    await act(async () => other().props.onChangeText('5'));
+    await settle(900);
+    expect(answersFor('KEYS_M1')).toEqual([{ severity: 'OK', numeric_value: 5 }]);
+    await act(async () => other().props.onChangeText(''));
+    await settle(900);
+    // Nothing new was saved: the server keeps 5, and the question shows as not done.
+    expect(answersFor('KEYS_M1')).toEqual([{ severity: 'OK', numeric_value: 5 }]);
+  });
+});
+
+describe('the inspector notes and checks, word for word the web', () => {
+  const { formatMaskedRcNote, formatMaskedVinNote } = require('../src/screens/selfInspection/SelfInspection/identity/identityNote');
+  const { inspectorMismatchFields } = require('../src/screens/selfInspection/SelfInspection/useSelfInspection');
+  const { crossValidateVehicle } = require('../src/vendor/selfInspectionLogic');
+
+  test('the masked RC note keeps the web parts that QC reads', () => {
+    expect(formatMaskedRcNote({ make: 'Maruti', model: 'Swift', variant: 'VXI', fuel: 'PETROL', mfgYear: 2019, regDate: '12-03-2019' })).toBe(
+      'RC: Maruti Swift VXI | PETROL | MFG 2019 | Reg dt 12-03-2019 | VIN/engine/reg values withheld — verified against RC baseline',
+    );
+    expect(formatMaskedRcNote({})).toBe('RC: VIN/engine/reg values withheld — verified against RC baseline');
+    expect(formatMaskedVinNote(true)).toBe('VIN + engine read confirmed from plate photo (values withheld — verified against RC baseline)');
+  });
+
+  test('the inspector warning names the fields whose confirmed read does not match this vehicle', () => {
+    const check = crossValidateVehicle({
+      rc: { make: 'Hyundai', model: 'Creta', vin: 'MA3AAA11111111111', chassisNumber: 'MA3AAA11111111111' },
+      vinPhoto: { vin: 'MA3BBB22222222222', engineNumber: null },
+      frontPlate: null,
+      rearPlate: null,
+      vehicle: { make: 'Maruti Suzuki', model: 'Swift', variant: null },
+    });
+    expect(inspectorMismatchFields(check)).toEqual(['MAKE', 'MODEL', 'CHASSIS']);
+    expect(inspectorMismatchFields(undefined)).toEqual([]);
+  });
+});
+
+describe('a retake while the old photo is still being checked', () => {
+  const { ApiError } = require('../src/api/client');
+  const settle = (ms = 20) => act(async () => { await new Promise(resolve => setTimeout(resolve, ms)); });
+  const shots = m1Items.find(i => i.item_code === 'B1').evidence_requirement.shot_codes;
+
+  test('the old copy stops counting at once, so a missing angle still shows as missing', async () => {
+    // Ten of the eleven walkaround angles: the roof is still missing.
+    const media = shots.slice(0, -1).map(shot => ({
+      id: `old_${shot}`, item_code: 'B1', shot_code: shot, kind: 'PHOTO', status: 'PROCESSED', derivatives: [],
+    }));
+    // The condition is answered, so only the photo count can keep it on the list.
+    const answered = { ...inspection, items: [{ item_code: 'B1', severity: 'OK' }] };
+    api.getSelfInspection.mockResolvedValue({ inspection: answered, sections: m1Sections, media });
+    api.listSelfInspectionMedia.mockResolvedValue([]);
+    api.deleteSelfMedia.mockImplementation(async id => {
+      if (id === 'old_WALK_FRONT') throw new ApiError({ status: 409, code: 'MEDIA_PROCESSING', message: 'still processing' });
+    });
+    const root = await openExterior();
+    const front = root.findAll(n => n.props.accessibilityLabel === 'Front' && n.props.onPress)[0];
+    await act(async () => front.props.onPress());
+    await act(async () => pressable(root, 'Retake Front photo').props.onPress());
+    await rerender({ captured: { key: 'B1:WALK_FRONT', file: { uri: 'file:///front2.jpg', type: 'image/jpeg' } } });
+    await settle();
+    await act(async () => tab(root, 'Estimate').props.onPress());
+    // Before the fix the old front still counted (11 of 11) and the roof looked done.
+    const left = root.findAll(n => Array.isArray(n.props.entries) && n.props.onGo)[0].props.entries;
+    expect(left.some(entry => entry.itemCode === 'B1')).toBe(true);
+    api.deleteSelfMedia.mockReset();
+    api.deleteSelfMedia.mockResolvedValue();
+  });
+});
+
+describe('a video upload says where it is', () => {
+  const recordAndUse = async () => {
+    const root = await openPhotos();
+    await openPill(root, 'Engine video');
+    await rerender({
+      recorded: {
+        key: 'XENGVID_M1:ENG_START_VIDEO',
+        minS: 30,
+        maxS: 45,
+        file: { uri: 'file:///engine.mp4', type: 'video/mp4', duration: 40, fileSize: 20 * 1024 * 1024 },
+      },
+    });
+    await act(async () => {
+      root.findAll(n => n.props.title === 'Use this video' && n.props.onPress)[0].props.onPress();
+    });
+    await act(async () => {});
+    return root;
+  };
+  const buttons = root => root.findAll(n => ['Use this video', 'Retake video'].includes(n.props.title) && n.props.onPress);
+
+  test('one panel where the buttons were: preparing, the percent, saving at 100%, the check; then the buttons come back', async () => {
+    api.getSelfInspection.mockResolvedValue({ inspection, sections: m1Sections, media: [] });
+    let report;
+    let finish;
+    api.uploadSelfEvidence.mockImplementationOnce(({ shotCode, onProgress }) => {
+      report = onProgress;
+      return new Promise(resolve => {
+        finish = () => resolve({ mediaId: `med_${shotCode}`, status: 'UPLOADED' });
+      });
+    });
+    const root = await recordAndUse();
+    // Preparing before the first step is even reported - and no buttons, so no second spinner.
+    expect(hasText(root, 'Preparing the video…')).toBe(true);
+    expect(buttons(root)).toHaveLength(0);
+    expect(root.findAll(n => n.props.loading === true)).toHaveLength(0);
+
+    await act(async () => report({ stage: 'uploading', fraction: 0.42 }));
+    expect(hasText(root, 'Uploading the video…')).toBe(true);
+    expect(hasText(root, '42%')).toBe(true);
+    expect(hasText(root, 'Please keep the app open until this finishes')).toBe(true);
+
+    // Every byte gone: the store is saving it (no "100%" left hanging).
+    await act(async () => report({ stage: 'uploading', fraction: 1 }));
+    expect(hasText(root, 'Saving the video…')).toBe(true);
+    expect(hasText(root, '100%')).toBe(false);
+
+    await act(async () => report({ stage: 'finishing' }));
+    expect(hasText(root, 'Almost done: checking the video…')).toBe(true);
+
+    await act(async () => finish());
+    await act(async () => {});
+    expect(hasText(root, 'Almost done')).toBe(false);
+    // Saved, plainly: a green "Video saved", and the way on to the next group.
+    expect(hasText(root, 'Video saved')).toBe(true);
+    expect(hasText(root, "It's saved with your inspection.")).toBe(true);
+    expect(root.findAll(n => n.props.title === 'Retake video' && n.props.onPress)).toHaveLength(1);
+    expect(root.findAll(n => n.props.title === 'Use this video')).toHaveLength(0);
+    const next = root.findAll(n => typeof n.props.title === 'string' && n.props.title.startsWith('Next: ') && n.props.onPress)[0];
+    expect(next).toBeTruthy();
+    await act(async () => next.props.onPress());
+    expect(hasText(root, 'Video saved')).toBe(false);
+  });
+
+  test('a failure says so plainly, with what to do; "Try again" sends the same recording again', async () => {
+    api.getSelfInspection.mockResolvedValue({ inspection, sections: m1Sections, media: [] });
+    const { ApiError } = require('../src/api/client');
+    api.uploadSelfEvidence.mockImplementationOnce(async ({ onProgress }) => {
+      onProgress({ stage: 'preparing' });
+      onProgress({ stage: 'uploading', fraction: 0.6 });
+      throw new ApiError({ code: 'NETWORK_ERROR', message: "Can't reach Turag. Check your internet connection and try again." });
+    });
+    const root = await recordAndUse();
+    expect(hasText(root, 'Video not uploaded')).toBe(true);
+    expect(hasText(root, 'Please check your internet connection and tap "Try again". Your recording is still here.')).toBe(true);
+    // No technical details, and the panel has gone.
+    expect(hasText(root, 'Details for testing')).toBe(false);
+    expect(hasText(root, 'Uploading the video…')).toBe(false);
+    const again = root.findAll(n => n.props.title === 'Try again' && n.props.onPress)[0];
+    expect(again).toBeTruthy();
+    expect(root.findAll(n => n.props.title === 'Retake video' && n.props.onPress)).toHaveLength(1);
+
+    await act(async () => again.props.onPress());
+    await act(async () => {});
+    expect(api.uploadSelfEvidence).toHaveBeenLastCalledWith(
+      expect.objectContaining({ shotCode: 'ENG_START_VIDEO', kind: 'VIDEO', file: expect.objectContaining({ uri: 'file:///engine.mp4' }) }),
+    );
+    expect(hasText(root, 'Video not uploaded')).toBe(false);
+    expect(hasText(root, 'Video saved')).toBe(true);
   });
 });

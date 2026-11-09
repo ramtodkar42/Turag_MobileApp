@@ -26,6 +26,13 @@ const ROLE_KEYS = {
   [ROLES.INSPECTOR]: 'profile.role.inspector',
 };
 
+// The account type under the name, as the web's Account page: a dealer first, then
+// an inspection officer, otherwise an individual.
+const roleKeyFor = user => {
+  if (user?.roles?.includes('dealer')) return 'profile.role.dealer';
+  return ROLE_KEYS[user?.role] ?? ROLE_KEYS[ROLES.INDIVIDUAL];
+};
+
 // Consent ids from the backend (and the mock) -> i18n key.
 const CONSENT_KEYS = {
   ACCOUNT_TERMS: 'profile.consent.ACCOUNT_TERMS',
@@ -103,7 +110,7 @@ function PersonalInfo({ navigation }) {
       <ProfileHeader
         name={user?.fullName || t('profile.fallbackName')}
         contact={user?.email || mobile}
-        role={t(ROLE_KEYS[user?.role] ?? ROLE_KEYS[ROLES.INDIVIDUAL])}
+        role={t(roleKeyFor(user))}
         photoSource={photoSource}
         photo={photo}
         onBack={navigation.goBack}

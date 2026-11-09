@@ -77,7 +77,7 @@ export default {
   'selling.create.location.required': 'Required',
   'selling.create.location.missing': 'Set your city and state using the map.',
   'selling.create.location.privacy': 'Buyers see only the area and city. Your full address stays private and is used for the handover.',
-  'selling.create.submit': 'Create listing',
+  'selling.create.submit': 'List & send for review',
   'selling.create.error': 'We could not create the listing. Please try again.',
   'selling.create.valuationRequired': 'A valid valuation is required before you can list this vehicle.',
   'selling.create.needsInspection': 'This vehicle needs a completed inspection before you can list it. Inspect it yourself or book an inspector first.',

@@ -128,9 +128,12 @@ export default function useMarketplace() {
       smart: understood?.filters ?? null,
       cursor,
     });
-    const nearest = !cursor && page.items.length === 0 && page.closest.length > 0;
+    // The server's widest "closest" fallback can be any vehicle: a Cars / Bikes tab
+    // keeps only its own kind (never bikes as the closest cars).
+    const ownKind = cat === 'all' ? page.closest : page.closest.filter(v => v.category === cat);
+    const nearest = !cursor && page.items.length === 0 && ownKind.length > 0;
     return {
-      items: nearest ? page.closest : page.items,
+      items: nearest ? ownKind : page.items,
       closest: nearest,
       nextCursor: nearest ? null : page.nextCursor,
       smart: understood?.chips.length ? { chips: understood.chips } : null,

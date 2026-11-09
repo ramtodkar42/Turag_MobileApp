@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { AppText, Button, ButtonRow, Divider, FadeIn, TextField } from '../../../../components';
 import { colors, spacing } from '../../../../theme';
-import { isValidRegNumber, normalizeRegNumber } from '../../../../utils/validators';
+import { isValidRegNumber, normalizeRegNumber, REG_NUMBER_MAX_LENGTH } from '../../../../utils/validators';
 import {
   proposeJobVehicle,
   startJobInspection,
@@ -116,7 +116,7 @@ function StartInspection({ job, onStarted, onExpired }) {
         valid={isValidRegNumber(plate)}
         autoCapitalize="characters"
         autoCorrect={false}
-        maxLength={10}
+        maxLength={REG_NUMBER_MAX_LENGTH}
         style={styles.field}
       />
       <Button

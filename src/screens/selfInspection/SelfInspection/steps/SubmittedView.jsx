@@ -3,7 +3,7 @@ import { AppText, Button, Icon, IconTile, PopIn } from '../../../../components';
 import { colors, radius, spacing } from '../../../../theme';
 import { ms } from '../../../../utils/responsive';
 import { useT } from '../../../../i18n';
-import { itemName } from '../labels';
+import { integrityReasonLines } from '../integrityReasons';
 import EstimateCard from '../components/EstimateCard';
 import SectionCard from '../components/SectionCard';
 
@@ -25,7 +25,13 @@ function SubmittedView({
   const t = useT();
   const failed = si.finalStatus === 'INTEGRITY_FAILED';
   const doneKey = inspector ? 'selfInspection.inspector.sent' : 'selfInspection.submitted';
-  const names = si.integrityItems.map(code => itemName(t, si.allItems.find(i => i.item_code === code)) || code);
+  // Each failed photo with why (as the web): an exact copy, used elsewhere, a screenshot.
+  const reasons = integrityReasonLines(t, si.integrityItems, si.allItems);
+  // The owner's value rests on their own answers; the inspector's on this inspection.
+  let footnoteKey = inspector ? 'selfInspection.submitted.footnoteInspector' : 'selfInspection.submitted.footnote';
+  if (si.final.adjusted) {
+    footnoteKey = inspector ? 'selfInspection.submitted.adjustedInspector' : 'selfInspection.submitted.adjusted';
+  }
 
   return (
     <View style={styles.wrap}>
@@ -45,11 +51,11 @@ function SubmittedView({
         <AppText variant="subtitle" align="center">
           {t(failed ? 'selfInspection.submitted.failedText' : `${doneKey}.text`)}
         </AppText>
-        {failed && names.length > 0 ? (
+        {failed && reasons.length > 0 ? (
           <View style={styles.reasons}>
-            {names.map(name => (
-              <AppText key={name} variant="body" color={colors.heading}>
-                {`•  ${t('selfInspection.submitted.retakeItem', { name })}`}
+            {reasons.map(line => (
+              <AppText key={line.id} variant="body" color={colors.heading}>
+                {`•  ${line.text}`}
               </AppText>
             ))}
           </View>
@@ -68,10 +74,10 @@ function SubmittedView({
           lowerMinor={null}
           upperMinor={null}
           confidenceLevel={si.final.card?.confidenceLevel ?? null}
-          vehicleLabel={vehicleLabel || t('selfInspection.yourVehicle')}
+          vehicleLabel={vehicleLabel || t(inspector ? 'selfInspection.thisVehicle' : 'selfInspection.yourVehicle')}
           loading={si.final.loading}
           emptyText={si.final.error || si.final.note || t('selfInspection.submitted.preparing')}
-          footnote={t('selfInspection.submitted.footnote')}
+          footnote={t(footnoteKey)}
         />
       ) : null}
 

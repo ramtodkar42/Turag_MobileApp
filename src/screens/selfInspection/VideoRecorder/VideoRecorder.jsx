@@ -10,10 +10,11 @@ import { isCameraAvailable, visionCamera } from '../../../utils/visionCamera';
 import { useT } from '../../../i18n';
 import CameraPermission from '../../valuation/VehicleCamera/components/CameraPermission';
 import CameraTopBar from '../../valuation/VehicleCamera/components/CameraTopBar';
+import { clipLength } from './clipLength';
+import { videoBitRate } from './videoBitRate';
 
-// 720p at 4 Mbit/s is about 60 MB for the 2-minute walkaround: clear enough to
-// review, and small enough to upload on a phone network (the server takes 200 MB).
-const BIT_RATE = 4 * 1000 * 1000;
+// 720p, compressed by the clip's longest length (videoBitRate): the 2-minute
+// walkaround comes to about 36 MB, clear enough to review and quick to send.
 const TICK_MS = 250;
 
 const clock = seconds => {
@@ -76,10 +77,22 @@ function LiveRecorder({ slot, onRecorded, onClose }) {
   const [error, setError] = useState('');
   const recorder = useRef(null);
   const startedAt = useRef(0);
+  // The recorder's own count of what's in the file (seconds, bytes), read while it
+  // records: the clip's real length, as the web reads it from the file. A stopwatch
+  // would also count the camera starting and the file being finished, so a clip
+  // stopped at the limit could be refused as too long.
+  const recorded = useRef({ seconds: 0, bytes: 0 });
+  const readRecorder = () => {
+    const live = recorder.current;
+    const seconds = live?.recordedDuration;
+    const bytes = live?.recordedFileSize;
+    if (Number.isFinite(seconds) && seconds > 0) recorded.current.seconds = seconds;
+    if (Number.isFinite(bytes) && bytes > 0) recorded.current.bytes = bytes;
+  };
   // The sound is part of the evidence (the engine note), so it's recorded when allowed.
   const videoOutput = useVideoOutput({
     targetResolution: CommonResolutions.HD_16_9,
-    targetBitRate: BIT_RATE,
+    targetBitRate: videoBitRate(slot.maxS),
     enableAudio: mic.hasPermission,
     fileType: 'mp4',
   });
@@ -101,7 +114,10 @@ function LiveRecorder({ slot, onRecorded, onClose }) {
 
   useEffect(() => {
     if (!recording) return undefined;
-    const timer = setInterval(() => setElapsed((Date.now() - startedAt.current) / 1000), TICK_MS);
+    const timer = setInterval(() => {
+      readRecorder();
+      setElapsed(recorded.current.seconds || (Date.now() - startedAt.current) / 1000);
+    }, TICK_MS);
     return () => clearInterval(timer);
   }, [recording]);
 
@@ -120,12 +136,18 @@ function LiveRecorder({ slot, onRecorded, onClose }) {
     try {
       const next = await videoOutput.createRecorder({ maxDuration: slot.maxS });
       recorder.current = next;
+      recorded.current = { seconds: 0, bytes: 0 };
       startedAt.current = Date.now();
       setElapsed(0);
       setRecording(true);
       await next.startRecording(
-        filePath => {
-          const duration = (Date.now() - startedAt.current) / 1000;
+        (filePath, reason) => {
+          const duration = clipLength({
+            reason,
+            maxS: slot.maxS,
+            recordedSeconds: recorded.current.seconds, // read as Stop was pressed
+            clockSeconds: (Date.now() - startedAt.current) / 1000,
+          });
           recorder.current = null;
           setRecording(false);
           onRecorded(
@@ -133,6 +155,7 @@ function LiveRecorder({ slot, onRecorded, onClose }) {
               uri: filePath.startsWith('file://') ? filePath : `file://${filePath}`,
               fileName: `${slot.key.replace(/\W/g, '_')}.mp4`,
               type: 'video/mp4',
+              ...(recorded.current.bytes > 0 ? { fileSize: recorded.current.bytes } : null),
             },
             duration,
           );
@@ -143,6 +166,8 @@ function LiveRecorder({ slot, onRecorded, onClose }) {
           setError(e?.message || t('selfInspection.recorder.failed'));
         },
       );
+      // Resolves once recording has really begun: the clock starts here.
+      startedAt.current = Date.now();
     } catch (e) {
       recorder.current = null;
       setRecording(false);
@@ -151,6 +176,7 @@ function LiveRecorder({ slot, onRecorded, onClose }) {
   };
 
   const stop = () => {
+    readRecorder(); // its count reads 0 once it has stopped
     recorder.current?.stopRecording().catch(e => setError(e?.message || t('selfInspection.recorder.failed')));
   };
 

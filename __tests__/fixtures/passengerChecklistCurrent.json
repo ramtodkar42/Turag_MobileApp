@@ -1,6 +1,6 @@
 {
   "category": "PASSENGER",
-  "version": 2,
+  "version": 4,
   "checklist": {
     "schema_version": 2,
     "category": "PASSENGER",
@@ -35,7 +35,13 @@
             ],
             "gate": true,
             "scored": false,
-            "mandatory": true
+            "mandatory": true,
+            "scan_evidence": {
+              "shot_code": "VIN_PLATE",
+              "modes": [
+                "M1"
+              ]
+            }
           }
         ]
       },
@@ -227,6 +233,7 @@
             "group_code": "Q",
             "answer_type": "STATE",
             "applicable_modes": [
+              "M1",
               "M2",
               "M3",
               "M4",
@@ -237,7 +244,10 @@
             "mandatory": true,
             "grade_cap": {
               "reason": "THEFT_FLAG"
-            }
+            },
+            "qc_answered_modes": [
+              "M1"
+            ]
           }
         ]
       },
@@ -255,7 +265,13 @@
               "M2"
             ],
             "scored": false,
-            "mandatory": true
+            "mandatory": true,
+            "scan_evidence": {
+              "shot_code": "ODOMETER",
+              "modes": [
+                "M1"
+              ]
+            }
           },
           {
             "item_code": "O2",
@@ -775,12 +791,16 @@
             "group_code": "C",
             "answer_type": "STATE",
             "applicable_modes": [
+              "M1",
               "M2",
               "M3",
               "M4",
               "M5"
             ],
-            "mandatory": true
+            "mandatory": true,
+            "qc_answered_modes": [
+              "M1"
+            ]
           },
           {
             "item_code": "C3",
@@ -788,6 +808,7 @@
             "group_code": "C",
             "answer_type": "STATE",
             "applicable_modes": [
+              "M1",
               "M2",
               "M3",
               "M4",
@@ -795,7 +816,10 @@
             ],
             "grade_cap": {
               "reason": "PILLAR_CUT"
-            }
+            },
+            "qc_answered_modes": [
+              "M1"
+            ]
           }
         ]
       },
@@ -977,10 +1001,14 @@
             "group_code": "R",
             "answer_type": "STATE",
             "applicable_modes": [
+              "M1",
               "M2",
               "M3",
               "M4",
               "M5"
+            ],
+            "qc_answered_modes": [
+              "M1"
             ]
           }
         ]

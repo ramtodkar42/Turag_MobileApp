@@ -95,6 +95,8 @@ export default {
   'home.filtered.message': 'तुमच्या शोधाशी किंवा फिल्टरशी जुळणारे वाहन नाही.',
   'home.clearFilters': 'फिल्टर साफ करा',
   'home.empty.title': 'अजून एकही वाहन नाही',
+  'home.empty.cars': 'अजून कोणतीही कार नाही',
+  'home.empty.bikes': 'अजून कोणतीही दुचाकी नाही',
   'home.empty.message': 'पडताळलेली वाहने लिस्ट होताच येथे दिसतील.',
   'home.searched.title': 'एकही वाहन सापडले नाही',
   'home.searched.message': 'सध्या “{query}” शी जुळणारे वाहन नाही.',

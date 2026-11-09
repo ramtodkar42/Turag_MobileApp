@@ -94,6 +94,11 @@ const SEVERITY_ORDER = ['CRITICAL', 'MAJOR', 'MODERATE', 'MINOR', 'NOT_ASSESSABL
 export const mapReport = r => {
   const assessment = r.assessment ?? {};
   const verification = r.verification ?? {};
+  // QC answered these from the owner's photos and videos (a self-inspection's chassis,
+  // pillar, modification and theft questions), so the report says it wasn't a physical check.
+  const reviewed = (r.checklist ?? []).filter(i => i.reviewed_from_photos);
+  const fromPhotos = new Set(reviewed.map(i => i.item_code));
+  const findingCodes = new Set((r.findings ?? []).map(f => f.item_code));
   const findings = (r.findings ?? [])
     .map(f => ({
       code: f.item_code,
@@ -102,6 +107,7 @@ export const mapReport = r => {
       severity: f.severity,
       note: f.note ?? null,
       cost: toRupees(f.rectification_cost_minor),
+      reviewedFromPhotos: fromPhotos.has(f.item_code),
     }))
     .sort((a, b) => SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity));
 
@@ -127,8 +133,24 @@ export const mapReport = r => {
     expired: !!verification.validity?.expired,
     findings,
     issues: findings.filter(f => !['OK', 'NOT_ASSESSABLE'].includes(f.severity)).length,
+    // The other items QC answered from the owner's photos (mostly "OK"): the web
+    // marks every one "not a physical check", so an OK never reads like an
+    // inspector looked. (The findings above carry the same flag.)
+    photoReviewed: reviewed
+      .filter(i => !findingCodes.has(i.item_code))
+      .map(i => ({ code: i.item_code, label: i.label, severity: i.severity })),
     documents: (r.documents ?? []).map(d => ({ type: d.doc_type, status: d.status, detail: d.detail ?? null })),
     valuation: r.valuation?.status === 'READY' ? mapValuation(r.valuation) : null,
+    // The saved value as the self-inspection's result card shows it (paise).
+    valuationCard:
+      r.valuation?.status === 'READY'
+        ? { valueMinor: r.valuation.headline?.value ?? null, confidenceLevel: r.valuation.confidence?.level ?? null }
+        : null,
+    valuationReason: r.valuation?.reason ?? null,
+    // The one figure the report shows (as the web): the final estimated value, in rupees.
+    finalValue: r.valuation?.status === 'READY' ? toRupees(r.valuation.headline?.value) : null,
+    // QC confirmed damage, so the value changed after submit.
+    valuationAdjusted: r.valuation_adjusted_after_review === true,
     inspectorName: r.inspector?.name ?? null,
     odometerKm: r.odometer_km ?? null,
     // Previous owners as declared on the inspection.

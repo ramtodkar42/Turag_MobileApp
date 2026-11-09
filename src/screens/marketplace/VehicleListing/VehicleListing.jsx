@@ -10,7 +10,7 @@ import {
   TierBadge,
   ChallanCard,
 } from '../../../components';
-import { colors, spacing } from '../../../theme';
+import { colors, radius, spacing } from '../../../theme';
 import { fs, ms } from '../../../utils/responsive';
 import { ROUTES } from '../../../navigation/routes';
 import { requireLogin } from '../../../store/loginPromptStore';
@@ -24,6 +24,7 @@ import PriceCard from '../components/PriceCard';
 import SpecGrid from '../components/SpecGrid';
 import VehicleGallery from '../components/VehicleGallery';
 import useVehicleDetails from '../useVehicleDetails';
+import useIsMyListing from '../useIsMyListing';
 
 // Vehicle page opened from a marketplace card (GET /marketplace/listings/{id}):
 // photos edge to edge (back / bookmark on them), name and year · fuel · city,
@@ -35,6 +36,7 @@ function VehicleListing({ navigation, route }) {
   const { vehicle, loading, error, notFound, retry } = useVehicleDetails(
     route.params.vehicle,
   );
+  const mine = useIsMyListing(route.params.vehicle.id);
 
   if (notFound) {
     return (
@@ -127,33 +129,59 @@ function VehicleListing({ navigation, route }) {
     ? t('marketplace.reserved')
     : t('marketplace.offer.make');
 
+  // As the web: a launch-preview (showcase) listing is SOLD and takes no offers;
+  // the seller sees "Manage listing" on their own; everyone else can make an offer.
+  let footer;
+  if (vehicle.sold) {
+    footer = (
+      <View style={styles.sold}>
+        <AppText variant="title" align="center" color={colors.primary} style={styles.soldTitle}>
+          {t('marketplace.sold')}
+        </AppText>
+        <AppText variant="caption" align="center">
+          {t('marketplace.soldNote')}
+        </AppText>
+      </View>
+    );
+  } else if (mine) {
+    footer = (
+      <Button
+        title={t('marketplace.manageListing')}
+        onPress={() => navigation.navigate(ROUTES.MY_LISTING, { listingId: vehicle.id })}
+      />
+    );
+  } else {
+    footer = (
+      <>
+        {vehicle.eligible === false && vehicle.ineligibleReason ? (
+          <AppText variant="caption" align="center" color={colors.danger}>
+            {vehicle.ineligibleReason}
+          </AppText>
+        ) : null}
+        <Button
+          title={offerTitle}
+          disabled={offerBlocked || loading}
+          onPress={() =>
+            requireLogin('offer') &&
+            navigation.navigate(ROUTES.MAKE_OFFER, { vehicle })
+          }
+        />
+      </>
+    );
+  }
+
   return (
     <ScreenContainer
       scroll
       padded={false}
       safeTop={false}
-      footer={
-        <>
-          {vehicle.eligible === false && vehicle.ineligibleReason ? (
-            <AppText variant="caption" align="center" color={colors.danger}>
-              {vehicle.ineligibleReason}
-            </AppText>
-          ) : null}
-          <Button
-            title={offerTitle}
-            disabled={offerBlocked || loading}
-            onPress={() =>
-              requireLogin('offer') &&
-              navigation.navigate(ROUTES.MAKE_OFFER, { vehicle })
-            }
-          />
-        </>
-      }
+      footer={footer}
     >
       <VehicleGallery
         vehicle={vehicle}
         onBack={navigation.goBack}
         loading={loading}
+        canSave={!mine}
       />
 
       <View style={styles.body}>
@@ -269,6 +297,18 @@ const styles = StyleSheet.create({
   },
   action: {
     marginTop: spacing.md,
+  },
+  sold: {
+    gap: spacing.xxs,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: colors.dangerLight,
+  },
+  soldTitle: {
+    letterSpacing: 1,
   },
 });
 

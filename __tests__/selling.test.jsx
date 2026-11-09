@@ -86,23 +86,24 @@ afterEach(() => {
 });
 
 describe('List this vehicle', () => {
-  test('price starts at the estimate; ownership must be confirmed; creates a draft and opens it', async () => {
+  test('price starts at the estimate; ownership must be confirmed; creates it, sends it for review and opens it', async () => {
     const create = jest.spyOn(listingApi, 'createListing');
+    const submit = jest.spyOn(listingApi, 'submitListing');
     const navigation = nav();
     const root = await render(<CreateListing navigation={navigation} route={{ params: { vehicle: garageVehicle } }} />);
 
     expect(field(root, 'Asking price').props.value).toBe('11,50,000');
     expect(hasText(root, 'Your estimated value is ₹11,50,000. This is guidance, not a limit.')).toBe(true);
-    expect(button(root, 'Create listing').props.disabled).toBe(true); // not attested yet
+    expect(button(root, 'List & send for review').props.disabled).toBe(true); // not attested yet
 
     await act(async () => field(root, 'Asking price').props.onChangeText('11,90,000'));
     await act(async () => field(root, 'Note to buyers').props.onChangeText('  Single owner, full service history.  '));
     await act(async () => root.findByType(CheckRow).props.onToggle());
-    expect(button(root, 'Create listing').props.disabled).toBe(false);
+    expect(button(root, 'List & send for review').props.disabled).toBe(false);
 
     // Where the vehicle is: city + state are required (as the web) - says so, creates nothing.
     await act(async () => {
-      button(root, 'Create listing').props.onPress();
+      button(root, 'List & send for review').props.onPress();
     });
     expect(hasText(root, 'Set your city and state using the map.')).toBe(true);
     expect(create).not.toHaveBeenCalled();
@@ -112,9 +113,9 @@ describe('List this vehicle', () => {
     expect(hasText(root, 'Set your city and state using the map.')).toBe(false);
 
     await act(async () => {
-      button(root, 'Create listing').props.onPress();
+      button(root, 'List & send for review').props.onPress();
     });
-    await advance(900);
+    await advance(1500);
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({
         vehicleId: 'veh_9',
@@ -136,15 +137,35 @@ describe('List this vehicle', () => {
         idempotencyKey: expect.any(String),
       }),
     );
-    expect(navigation.replace).toHaveBeenCalledWith(ROUTES.MY_LISTING, { listingId: expect.stringMatching(/^lst_mock_/) });
+    // One action = create + send for review (as the web).
+    const listingId = navigation.replace.mock.calls[0][1].listingId;
+    expect(listingId).toMatch(/^lst_mock_/);
+    expect(submit).toHaveBeenCalledWith(listingId);
+    expect(navigation.replace).toHaveBeenCalledWith(ROUTES.MY_LISTING, { listingId });
   });
+
+  test('if sending for review fails, the draft still opens (it offers Submit for review there)', async () => {
+    jest.spyOn(listingApi, 'submitListing').mockRejectedValueOnce(new Error('offline'));
+    const navigation = nav();
+    const root = await render(<CreateListing navigation={navigation} route={{ params: { vehicle: garageVehicle } }} />);
+    await act(async () => root.findByType(CheckRow).props.onToggle());
+    await act(async () => field(root, 'City').props.onChangeText('Pune'));
+    await act(async () => field(root, 'State').props.onChangeText('Maharashtra'));
+    await act(async () => {
+      button(root, 'List & send for review').props.onPress();
+    });
+    await advance(1500);
+    expect(navigation.replace).toHaveBeenCalledWith(ROUTES.MY_LISTING, { listingId: expect.stringMatching(/^lst_mock_/) });
+    expect(hasText(root, 'offline')).toBe(false);
+  });
+
 
   test('clearing the price says "Enter an asking price."', async () => {
     const root = await render(<CreateListing navigation={nav()} route={{ params: { vehicle: garageVehicle } }} />);
     expect(field(root, 'Asking price').props.error).toBe('');
     await act(async () => field(root, 'Asking price').props.onChangeText(''));
     expect(field(root, 'Asking price').props.error).toBe('Enter an asking price.');
-    expect(button(root, 'Create listing').props.disabled).toBe(true);
+    expect(button(root, 'List & send for review').props.disabled).toBe(true);
   });
 });
 

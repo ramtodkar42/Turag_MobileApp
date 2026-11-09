@@ -1,4 +1,5 @@
-import { ApiError, setAuthHandler } from './client';
+import { ApiError, setAuthHandler, timeoutError } from './client';
+import { REFRESH_WAIT_MS } from './config';
 import { refreshSession, revokeSession } from './services/auth.api';
 import { clearSession, loadSession, saveSession } from './tokenStorage';
 
@@ -10,6 +11,11 @@ import { clearSession, loadSession, saveSession } from './tokenStorage';
 // - Refresh is single-flight: parallel requests share one refresh. Two refreshes
 //   with the same token would look like token theft to the backend, which then
 //   signs the user out everywhere.
+// - A slow refresh is never cut short: the server may already have swapped the
+//   refresh token, and only its reply carries the new one. A screen stops waiting
+//   after REFRESH_WAIT_MS ("taking longer", still signed in), but the call runs on
+//   (config.js REFRESH_TIMEOUT_MS), its token is still saved, and until it ends
+//   every caller joins it - nothing is sent again with the old token.
 
 // Refresh a little early so a request never leaves with a token that dies on the way.
 const EXPIRY_MARGIN_MS = 30000;
@@ -35,6 +41,22 @@ const persist = next => {
 };
 
 const notifyExpired = () => expiredListeners.forEach(listener => listener());
+
+// The promise's result, or a "taking longer" error after `ms` - without stopping it.
+const waitAtMost = (promise, ms) =>
+  new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(timeoutError()), ms);
+    promise.then(
+      value => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      error => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
 
 // Forget everything on this device. `remote`: also end the session on the server
 // (in the background - signing out never waits for the network).
@@ -94,7 +116,7 @@ export const refreshAccessToken = () => {
     });
     refreshing = current;
   }
-  return refreshing;
+  return waitAtMost(refreshing, REFRESH_WAIT_MS);
 };
 
 export const getAccessToken = async () => {

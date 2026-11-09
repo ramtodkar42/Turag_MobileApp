@@ -18,6 +18,7 @@ import useStatusBarStyle from '../../../hooks/useStatusBarStyle';
 import useCompactOnKeyboard from '../../../hooks/useCompactOnKeyboard';
 import PhoneField from './components/PhoneField';
 import { markGuestChosen } from '../../../utils/appPrefs';
+import { errorText, OTP_ERROR_KEYS } from '../../../utils/errorText';
 import LoginLink from './components/LoginLink';
 import TermsNote from './components/TermsNote';
 import AgeConfirm from './components/AgeConfirm';
@@ -151,7 +152,7 @@ function Login({ navigation, route }) {
         ...(google.google ? { google: google.google } : null),
       });
     } catch (e) {
-      setError(e.message || t('auth.sendOtpError'));
+      setError(errorText(e, OTP_ERROR_KEYS, 'auth.sendOtpError'));
     } finally {
       sending.current = false;
       setSendingVia(null);
