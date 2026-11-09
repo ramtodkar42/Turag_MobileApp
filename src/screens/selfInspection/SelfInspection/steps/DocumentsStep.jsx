@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { AppText, Button, ButtonRow, FadeIn, Icon, IconTile } from '../../../../components';
-import { colors, fonts, radius, spacing } from '../../../../theme';
+import { AppText, Button, FadeIn, Icon, IconTile } from '../../../../components';
+import { colors, fonts, spacing } from '../../../../theme';
 import { fs, ms } from '../../../../utils/responsive';
 import { useT } from '../../../../i18n';
 import { itemName } from '../labels';
@@ -17,10 +17,10 @@ const AUTO_NEXT = new Set(['P1']);
 const NEXT_DELAY_MS = 700;
 
 // Documents & details (the same items and rules as the web's Documents step),
-// one at a time in one clean card: a pill per document (ticked when done), the
+// one at a time in one clean card: a text tab per document (ticked when done), the
 // current one's title, hint and controls - the RC scan (read by AI, confirmed
-// before saving), previous owners, then the papers. Previous / Next, and a
-// confirmed scan moves on by itself.
+// before saving), previous owners, then the papers. Light Previous / Next links,
+// and a confirmed scan moves on by itself (the bar below goes on to the Checklist).
 // docIndex / onDocIndex: the open document (kept by the screen so the phone's
 // back button can step back through them); null = the first one still to do.
 function DocumentsStep({ si, docIndex, onDocIndex, focusItem, scans, onAddDocument, onGoStep }) {
@@ -90,33 +90,36 @@ function DocumentsStep({ si, docIndex, onDocIndex, focusItem, scans, onAddDocume
         />
       }
     >
-      {/* One pill per document */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pills}>
-        {docs.map((d, i) => {
-          const isDone = local[d.item_code]?.saved === true;
-          const active = i === index;
-          return (
-            <Pressable
-              key={d.item_code}
-              onPress={() => setIndex(i)}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: active }}
-              style={[styles.pill, isDone && styles.pillDone, active && styles.pillActive]}
-            >
-              {isDone && !active ? <Icon name="check" size={ms(12)} color={colors.success} strokeWidth={2.8} /> : null}
-              <AppText style={[styles.pillText, isDone && styles.pillTextDone, active && styles.pillTextActive]} numberOfLines={1}>
-                {shortName(d)}
-              </AppText>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+      {/* One tab per document: the open one underlined in red, a green tick once it's done. */}
+      <View style={styles.tabsLine}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
+          {docs.map((d, i) => {
+            const isDone = local[d.item_code]?.saved === true;
+            const active = i === index;
+            return (
+              <Pressable
+                key={d.item_code}
+                onPress={() => setIndex(i)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: active }}
+                hitSlop={{ top: 4, bottom: 4 }}
+                style={[styles.tab, active && styles.tabActive]}
+              >
+                {isDone ? <Icon name="check" size={ms(12)} color={colors.success} strokeWidth={2.8} /> : null}
+                <AppText style={[styles.tabText, active && styles.tabTextActive]} numberOfLines={1}>
+                  {shortName(d)}
+                </AppText>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </View>
 
       <FadeIn key={code} offset={ms(8)} style={styles.doc}>
         <View style={styles.head}>
           <IconTile
             name={done ? 'check' : DOC_ICONS[code] ?? 'document'}
-            size={ms(44)}
+            size={ms(40)}
             color={done ? colors.success : colors.primary}
             backgroundColor={done ? colors.successLight : colors.dangerLight}
           />
@@ -127,9 +130,7 @@ function DocumentsStep({ si, docIndex, onDocIndex, focusItem, scans, onAddDocume
                 <AppText variant="caption" color={colors.placeholder}>{` · ${t('selfInspection.optional')}`}</AppText>
               ) : null}
             </AppText>
-            <AppText variant="h3" style={styles.title}>
-              {title}
-            </AppText>
+            <AppText style={styles.title}>{title}</AppText>
           </View>
         </View>
         <AppText variant="caption" style={styles.hint}>
@@ -138,69 +139,75 @@ function DocumentsStep({ si, docIndex, onDocIndex, focusItem, scans, onAddDocume
         {body}
       </FadeIn>
 
-      <ButtonRow style={styles.nav}>
-        <Button
-          title={t('selfInspection.checklist.previous')}
-          variant="outline"
-          size="md"
-          fullWidth={false}
-          disabled={index === 0}
-          onPress={() => setIndex(index - 1)}
-          style={styles.flex}
-        />
-        <Button
-          title={last ? t('selfInspection.next', { step: t('selfInspection.step.checklist') }) : t('selfInspection.documents.next')}
-          size="md"
-          fullWidth={false}
-          onPress={() => (last ? onGoStep('checklist') : setIndex(index + 1))}
-          style={styles.flex}
-        />
-      </ButtonRow>
+      {/* Between documents: two light links (the bar below goes on to the Checklist). */}
+      {index > 0 || !last ? (
+        <View style={styles.nav}>
+          {index > 0 ? (
+            <Button
+              title={t('selfInspection.checklist.previous')}
+              variant="ghost"
+              size="sm"
+              fullWidth={false}
+              leftIcon={
+                <View style={styles.flip}>
+                  <Icon name="chevronRight" size={ms(14)} color={colors.primary} strokeWidth={2.4} />
+                </View>
+              }
+              onPress={() => setIndex(index - 1)}
+              style={styles.link}
+            />
+          ) : null}
+          {!last ? (
+            <Button
+              title={t('selfInspection.documents.next')}
+              variant="ghost"
+              size="sm"
+              fullWidth={false}
+              rightIcon={<Icon name="chevronRight" size={ms(14)} color={colors.primary} strokeWidth={2.4} />}
+              onPress={() => setIndex(index + 1)}
+              style={[styles.link, styles.next]}
+            />
+          ) : null}
+        </View>
+      ) : null}
     </SectionCard>
   );
 }
 
 const styles = StyleSheet.create({
-  pills: {
-    gap: spacing.sm,
+  // Text tabs on one thin line; the open one sits on it with a red underline.
+  tabsLine: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  tabs: {
+    gap: spacing.lg,
     paddingRight: spacing.xs,
   },
-  pill: {
+  tab: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    minHeight: ms(36),
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
   },
-  pillDone: {
-    borderColor: colors.successLight,
-    backgroundColor: colors.successLight,
+  tabActive: {
+    borderBottomColor: colors.primary,
   },
-  pillActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.dangerLight,
-  },
-  pillText: {
+  tabText: {
     fontFamily: fonts.subtitle.medium,
-    fontSize: fs(13),
+    fontSize: fs(13.5),
     lineHeight: fs(18),
     color: colors.body,
   },
-  pillTextDone: {
-    color: colors.success,
-  },
-  pillTextActive: {
+  tabTextActive: {
+    fontFamily: fonts.title.semiBold,
     color: colors.primary,
   },
   doc: {
     gap: spacing.md,
-    paddingTop: spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
+    paddingTop: spacing.xs,
   },
   head: {
     flexDirection: 'row',
@@ -211,16 +218,31 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontSize: fs(19),
-    lineHeight: fs(25),
+    marginTop: spacing.xxs,
+    fontFamily: fonts.title.semiBold,
+    fontSize: fs(17),
+    lineHeight: fs(23),
+    color: colors.heading,
   },
   hint: {
     marginTop: -spacing.xs,
   },
   nav: {
-    paddingTop: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
+  },
+  link: {
+    paddingHorizontal: spacing.xs,
+  },
+  // Next always on the right, also when there's no Previous.
+  next: {
+    marginLeft: 'auto',
+  },
+  flip: {
+    transform: [{ rotate: '180deg' }],
   },
 });
 

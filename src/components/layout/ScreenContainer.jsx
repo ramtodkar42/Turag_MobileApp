@@ -19,6 +19,7 @@ const FOCUS_CHECK_MS = 300;
 // On tablets the content is centered and capped at MAX_CONTENT_WIDTH.
 // scrollRef (scroll screens): the ScrollView, e.g. to scroll back to the top.
 // refreshControl (scroll screens): pull-to-refresh (AppRefreshControl).
+// footerStyle: extra style for the footer area (e.g. a divider line above it).
 //
 // The keyboard: the body and footer always end at the top of the keyboard,
 // and the field being typed in scrolls into view (also when moving to the next
@@ -49,6 +50,7 @@ function ScreenContainer({
   safeTop = true,
   backgroundColor = colors.white,
   contentStyle,
+  footerStyle,
 }) {
   const insets = useSafeAreaInsets();
   const iosKeyboardOpen = useKeyboardVisible();
@@ -150,6 +152,7 @@ function ScreenContainer({
             styles.footer,
             // With the keyboard up the footer sits on it: no system-bar gap below.
             { paddingBottom: keyboardOpen ? spacing.md : Math.max(insets.bottom, spacing.lg) },
+            footerStyle,
           ]}
         >
           {footer}

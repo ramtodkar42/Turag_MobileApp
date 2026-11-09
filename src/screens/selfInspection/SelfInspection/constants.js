@@ -4,8 +4,6 @@
 
 export const STEPS = ['documents', 'checklist', 'photos', 'review'];
 
-export const STEP_ICONS = { photos: 'camera', documents: 'document', checklist: 'check', review: 'rupee' };
-
 export const SEVERITY_CHOICES = [
   { value: 'OK', labelKey: 'selfInspection.severity.OK' },
   { value: 'MINOR', labelKey: 'selfInspection.severity.MINOR' },

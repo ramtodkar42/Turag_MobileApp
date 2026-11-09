@@ -3,19 +3,26 @@ import { AppText, Icon } from '../../../../components';
 import { colors, fonts, spacing } from '../../../../theme';
 import { fs, ms } from '../../../../utils/responsive';
 import { useT } from '../../../../i18n';
-import { STEP_ICONS, STEPS } from '../constants';
+import { STEPS } from '../constants';
 
-// The four steps as one clean bar (like the app's Stepper): a round icon per
-// step - red when it's the current one, a green tick when done - its name and
-// "done/total" (Estimate shows the live estimate). Tap to open a step.
+// The four steps as one slim stepper: a small numbered circle per step joined by a
+// line - red for the current step, a green tick once a step is done (its line on
+// to the next one turns green too) - with the step's name and how far it is
+// ("done/total"; Estimate shows the live estimate). Tap a step to open it.
 function StepTabs({ current, progress, estimateLabel, onSelect }) {
   const t = useT();
+  const isDone = key => {
+    const c = key === 'review' ? null : progress[key];
+    return c != null && c.total > 0 && c.done >= c.total;
+  };
   return (
     <View style={styles.row}>
-      {STEPS.map(key => {
+      {STEPS.map((key, index) => {
         const c = key === 'review' ? null : progress[key];
-        const done = c != null && c.total > 0 && c.done >= c.total;
+        const done = isDone(key);
         const active = current === key;
+        const first = index === 0;
+        const last = index === STEPS.length - 1;
         return (
           <Pressable
             key={key}
@@ -25,13 +32,16 @@ function StepTabs({ current, progress, estimateLabel, onSelect }) {
             accessibilityLabel={t(`selfInspection.step.${key}`)}
             style={({ pressed }) => [styles.tab, pressed && styles.pressed]}
           >
-            <View style={[styles.circle, done && styles.circleDone, active && styles.circleActive]}>
-              <Icon
-                name={done ? 'check' : STEP_ICONS[key]}
-                size={ms(17)}
-                color={active ? colors.white : done ? colors.success : colors.muted}
-                strokeWidth={done ? 2.6 : 1.9}
-              />
+            <View style={styles.track}>
+              <View style={[styles.line, first && styles.hidden, !first && isDone(STEPS[index - 1]) && styles.lineDone]} />
+              <View style={[styles.circle, done && styles.circleDone, active && styles.circleActive]}>
+                {done ? (
+                  <Icon name="check" size={ms(13)} color={colors.white} strokeWidth={3} />
+                ) : (
+                  <AppText style={[styles.number, active && styles.numberActive]}>{index + 1}</AppText>
+                )}
+              </View>
+              <View style={[styles.line, last && styles.hidden, done && styles.lineDone]} />
             </View>
             <AppText style={[styles.label, active && styles.labelActive]} numberOfLines={1}>
               {t(`selfInspection.step.${key}`)}
@@ -39,7 +49,6 @@ function StepTabs({ current, progress, estimateLabel, onSelect }) {
             <AppText style={[styles.count, done && styles.countDone]} numberOfLines={1}>
               {c ? `${c.done}/${c.total}` : estimateLabel}
             </AppText>
-            <View style={[styles.underline, active && styles.underlineActive]} />
           </Pressable>
         );
       })}
@@ -47,21 +56,37 @@ function StepTabs({ current, progress, estimateLabel, onSelect }) {
   );
 }
 
-const CIRCLE = ms(40);
+const CIRCLE = ms(26);
+const LINE = ms(2);
 
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    gap: spacing.xs,
   },
   tab: {
     flex: 1,
     alignItems: 'center',
-    gap: ms(3),
-    paddingTop: spacing.xs,
+    gap: ms(2),
   },
   pressed: {
     opacity: 0.7,
+  },
+  track: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    marginBottom: spacing.xxs,
+  },
+  line: {
+    flex: 1,
+    height: LINE,
+    backgroundColor: colors.border,
+  },
+  lineDone: {
+    backgroundColor: colors.success,
+  },
+  hidden: {
+    backgroundColor: 'transparent',
   },
   circle: {
     width: CIRCLE,
@@ -69,27 +94,35 @@ const styles = StyleSheet.create({
     borderRadius: CIRCLE / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.input,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
+    backgroundColor: colors.white,
   },
   circleDone: {
-    backgroundColor: colors.successLight,
-    borderColor: colors.successLight,
+    borderColor: colors.success,
+    backgroundColor: colors.success,
   },
   circleActive: {
-    backgroundColor: colors.primary,
     borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
+  number: {
+    fontFamily: fonts.title.semiBold,
+    fontSize: fs(12),
+    lineHeight: fs(16),
+    color: colors.placeholder,
+  },
+  numberActive: {
+    color: colors.white,
   },
   label: {
-    marginTop: spacing.xxs,
-    fontFamily: fonts.subtitle.medium,
-    fontSize: fs(12.5),
-    lineHeight: fs(17),
+    fontFamily: fonts.subtitle.regular,
+    fontSize: fs(12),
+    lineHeight: fs(16),
     color: colors.body,
   },
   labelActive: {
-    fontFamily: fonts.title.bold,
+    fontFamily: fonts.title.semiBold,
     color: colors.primary,
   },
   count: {
@@ -99,16 +132,6 @@ const styles = StyleSheet.create({
   },
   countDone: {
     color: colors.success,
-  },
-  underline: {
-    width: '60%',
-    height: ms(3),
-    marginTop: spacing.xs,
-    borderRadius: ms(2),
-    backgroundColor: 'transparent',
-  },
-  underlineActive: {
-    backgroundColor: colors.primary,
   },
 });
 

@@ -59,6 +59,7 @@ function RcForm({ read, fromPhoto, plainNote, disabled, saving, onSave, onRetake
 
       <Button
         title={t('inspector.identity.confirmSave')}
+        size="md"
         onPress={() => onSave(plainNote ? formatRcNote(fields) : formatMaskedRcNote(fields), rcEvidence(fields))}
         disabled={disabled || !hasRcDetails(fields)}
         loading={saving}

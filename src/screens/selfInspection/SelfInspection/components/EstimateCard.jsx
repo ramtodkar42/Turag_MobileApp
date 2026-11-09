@@ -1,6 +1,6 @@
 import { StyleSheet, View } from 'react-native';
-import { AppText, Badge, Card, Icon, Spinner } from '../../../../components';
-import { colors, spacing } from '../../../../theme';
+import { AppText, Badge, Icon, Spinner } from '../../../../components';
+import { colors, fonts, radius, spacing } from '../../../../theme';
 import { fs, ms } from '../../../../utils/responsive';
 import { useT } from '../../../../i18n';
 import { formatINR } from '../../../../utils/format';
@@ -23,7 +23,7 @@ function EstimateCard({ label, valueMinor, lowerMinor, upperMinor, confidenceLev
   }
   const level = String(confidenceLevel ?? '').toUpperCase();
   return (
-    <Card>
+    <View style={styles.card}>
       <View style={styles.labelRow}>
         <AppText variant="caption" color={colors.heading} style={styles.label}>
           {label ?? t('selfInspection.estimate.title')}
@@ -64,17 +64,23 @@ function EstimateCard({ label, valueMinor, lowerMinor, upperMinor, confidenceLev
           {emptyText}
         </AppText>
       )}
-      <AppText variant="h3" style={styles.vehicle}>
-        {vehicleLabel}
-      </AppText>
+      <AppText style={styles.vehicle}>{vehicleLabel}</AppText>
       <AppText variant="caption" style={styles.footnote}>
         {footnote}
       </AppText>
-    </Card>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  // A light card (a thin border, no shadow), as the rest of the inspection.
+  card: {
+    padding: spacing.lg,
+    borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+  },
   labelRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -118,8 +124,10 @@ const styles = StyleSheet.create({
   },
   vehicle: {
     marginTop: spacing.sm,
+    fontFamily: fonts.title.semiBold,
     fontSize: fs(16),
     lineHeight: fs(22),
+    color: colors.heading,
   },
   footnote: {
     marginTop: spacing.xxs,

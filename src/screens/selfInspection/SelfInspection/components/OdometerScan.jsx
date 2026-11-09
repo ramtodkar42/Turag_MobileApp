@@ -8,6 +8,7 @@ import { formatNumber } from '../../../../utils/format';
 import { readOdometerPhoto } from '../../../../api/services/aiScan.api';
 import { takePhotoWithBase64 } from '../../../../utils/pickVideo';
 import { parseOdometerKm } from '../../../../vendor/selfInspectionLogic';
+import UploadTile from './UploadTile';
 
 // "Read it from a photo" for the odometer (the web's OdoExtractCard): a
 // dashboard photo is read by AI on Turag's server, the user confirms or corrects the km, and
@@ -77,18 +78,13 @@ function OdometerScan({ disabled, onConfirmKm }) {
           <AppText variant="caption">{t('selfInspection.odometer.reading')}</AppText>
         </View>
       ) : phase === 'pending' ? (
-        <>
-          <AppText variant="caption">{t('selfInspection.odometer.hint')}</AppText>
-          <Button
-            title={t('selfInspection.odometer.addPhoto')}
-            size="sm"
-            variant="outline"
-            fullWidth={false}
-            disabled={disabled}
-            onPress={read}
-            style={styles.start}
-          />
-        </>
+        <UploadTile
+          icon="camera"
+          title={t('selfInspection.odometer.addPhoto')}
+          subtitle={t('selfInspection.odometer.hint')}
+          disabled={disabled}
+          onPress={read}
+        />
       ) : phase === 'detected' ? (
         <>
           <AppText variant="body">
@@ -135,9 +131,6 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     alignItems: 'center',
     gap: spacing.sm,
-  },
-  start: {
-    alignSelf: 'flex-start',
   },
   value: {
     fontFamily: fonts.title.bold,

@@ -8,6 +8,7 @@ import { verifyInspectionIdentity } from '../../../../api/services/valuation.api
 import useIdentityRead from './useIdentityRead';
 import VinForm from './VinForm';
 import RcForm from './RcForm';
+import UploadTile from '../components/UploadTile';
 
 const COPY = {
   VIN: {
@@ -171,19 +172,23 @@ function IdentityExtractCard({ inspectionId, kind, plainNote = false, disabled, 
           <Form key={formKey} {...formProps} />
         </View>
       ) : (
+        // One clear way in (the photo, read by AI), and typing it in as the lighter second choice.
         <View style={[styles.startButtons, styles.section]}>
-          <Button
+          <UploadTile
+            icon="camera"
             title={t(photo.notDocument ? 'inspector.identity.retake' : copy.add)}
-            leftIcon={<Icon name="image" size={ms(18)} color={colors.white} />}
+            subtitle={t('inspector.identity.addHint')}
             onPress={restart(photo.choosePhoto)}
             disabled={disabled}
           />
           <Button
             title={t('inspector.identity.enterManually')}
-            variant="outline"
-            leftIcon={<Icon name="pencil" size={ms(18)} color={colors.primary} />}
+            variant="ghost"
+            size="sm"
+            leftIcon={<Icon name="pencil" size={ms(14)} color={colors.primary} />}
             onPress={restart(photo.startManual)}
             disabled={disabled}
+            style={styles.manual}
           />
         </View>
       )}
@@ -287,6 +292,9 @@ const styles = StyleSheet.create({
   },
   startButtons: {
     gap: spacing.sm,
+  },
+  manual: {
+    alignSelf: 'center',
   },
   status: {
     flexDirection: 'row',

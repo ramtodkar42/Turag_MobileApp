@@ -140,7 +140,7 @@ function GuidedVideo({
                 />
               ) : null}
             </ButtonRow>
-            {saved && nextLabel && onNext ? <Button title={nextLabel} onPress={onNext} /> : null}
+            {saved && nextLabel && onNext ? <Button title={nextLabel} size="md" onPress={onNext} /> : null}
           </FadeIn>
         )}
 

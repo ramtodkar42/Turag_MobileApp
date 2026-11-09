@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { AppText, Button, ButtonRow, FadeIn, FillImage, Icon, Spinner } from '../../../../components';
-import { colors, fonts, radius, shadows, spacing } from '../../../../theme';
+import { AppText, Button, FadeIn, FillImage, Icon, Spinner } from '../../../../components';
+import { colors, fonts, radius, spacing } from '../../../../theme';
 import { fs, ms } from '../../../../utils/responsive';
 import { scrollToView } from '../../../../utils/scrollToView';
 import { useT } from '../../../../i18n';
@@ -231,7 +231,7 @@ function PhotosStep({ si, focusItem, scans, videos, scrollRef, onTakePhoto, onAd
           {!photo && !busy ? (
             <View style={styles.empty}>
               <View style={styles.bubble}>
-                <Icon name="camera" size={ms(28)} color={colors.primary} />
+                <Icon name="camera" size={ms(24)} color={colors.primary} />
               </View>
               <AppText variant="label" color={colors.heading}>
                 {t('selfInspection.photos.tapToTake')}
@@ -259,33 +259,40 @@ function PhotosStep({ si, focusItem, scans, videos, scrollRef, onTakePhoto, onAd
 
         {photo ? (
           <>
-            <ButtonRow>
+            {/* Second choices as light links; the next photo is the one button. */}
+            <View style={styles.photoLinks}>
               <Button
                 title={t('selfInspection.retake')}
-                variant="outline"
-                size="md"
+                variant="ghost"
+                size="sm"
                 fullWidth={false}
                 disabled={submitting || busy}
-                leftIcon={<Icon name="camera" size={ms(15)} color={colors.primary} />}
+                leftIcon={<Icon name="camera" size={ms(14)} color={colors.primary} />}
                 onPress={retake}
-                style={styles.flex}
+                style={styles.link}
               />
               <Button
                 title={t('selfInspection.photos.remove')}
-                variant="outline"
-                size="md"
+                variant="ghost"
+                size="sm"
                 fullWidth={false}
                 disabled={submitting || busy}
-                leftIcon={<Icon name="trash" size={ms(15)} color={colors.primary} />}
+                leftIcon={<Icon name="trash" size={ms(14)} color={colors.primary} />}
                 onPress={() => si.deleteShot(slot.itemCode, slot.shotCode)}
-                style={styles.flex}
+                style={styles.link}
               />
-            </ButtonRow>
+            </View>
             {nextIndex >= 0 ? (
-              <Button title={t('selfInspection.photos.nextPhoto')} disabled={busy} onPress={() => setShotIndex(nextIndex)} />
+              <Button
+                title={t('selfInspection.photos.nextPhoto')}
+                size="md"
+                disabled={busy}
+                onPress={() => setShotIndex(nextIndex)}
+              />
             ) : groupComplete && nextSection >= 0 ? (
               <Button
                 title={t('selfInspection.photos.nextGroup', { name: groupLabel(sections[nextSection]) })}
+                size="md"
                 disabled={busy}
                 onPress={() => openSection(nextSection)}
               />
@@ -296,8 +303,9 @@ function PhotosStep({ si, focusItem, scans, videos, scrollRef, onTakePhoto, onAd
             {/* Camera only: every angle is a fresh photo (no gallery). */}
             <Button
               title={t('selfInspection.photos.take')}
+              size="md"
               disabled={submitting || busy}
-              leftIcon={<Icon name="camera" size={ms(18)} color={colors.white} />}
+              leftIcon={<Icon name="camera" size={ms(16)} color={colors.white} />}
               onPress={() => onTakePhoto(slot.itemCode, slot.shotCode, label, false)}
             />
             {slot.optional && nextIndex >= 0 ? (
@@ -510,16 +518,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    minHeight: ms(36),
+    minHeight: ms(32),
     paddingHorizontal: spacing.md,
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.white,
   },
+  // Done: a green tick on the plain pill - only the open one is tinted.
   pillDone: {
-    borderColor: colors.successLight,
-    backgroundColor: colors.successLight,
+    borderColor: colors.border,
   },
   pillActive: {
     borderColor: colors.primary,
@@ -532,7 +540,7 @@ const styles = StyleSheet.create({
     color: colors.body,
   },
   pillTextDone: {
-    color: colors.success,
+    color: colors.body,
   },
   pillTextActive: {
     color: colors.primary,
@@ -547,9 +555,11 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   angle: {
-    marginTop: -spacing.xs,
-    fontSize: fs(20),
-    lineHeight: fs(26),
+    marginTop: -spacing.xxs,
+    fontFamily: fonts.title.semiBold,
+    fontSize: fs(18),
+    lineHeight: fs(24),
+    color: colors.heading,
   },
   aiPill: {
     paddingHorizontal: spacing.sm,
@@ -572,9 +582,9 @@ const styles = StyleSheet.create({
   },
   frameFilled: {
     borderStyle: 'solid',
-    borderWidth: 0,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
     backgroundColor: colors.input,
-    ...shadows.sm,
   },
   framePressed: {
     backgroundColor: colors.dangerLight,
@@ -587,14 +597,15 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   bubble: {
-    width: ms(64),
-    height: ms(64),
-    borderRadius: ms(32),
+    width: ms(56),
+    height: ms(56),
+    borderRadius: ms(28),
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.xs,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.dangerLight,
     backgroundColor: colors.white,
-    ...shadows.sm,
   },
   check: {
     position: 'absolute',
@@ -618,10 +629,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
-    backgroundColor: 'rgba(255,255,255,0.85)',
+    backgroundColor: colors.veil,
   },
   flex: {
     flex: 1,
+  },
+  photoLinks: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: -spacing.xs,
+  },
+  link: {
+    paddingHorizontal: spacing.xs,
   },
   strip: {
     gap: spacing.sm,

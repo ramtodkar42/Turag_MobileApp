@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 import { AppText, ChoiceChip, FadeIn, SelectField, TextField } from '../../../../components';
 import { colors, fonts, spacing } from '../../../../theme';
-import { fs } from '../../../../utils/responsive';
+import { fs, ms } from '../../../../utils/responsive';
 import { useT } from '../../../../i18n';
 import { NA_REASONS, NA_REASONS_INSPECTOR, SEVERITY_CHOICES } from '../constants';
 import { useInspectorMode } from '../inspectorMode';
@@ -150,6 +150,8 @@ const styles = StyleSheet.create({
   choice: {
     flexBasis: '46%',
     flexGrow: 1,
+    minHeight: ms(40),
+    paddingVertical: spacing.xs,
   },
 });
 

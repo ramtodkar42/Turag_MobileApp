@@ -105,6 +105,7 @@ export default {
   'inspector.identity.addVinPhoto': 'VIN फोटो जोडा',
   'inspector.identity.addRcPhoto': 'RC फोटो जोडा',
   'inspector.identity.enterManually': 'स्वतः भरा',
+  'inspector.identity.addHint': 'कॅमेरा उघडेल — तपशील आम्ही तुमच्यासाठी वाचू',
   'inspector.identity.reading': 'फोटो वाचत आहे…',
   'inspector.identity.notVin': 'हा VIN/चेसिस प्लेटचा फोटो वाटत नाही — मॅन्युअल तपासणीसाठी नोंदवला. पुन्हा फोटो घ्या किंवा माहिती स्वतः भरा.',
   'inspector.identity.notRc': 'हा RC चा फोटो वाटत नाही — मॅन्युअल तपासणीसाठी नोंदवला. पुन्हा फोटो घ्या किंवा RC प्रश्नाचे उत्तर द्या.',

@@ -83,12 +83,19 @@ function SubmittedView({
 
       <View style={styles.actions}>
         {failed ? (
-          <Button title={t('selfInspection.submitted.retake')} variant="primary" loading={si.reopening} onPress={onFixPhotos} />
+          <Button
+            title={t('selfInspection.submitted.retake')}
+            variant="primary"
+            size="md"
+            loading={si.reopening}
+            onPress={onFixPhotos}
+          />
         ) : null}
         {inspector ? (
           <Button
             title={t('selfInspection.inspector.backToJobs')}
             variant={failed ? 'outline' : 'primary'}
+            size="md"
             onPress={onBackToJobs}
           />
         ) : (
@@ -96,10 +103,11 @@ function SubmittedView({
             <Button
               title={t('selfInspection.submitted.garage')}
               variant={failed ? 'outline' : 'primary'}
+              size="md"
               loading={savingGarage}
               onPress={onGarage}
             />
-            <Button title={t('selfInspection.submitted.another')} variant="outline" onPress={onEvaluateAnother} />
+            <Button title={t('selfInspection.submitted.another')} variant="outline" size="md" onPress={onEvaluateAnother} />
           </>
         )}
       </View>

@@ -563,7 +563,7 @@ describe('Self-inspection screen', () => {
     const bannerStore = require('../src/push/bannerStore');
     const show = jest.spyOn(bannerStore, 'showBanner');
     const root = await render();
-    expect(hasText(root, 'Saved as you go. Continue anytime from your Garage.')).toBe(true);
+    expect(hasText(root, 'Saved as you go')).toBe(true);
     expect(show).not.toHaveBeenCalled();
 
     await act(async () => listeners.beforeRemove({ preventDefault: jest.fn(), data: { action: { type: 'GO_BACK' } } }));

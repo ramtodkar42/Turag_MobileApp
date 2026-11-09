@@ -5,11 +5,12 @@ import { colors, fonts, radius, spacing } from '../../../../theme';
 import { HIT_SLOP } from '../../../../constants/layout';
 import { fs, ms } from '../../../../utils/responsive';
 import { useT } from '../../../../i18n';
+import UploadTile from './UploadTile';
 
 // Upload control + file list for a document (or single-shot evidence) item -
-// the web's evidenceFor. Each file has a remove button; "Upload document" /
-// "Add another page" opens: take a photo, choose from the gallery, or (for
-// documents) a PDF. onAdd(source) with 'camera' | 'gallery' | 'pdf'.
+// the web's evidenceFor. Each file has a remove button; the upload box (nothing
+// added yet) / "Add another page" opens: take a photo, choose from the gallery,
+// or (for documents) a PDF. onAdd(source) with 'camera' | 'gallery' | 'pdf'.
 function EvidenceList({ isDoc, files, thumbs, busy, removing, disabled, message, onAdd, onRemove }) {
   const t = useT();
   const [sourceOpen, setSourceOpen] = useState(false);
@@ -56,24 +57,31 @@ function EvidenceList({ isDoc, files, thumbs, busy, removing, disabled, message,
         </View>
       ))}
 
-      <Button
-        title={
-          busy
-            ? t('selfInspection.uploading')
-            : files.length > 0
-            ? t(isDoc ? 'selfInspection.addPage' : 'selfInspection.addPhoto')
-            : t(isDoc ? 'selfInspection.uploadDocument' : 'selfInspection.addPhotoFirst')
-        }
-        variant="outline"
-        size="sm"
-        fullWidth={false}
-        loading={busy}
-        disabled={disabled}
-        leftIcon={busy ? null : <Icon name={isDoc ? 'document' : 'camera'} size={ms(14)} color={colors.primary} />}
-        onPress={() => setSourceOpen(true)}
-        style={styles.add}
-      />
-      {isDoc ? <AppText variant="caption" color={colors.placeholder}>{t('selfInspection.docLimit')}</AppText> : null}
+      {files.length === 0 ? (
+        // Nothing yet: one friendly place to add it (where from: the sheet below).
+        <UploadTile
+          icon={isDoc ? 'document' : 'camera'}
+          title={t(isDoc ? 'selfInspection.uploadDocument' : 'selfInspection.addPhotoFirst')}
+          subtitle={t(isDoc ? 'selfInspection.docLimit' : 'selfInspection.source.photoHint')}
+          busy={busy}
+          busyText={t('selfInspection.uploading')}
+          disabled={disabled}
+          onPress={() => setSourceOpen(true)}
+        />
+      ) : (
+        // More pages: a light second choice under the files.
+        <Button
+          title={busy ? t('selfInspection.uploading') : t(isDoc ? 'selfInspection.addPage' : 'selfInspection.addPhoto')}
+          variant="ghost"
+          size="sm"
+          fullWidth={false}
+          loading={busy}
+          disabled={disabled}
+          leftIcon={busy ? null : <Icon name="plus" size={ms(14)} color={colors.primary} />}
+          onPress={() => setSourceOpen(true)}
+          style={styles.add}
+        />
+      )}
       {message ? (
         <AppText variant="caption" color={message.kind === 'error' ? colors.danger : colors.warning}>
           {message.text}
@@ -141,6 +149,7 @@ const styles = StyleSheet.create({
   },
   add: {
     alignSelf: 'flex-start',
+    paddingHorizontal: spacing.xs,
   },
 });
 

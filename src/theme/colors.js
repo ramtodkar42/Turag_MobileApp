@@ -12,6 +12,7 @@ const colors = {
   whiteTranslucent: 'rgba(255, 255, 255, 0.18)', // round buttons on the red screens
   black: '#000000',
   overlay: 'rgba(17, 24, 39, 0.45)',
+  veil: 'rgba(255, 255, 255, 0.85)', // over a photo while it uploads
   muted: '#6B7280', // grey icons, e.g. "No Image"
   imagePlaceholder: '#EDEDED', // empty photo frame background
 

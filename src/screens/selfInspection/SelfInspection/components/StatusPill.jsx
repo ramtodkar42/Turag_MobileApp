@@ -1,20 +1,31 @@
-import { Badge, Icon } from '../../../../components';
-import { colors } from '../../../../theme';
+import { StyleSheet, View } from 'react-native';
+import { AppText, CheckCircle } from '../../../../components';
+import { colors, spacing } from '../../../../theme';
 import { ms } from '../../../../utils/responsive';
 import { useT } from '../../../../i18n';
 
-// "Done" (green, with a tick) or "To do" (grey) - the app's Badge. Texts can be overridden.
+// Where something stands, said quietly: a small green tick + "Done" (green), or just
+// the words (e.g. "8 of 19 answered", "Saving…"). Texts can be overridden.
 function StatusPill({ done, doneText, todoText, style }) {
   const t = useT();
+  const text = done ? doneText ?? t('selfInspection.status.done') : todoText ?? t('selfInspection.status.todo');
   return (
-    <Badge
-      size="sm"
-      tone={done ? 'success' : 'neutral'}
-      label={done ? doneText ?? t('selfInspection.status.done') : todoText ?? t('selfInspection.status.todo')}
-      icon={done ? <Icon name="check" size={ms(11)} color={colors.success} strokeWidth={2.8} /> : null}
-      style={style}
-    />
+    <View style={[styles.row, style]}>
+      {done ? <CheckCircle size={ms(14)} /> : null}
+      <AppText variant="caption" color={done ? colors.success : colors.body} numberOfLines={1}>
+        {text}
+      </AppText>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    flexShrink: 1,
+  },
+});
 
 export default StatusPill;

@@ -1,19 +1,19 @@
 import { StyleSheet, View } from 'react-native';
-import { AppText, Card } from '../../../../components';
-import { spacing } from '../../../../theme';
+import { AppText } from '../../../../components';
+import { colors, fonts, radius, spacing } from '../../../../theme';
 import { fs } from '../../../../utils/responsive';
 
-// A step's card in the app's style (Card + a TitledCard-like header): title,
-// optional subtitle, something on the right (e.g. a status badge).
-function SectionCard({ title, subtitle, right, children, style }) {
+// A step's section: its title with how far it is on the right (e.g. StatusPill), an
+// optional line of help, then its content - in a light card (a thin border, no
+// shadow). plain: no card around it, for a section whose items are cards themselves
+// (never a card inside a card).
+function SectionCard({ title, subtitle, right, plain = false, children, style }) {
   return (
-    <Card style={[styles.card, style]}>
+    <View style={[plain ? styles.plain : styles.card, style]}>
       {title ? (
         <View style={styles.head}>
           <View style={styles.flex}>
-            <AppText variant="title" style={styles.title}>
-              {title}
-            </AppText>
+            <AppText style={styles.title}>{title}</AppText>
             {subtitle ? (
               <AppText variant="caption" style={styles.subtitle}>
                 {subtitle}
@@ -24,13 +24,21 @@ function SectionCard({ title, subtitle, right, children, style }) {
         </View>
       ) : null}
       {children}
-    </Card>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    gap: spacing.lg,
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+  },
+  plain: {
+    gap: spacing.md,
   },
   head: {
     flexDirection: 'row',
@@ -41,8 +49,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontSize: fs(16),
-    lineHeight: fs(22),
+    fontFamily: fonts.title.semiBold,
+    fontSize: fs(17),
+    lineHeight: fs(23),
+    color: colors.heading,
   },
   subtitle: {
     marginTop: spacing.xxs,

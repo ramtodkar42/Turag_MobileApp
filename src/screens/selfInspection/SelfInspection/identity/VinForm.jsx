@@ -63,6 +63,7 @@ function VinForm({ read, fromPhoto, plainNote, disabled, saving, onSave, onRetak
 
       <Button
         title={t('inspector.identity.confirmSave')}
+        size="md"
         onPress={save}
         disabled={disabled || !canSave}
         loading={saving}

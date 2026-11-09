@@ -1,6 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 import { AppText, Button, ChoiceChip, DatePickerField, TextField } from '../../../../components';
 import { colors, spacing } from '../../../../theme';
+import { ms } from '../../../../utils/responsive';
 import { useT } from '../../../../i18n';
 import { toIsoDate } from '../../../../utils/date';
 import { blankAnswer } from '../useSelfInspection';
@@ -169,6 +170,8 @@ const styles = StyleSheet.create({
   chip: {
     flexGrow: 1,
     flexBasis: '30%',
+    minHeight: ms(40),
+    paddingVertical: spacing.xs,
   },
   left: {
     alignSelf: 'flex-start',

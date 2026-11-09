@@ -48,7 +48,7 @@ function EstimateStep({ si, vehicleLabel, onGoStep, onGoMissing }) {
       {inspector && si.condition ? <ConditionSummary condition={si.condition} /> : null}
       <SectionCard title={t('selfInspection.review.title')} subtitle={t('selfInspection.review.subtitle')}>
         <View style={styles.steps}>
-          {['photos', 'documents', 'checklist'].map(key => {
+          {['photos', 'documents', 'checklist'].map((key, index) => {
             const p = progress[key];
             const done = p.total === 0 || p.done >= p.total;
             return (
@@ -56,7 +56,7 @@ function EstimateStep({ si, vehicleLabel, onGoStep, onGoMissing }) {
                 key={key}
                 onPress={() => onGoStep(key)}
                 accessibilityRole="button"
-                style={({ pressed }) => [styles.step, done && styles.stepDone, pressed && styles.pressed]}
+                style={({ pressed }) => [styles.step, index > 0 && styles.stepDivider, pressed && styles.pressed]}
               >
                 <View style={styles.stepTop}>
                   <AppText style={styles.stepTitle}>{t(`selfInspection.step.${key}`)}</AppText>
@@ -107,18 +107,18 @@ const styles = StyleSheet.create({
   wrap: {
     gap: spacing.lg,
   },
+  // Each step as a row (thin lines between them), not a box inside the card.
   steps: {
-    gap: spacing.sm,
+    marginHorizontal: -spacing.md,
   },
   step: {
     gap: spacing.xs,
-    padding: spacing.md,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
   },
-  stepDone: {
-    borderColor: colors.successLight,
+  stepDivider: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
   },
   pressed: {
     backgroundColor: colors.input,
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   stepTitle: {
-    fontFamily: fonts.title.bold,
+    fontFamily: fonts.title.semiBold,
     fontSize: fs(14),
     lineHeight: fs(19),
     color: colors.heading,
@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
     height: ms(5),
     borderRadius: ms(3),
     overflow: 'hidden',
-    backgroundColor: colors.imagePlaceholder,
+    backgroundColor: colors.dangerLight,
   },
   fill: {
     height: '100%',
@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   missingTitle: {
-    fontFamily: fonts.title.bold,
+    fontFamily: fonts.title.semiBold,
     fontSize: fs(15),
     lineHeight: fs(20),
     color: colors.heading,

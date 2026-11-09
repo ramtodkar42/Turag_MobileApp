@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { AppText, FillImage } from '../../../../components';
+import { AppText, CheckCircle, FillImage } from '../../../../components';
 import { colors, fonts, radius, spacing } from '../../../../theme';
 import { fs, ms } from '../../../../utils/responsive';
 import { scrollToView } from '../../../../utils/scrollToView';
@@ -156,7 +156,7 @@ function ChecklistStep({ si, focusItem, scrollRef, onGoStep, onAddDocument }) {
       >
         <View style={styles.head}>
           <View style={styles.flex}>
-            <AppText style={styles.group}>{group ? groupName(t, group.group_code, group.label) : ''}</AppText>
+            {group ? <AppText style={styles.group}>{groupName(t, group.group_code, group.label)}</AppText> : null}
             <AppText style={styles.title}>
               {itemName(t, q)}
               {q.mandatory ? <AppText style={styles.required}>{' *'}</AppText> : null}
@@ -167,7 +167,12 @@ function ChecklistStep({ si, focusItem, scrollRef, onGoStep, onAddDocument }) {
               </AppText>
             ) : null}
           </View>
-          <StatusPill done={done} />
+          {/* Answered: a small green tick (nothing to say while it isn't). */}
+          {done ? (
+            <View accessibilityLabel={t('selfInspection.status.done')} accessible>
+              <CheckCircle size={ms(18)} />
+            </View>
+          ) : null}
         </View>
         {isPhotoGridItem(q) ? photosSummary(q) : q.evidence_requirement ? singleEvidence(q) : null}
         {q.item_code === 'B1' ? aiSuggestion(q) : null}
@@ -182,6 +187,7 @@ function ChecklistStep({ si, focusItem, scrollRef, onGoStep, onAddDocument }) {
 
   return (
     <SectionCard
+      plain
       title={t('selfInspection.step.checklist')}
       subtitle={t('selfInspection.checklist.pageSubtitle')}
       right={
@@ -194,9 +200,7 @@ function ChecklistStep({ si, focusItem, scrollRef, onGoStep, onAddDocument }) {
     >
       {sections.map(s => (
         <View key={s.key} style={styles.section}>
-          <AppText variant="h3" style={styles.sectionTitle}>
-            {t(s.titleKey)}
-          </AppText>
+          <AppText style={styles.sectionTitle}>{t(s.titleKey)}</AppText>
           {s.items.map(question)}
         </View>
       ))}
@@ -210,16 +214,19 @@ const THUMB = ms(38);
 const styles = StyleSheet.create({
   section: {
     gap: spacing.md,
+    marginTop: spacing.sm,
   },
   sectionTitle: {
-    fontSize: fs(17),
-    lineHeight: fs(23),
+    fontFamily: fonts.title.semiBold,
+    fontSize: fs(15),
+    lineHeight: fs(20),
+    color: colors.body,
   },
   question: {
     gap: spacing.md,
     padding: spacing.md,
-    borderRadius: radius.md,
-    borderWidth: 1,
+    borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     backgroundColor: colors.white,
   },
@@ -227,6 +234,7 @@ const styles = StyleSheet.create({
     borderColor: colors.successLight,
   },
   questionFocus: {
+    borderWidth: 1,
     borderColor: colors.primary,
   },
   head: {
@@ -238,22 +246,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   group: {
-    fontFamily: fonts.title.bold,
-    fontSize: fs(11),
-    lineHeight: fs(15),
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    color: colors.muted,
+    fontSize: fs(12),
+    lineHeight: fs(16),
+    color: colors.placeholder,
   },
   title: {
     marginTop: spacing.xxs,
-    fontFamily: fonts.title.bold,
+    fontFamily: fonts.title.semiBold,
     fontSize: fs(16),
     lineHeight: fs(22),
     color: colors.heading,
   },
   required: {
-    fontFamily: fonts.title.bold,
+    fontFamily: fonts.title.semiBold,
     color: colors.primary,
   },
   dynamic: {

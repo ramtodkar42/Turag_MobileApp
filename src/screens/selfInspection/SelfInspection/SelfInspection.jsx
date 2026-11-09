@@ -1,22 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import {
   AppText,
-  Badge,
   Button,
   ButtonRow,
-  Card,
   CardListSkeleton,
-  CheckCircle,
   FadeIn,
   Header,
   ScreenContainer,
   StatusView,
 } from '../../../components';
-import { colors, fonts, spacing, typography } from '../../../theme';
-import { fs, ms } from '../../../utils/responsive';
-import { formatINR } from '../../../utils/format';
-import { isDevanagari, useLanguage, useT } from '../../../i18n';
+import { colors, spacing } from '../../../theme';
+import { ms } from '../../../utils/responsive';
+import { formatINR, vehicleName } from '../../../utils/format';
+import { useT } from '../../../i18n';
 import { ROUTES } from '../../../navigation/routes';
 import { currentHomeRoute } from '../../../navigation/homeRoute';
 import { pickImageFromGallery } from '../../../utils/pickImage';
@@ -31,7 +28,7 @@ import useGuidedVideos from './useGuidedVideos';
 import useSelfInspection, { slotKey } from './useSelfInspection';
 import { useDetailScans } from './components/detailContent';
 import { STEPS } from './constants';
-import ProgressRing from './components/ProgressRing';
+import InspectionSummary from './components/InspectionSummary';
 import StepTabs from './components/StepTabs';
 import RetakeBanner from './components/RetakeBanner';
 import { InspectorModeContext } from './inspectorMode';
@@ -60,8 +57,6 @@ const FOCUS_FOR_MS = 1500;
 //   or { inspectionId, bookingId } (an inspector's job).
 function SelfInspection({ navigation, route }) {
   const t = useT();
-  // One line of caption text (taller for Hindi / Marathi, as AppText draws it).
-  const noteLine = Math.round(typography.caption.lineHeight * (isDevanagari(useLanguage()) ? 1.25 : 1));
   const { inspectionId, vehicle, valuation, bookingId } = route.params ?? {};
   const si = useSelfInspection(inspectionId);
   const inspector = !!bookingId || si.inspection?.mode === 'M2';
@@ -308,8 +303,9 @@ function SelfInspection({ navigation, route }) {
     navigation.reset({ index: 1, routes: [{ name: currentHomeRoute() }, { name: ROUTES.EVALUATE_CHAT }] });
 
   const v = si.inspection?.vehicle;
-  const vehicleLabel =
-    [v?.make, v?.model, v?.variant].filter(Boolean).join(' ') + (v?.mfg_year ? ` · ${v.mfg_year}` : '');
+  // The vehicle's display name ("MARUTI SUZUKI INDIA LTD" + "DZIRE VXI CNG" -> "Maruti Suzuki Dzire VXI CNG").
+  const vehicleTitle = vehicleName(v?.make, [v?.model, v?.variant].filter(Boolean).join(' '));
+  const vehicleLabel = [vehicleTitle, v?.mfg_year].filter(Boolean).join(' · ');
   const header = <Header onBack={navigation.goBack} title={t(titleKey)} />;
 
   if (si.screen === 'loading') {
@@ -323,7 +319,7 @@ function SelfInspection({ navigation, route }) {
     return (
       <ScreenContainer header={header}>
         <StatusView title={t('selfInspection.loadErrorTitle')} message={t('selfInspection.loadErrorText')}>
-          <Button title={t('common.retry')} onPress={si.reload} />
+          <Button title={t('common.retry')} size="md" onPress={si.reload} />
         </StatusView>
       </ScreenContainer>
     );
@@ -333,9 +329,9 @@ function SelfInspection({ navigation, route }) {
       <ScreenContainer header={header}>
         <StatusView title={t('selfInspection.notReadyTitle')} message={t('selfInspection.notReadyText')}>
           {inspector ? (
-            <Button title={t('selfInspection.inspector.backToJobs')} onPress={onBackToJobs} />
+            <Button title={t('selfInspection.inspector.backToJobs')} size="md" onPress={onBackToJobs} />
           ) : (
-            <Button title={t('selfInspection.submitted.garage')} onPress={onGarage} />
+            <Button title={t('selfInspection.submitted.garage')} size="md" onPress={onGarage} />
           )}
         </StatusView>
       </ScreenContainer>
@@ -369,6 +365,7 @@ function SelfInspection({ navigation, route }) {
   const liveMinor = inspector ? pricing.estimatedPriceMinor : si.liveEstimateMinor;
   const estimateText = liveMinor != null ? `≈ ${inr(liveMinor)}` : t('selfInspection.estimate.tabEmpty');
 
+  // The bottom bar: where you are (or what's left), Back and the next step.
   const footer = (
     <View style={styles.bar}>
       <AppText variant="caption" align="center" numberOfLines={2}>
@@ -385,6 +382,7 @@ function SelfInspection({ navigation, route }) {
           <Button
             title={t('selfInspection.back')}
             variant="outline"
+            size="md"
             fullWidth={false}
             disabled={si.submitting}
             onPress={() => selectStep(prevStep)}
@@ -394,6 +392,7 @@ function SelfInspection({ navigation, route }) {
         {nextStep ? (
           <Button
             title={t('selfInspection.next', { step: t(`selfInspection.step.${nextStep}`) })}
+            size="md"
             fullWidth={false}
             onPress={() => selectStep(nextStep)}
             style={styles.flexWide}
@@ -401,6 +400,7 @@ function SelfInspection({ navigation, route }) {
         ) : (
           <Button
             title={t(inspector ? 'selfInspection.inspector.submit' : 'selfInspection.submit')}
+            size="md"
             fullWidth={false}
             loading={si.submitting}
             disabled={si.submitting || !canSubmit}
@@ -414,62 +414,33 @@ function SelfInspection({ navigation, route }) {
 
   return (
     <InspectorModeContext.Provider value={inspector}>
-    <ScreenContainer scroll scrollRef={scrollRef} header={header} footer={footer}>
-      {/* Summary: progress, the vehicle, and the live estimate (green, as the app's value card). */}
-      <Card style={styles.hero}>
-        <View style={styles.heroRow}>
-          <ProgressRing fraction={totalAll > 0 ? totalDone / totalAll : 0} />
-          <View style={styles.heroText}>
-            <AppText variant="h3" style={styles.heroTitle}>
-              {t(titleKey)}
-            </AppText>
-            {vehicleLabel ? (
-              <AppText variant="label" color={colors.heading} numberOfLines={1}>
-                {vehicleLabel}
-              </AppText>
-            ) : null}
-            <AppText variant="caption">{t('selfInspection.doneShort', { done: totalDone, total: totalAll })}</AppText>
-          </View>
-        </View>
-        {/* Where to find it again: everything saves as it's added. */}
-        {!inspector ? (
-          <View style={styles.saved}>
-            {/* The tick sits on the first line, however many lines the note takes. */}
-            <View style={[styles.savedTick, { height: noteLine }]}>
-              <CheckCircle size={ms(15)} />
-            </View>
-            <AppText variant="caption" color={colors.body} style={styles.savedText}>
-              {t('selfInspection.savedNote')}
-            </AppText>
-          </View>
-        ) : null}
-        <View style={styles.heroFoot}>
-          {/* A Turag inspector's report goes to QC (it can become Turag Verified); the owner's own is self-declared. */}
-          <Badge
-            size="sm"
-            tone="neutral"
-            label={t(inspector ? 'selfInspection.inspector.badge' : 'selfInspection.selfDeclared')}
-          />
-          {liveMinor != null ? (
-            <Pressable onPress={() => goStep('review')} accessibilityRole="button" hitSlop={8} style={styles.live}>
-              <AppText variant="caption" color={colors.heading}>
-                {t('selfInspection.liveEstimate')}
-              </AppText>
-              <AppText style={styles.liveValue}>{inr(liveMinor)}</AppText>
-            </Pressable>
-          ) : null}
-        </View>
-      </Card>
+    <ScreenContainer scroll scrollRef={scrollRef} header={header} footer={footer} footerStyle={styles.footer}>
+      {/* At a glance: the vehicle, whose word it is, the live estimate and how far it is.
+          A Turag inspector's report goes to QC (it can become Turag Verified); the owner's
+          own is self-declared - and saves as they go (they can continue from the Garage). */}
+      <InspectionSummary
+        name={vehicleTitle}
+        year={v?.mfg_year}
+        badge={t(inspector ? 'selfInspection.inspector.badge' : 'selfInspection.selfDeclared')}
+        done={totalDone}
+        total={totalAll}
+        live={liveMinor != null ? inr(liveMinor) : null}
+        onLivePress={() => goStep('review')}
+        saved={inspector ? null : t('selfInspection.savedShort')}
+        style={styles.summary}
+      />
 
       <RetakeBanner shots={si.retakeShots} items={si.allItems} style={styles.retake} />
       <IdentityMismatchBanner
         fields={si.identityMismatch}
-        vehicle={[v?.make, v?.model].filter(Boolean).join(' ')}
+        vehicle={vehicleName(v?.make, v?.model)}
         onCheck={checkIdentity}
         style={styles.mismatch}
       />
 
-      <StepTabs current={step} progress={progress} estimateLabel={estimateText} onSelect={selectStep} />
+      <View style={styles.steps}>
+        <StepTabs current={step} progress={progress} estimateLabel={estimateText} onSelect={selectStep} />
+      </View>
 
       <View style={styles.body}>
         <FadeIn key={step} offset={ms(10)}>
@@ -511,55 +482,14 @@ const styles = StyleSheet.create({
   skeleton: {
     marginTop: spacing.lg,
   },
-  hero: {
+  summary: {
     marginTop: spacing.md,
-    marginBottom: spacing.lg,
-    gap: spacing.md,
   },
-  heroRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.lg,
-  },
-  heroText: {
-    flex: 1,
-    gap: spacing.xxs,
-  },
-  heroTitle: {
-    fontSize: fs(19),
-    lineHeight: fs(25),
-  },
-  saved: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-  },
-  savedTick: {
-    justifyContent: 'center',
-  },
-  savedText: {
-    flex: 1,
-  },
-  heroFoot: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-    paddingTop: spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-  },
-  live: {
-    alignItems: 'flex-end',
-  },
-  liveValue: {
-    fontFamily: fonts.title.bold,
-    fontSize: fs(18),
-    lineHeight: fs(24),
-    color: colors.success,
+  steps: {
+    marginTop: spacing.lg,
   },
   body: {
-    paddingTop: spacing.md,
+    paddingTop: spacing.lg,
     paddingBottom: spacing.lg,
   },
   retake: {
@@ -567,7 +497,11 @@ const styles = StyleSheet.create({
   },
   mismatch: {
     marginTop: spacing.md,
-    marginBottom: spacing.md,
+  },
+  footer: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    backgroundColor: colors.white,
   },
   bar: {
     gap: spacing.sm,
