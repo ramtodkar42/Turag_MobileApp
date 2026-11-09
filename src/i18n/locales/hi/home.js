@@ -3,6 +3,11 @@ export default {
   'home.hello': 'नमस्ते {name}',
   // Brand tagline: kept in English, as in the logo.
   'home.helloFallback': 'दोस्त',
+  'home.continue.hide': 'छिपाएँ',
+  'home.continue.many': '{count} AI सेल्फ़-इंस्पेक्शन चल रहे हैं',
+  'home.continue.paymentPending': 'AI सेल्फ़-इंस्पेक्शन का भुगतान बाकी',
+  'home.continue.view': 'देखें',
+  'home.continue.viewHint': 'आपका गैराज खोलता है',
   'home.notifications': 'सूचनाएँ',
   'home.searchPlaceholder': 'कार खोजें',
   'home.banner': 'अपनी पसंदीदा कार खोजें',

@@ -2,6 +2,11 @@
 export default {
   'home.hello': 'Hello {name}',
   'home.helloFallback': 'there',
+  'home.continue.hide': 'Hide',
+  'home.continue.many': '{count} AI Self Inspections in progress',
+  'home.continue.paymentPending': 'AI Self Inspection payment pending',
+  'home.continue.view': 'View',
+  'home.continue.viewHint': 'Opens your Garage',
   'home.notifications': 'Notifications',
   'home.searchPlaceholder': 'Search Car',
   'home.banner': 'Find Your Dream Car',

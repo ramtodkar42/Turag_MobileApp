@@ -1,15 +1,15 @@
 // en - Garage tab and garage vehicle page. Keys are 'garage.something'.
 export default {
-  'garage.title': 'Verified Listing',
-  'garage.subtitle': 'Explore vehicles verified by Turag for a more confident buying decision.',
+  'garage.title': 'Garage',
+  'garage.subtitle': 'Vehicles you have evaluated or had inspected.',
   'garage.empty.title': 'Your garage is empty',
   'garage.empty.message': 'Evaluate your vehicle to see its value and save it here.',
   'garage.empty.evaluate': 'Evaluate a vehicle',
 
   'garage.status.in_review': 'In-review',
   'garage.card.live': 'Live on the marketplace',
-  'garage.card.question': 'List to market place?',
   'garage.card.list': 'List this vehicle',
+  'garage.card.readyToList': 'Inspected and valued. List it to reach buyers.',
 
   'garage.vehicle.match': 'We found a match for your vehicle',
   'garage.vehicle.details': 'Details',
@@ -24,7 +24,7 @@ export default {
   'garage.vehicle.createListing': 'Create Listing',
   'garage.vehicle.bookInspector': 'Book an Inspector',
   'garage.status.not_inspected': 'Not inspected',
-  'garage.card.noValue': 'Not available',
+  'garage.card.noValue': 'No estimate yet',
   'garage.loadError': 'Could not load your garage.',
   'garage.error.title': 'Couldn’t load your garage',
   'garage.card.inReview': 'Listing in review',
@@ -33,7 +33,6 @@ export default {
   'garage.card.book': 'Book an inspection',
 
   // Inspection-eligibility gating (ADR-0038) + detail-page actions.
-  'garage.card.needsInspection': 'Inspect it to list it',
   'garage.card.inspectToList': 'Inspect to list',
   'garage.vehicle.selfInspect': 'Start AI Self Inspection',
   'garage.vehicle.selfInspecting': 'Starting…',
@@ -70,9 +69,7 @@ export default {
   'garage.hint.pendingQc': 'A Turag inspector is reviewing this. We’ll update it here when it’s ready.',
   'garage.hint.qcRejected': 'This inspection couldn’t be verified. Book an inspector to try again.',
   'garage.hint.preparing': 'Your inspection is being prepared. This updates automatically.',
-  'garage.card.payQuestion': 'Complete payment to unlock',
   'garage.card.completePayment': 'Complete payment',
-  'garage.card.resumeQuestion': 'Pick up where you left off',
   'garage.card.continue': 'Continue AI Self Inspection',
   'garage.card.withTurag': 'With Turag for review',
   'garage.card.viewSummary': 'View summary',

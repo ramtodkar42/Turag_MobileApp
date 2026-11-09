@@ -82,6 +82,51 @@ export const useIsInGarage = vehicleId =>
 export const useGarageEntry = vehicleId =>
   store.use(s => (vehicleId ? s.items.find(v => v.vehicleId === vehicleId) ?? null : null));
 
+// An AI self-inspection the owner can still continue: in progress, or done and
+// waiting for its payment (the Garage's resume_self / payment_pending stages).
+const OPEN_PHASES = new Set(['resume_self', 'payment_pending']);
+export const hasOpenSelfInspection = vehicle => OPEN_PHASES.has(vehicle?.phase) && !!vehicle?.inspectionId;
+
+// The vehicle's self-inspection that's still open, checked against a fresh Garage
+// (offline: the last copy). Starting another one would hide it: the server always
+// makes a new one, and the Garage shows only the newest. null when there's none.
+export const findOpenSelfInspection = async vehicleId => {
+  if (!vehicleId) return null;
+  await loadGarage();
+  return store.get().items.find(v => v.vehicleId === vehicleId && hasOpenSelfInspection(v)) ?? null;
+};
+
+// Open self-inspections the owner has already seen in the Garage (by inspection id).
+// The Garage tab's dot is only for one they haven't looked at there yet - Home's
+// "continue" row reminds them each time the app opens. Kept on the phone, so the dot
+// stays off after a restart; a new open inspection brings it back. `ready` once the
+// phone's copy is read (no dot flashing up at launch before it is).
+const MAX_SEEN = 50;
+const SEEN_KEY = 'garage-seen-inspections';
+const seenStore = createStore({ ids: [], ready: false });
+readCache(SEEN_KEY).then(cached => {
+  seenStore.set(s => ({
+    ready: true,
+    ids: Array.isArray(cached) ? [...new Set([...cached, ...s.ids])].slice(-MAX_SEEN) : s.ids,
+  }));
+});
+persistStore(seenStore, SEEN_KEY, s => s.ids);
+
+// The Garage is showing these vehicles: their open self-inspections count as seen.
+export const markOpenInspectionsSeen = items => {
+  const ids = (items ?? []).filter(hasOpenSelfInspection).map(v => v.inspectionId);
+  const fresh = ids.filter(id => !seenStore.get().ids.includes(id));
+  if (fresh.length === 0) return;
+  seenStore.set(s => ({ ...s, ids: [...s.ids, ...fresh].slice(-MAX_SEEN) }));
+};
+
+// Whether the Garage has an open self-inspection not seen there yet (the tab's dot).
+export const useUnseenOpenInspection = () => {
+  const items = store.use(s => s.items);
+  const seen = seenStore.use();
+  return seen.ready && items.some(v => hasOpenSelfInspection(v) && !seen.ids.includes(v.inspectionId));
+};
+
 // { loaded, loading, error } for the Garage tab.
 export const useGarageStatus = () => {
   const loaded = store.use(s => s.loaded);
@@ -96,4 +141,6 @@ export const clearGarage = () => {
   resetMockGarage();
   removeCache(CACHE_KEY);
   store.set(INITIAL);
+  removeCache(SEEN_KEY);
+  seenStore.set({ ids: [], ready: true });
 };

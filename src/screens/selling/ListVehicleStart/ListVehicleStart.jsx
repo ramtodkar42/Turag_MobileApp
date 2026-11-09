@@ -7,7 +7,8 @@ import { formatRegNumber, isValidRegNumber, normalizeRegNumber } from '../../../
 import { supportsSelfInspection } from '../../../api/mappers/valuation';
 import { ApiError } from '../../../api/client';
 import { confirmVehicle, proposeVehicle, startSelfInspection } from '../../../api/services/valuation.api';
-import { saveToGarage } from '../../../store/garageStore';
+import { findOpenSelfInspection, saveToGarage } from '../../../store/garageStore';
+import { selfInspectionParams } from '../../garage/garagePhase';
 import { FEATURES } from '../../../api/config';
 import { ROUTES } from '../../../navigation/routes';
 import useConfirmDialog from '../../../hooks/useConfirmDialog';
@@ -75,6 +76,13 @@ function ListVehicleStart({ navigation }) {
     setError('');
     try {
       const confirmed = await confirmVehicle(vehicle.registrationNumber);
+      // Never a second one: a self-inspection still open for this vehicle is
+      // continued (a new one would hide it - the Garage shows only the newest).
+      const open = await findOpenSelfInspection(confirmed.vehicleId);
+      if (open) {
+        navigation.replace(ROUTES.SELF_INSPECTION, selfInspectionParams(open, { resumed: true }));
+        return;
+      }
       try {
         await saveToGarage({ vehicle: confirmed, valuation: null });
       } catch (e) {

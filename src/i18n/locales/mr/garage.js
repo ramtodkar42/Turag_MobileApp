@@ -1,15 +1,15 @@
 // mr - Garage tab and garage vehicle page. Keys are 'garage.something'.
 export default {
-  'garage.title': 'पडताळलेली लिस्टिंग',
-  'garage.subtitle': 'Turag ने पडताळलेली वाहने पाहा आणि विश्वासाने खरेदीचा निर्णय घ्या.',
+  'garage.title': 'गॅरेज',
+  'garage.subtitle': 'तुम्ही मूल्यांकन केलेली किंवा तपासलेली वाहने.',
   'garage.empty.title': 'तुमचे गॅरेज रिकामे आहे',
   'garage.empty.message': 'तुमच्या वाहनाचे मूल्य पाहण्यासाठी त्याचे मूल्यांकन करा आणि ते येथे जतन करा.',
   'garage.empty.evaluate': 'वाहनाचे मूल्यांकन करा',
 
   'garage.status.in_review': 'पुनरावलोकनात',
   'garage.card.live': 'मार्केटप्लेसवर लाइव्ह',
-  'garage.card.question': 'मार्केटप्लेसवर लिस्ट करायचे?',
   'garage.card.list': 'हे वाहन लिस्ट करा',
+  'garage.card.readyToList': 'तपासणी आणि मूल्यांकन झाले आहे. खरेदीदारांपर्यंत पोहोचण्यासाठी ते लिस्ट करा.',
 
   'garage.vehicle.match': 'तुमच्या वाहनाशी जुळणारे वाहन सापडले',
   'garage.vehicle.details': 'तपशील',
@@ -24,7 +24,7 @@ export default {
   'garage.vehicle.createListing': 'लिस्टिंग तयार करा',
   'garage.vehicle.bookInspector': 'इन्स्पेक्टर बुक करा',
   'garage.status.not_inspected': 'तपासणी झाली नाही',
-  'garage.card.noValue': 'उपलब्ध नाही',
+  'garage.card.noValue': 'अजून अंदाज नाही',
   'garage.loadError': 'तुमचे गॅरेज लोड होऊ शकले नाही.',
   'garage.error.title': 'तुमचे गॅरेज लोड होऊ शकले नाही',
   'garage.card.inReview': 'लिस्टिंग पुनरावलोकनात',
@@ -33,7 +33,6 @@ export default {
   'garage.card.book': 'इन्स्पेक्शन बुक करा',
 
   // तपासणी-पात्रता गेटिंग (ADR-0038) + तपशील पानावरील क्रिया.
-  'garage.card.needsInspection': 'लिस्ट करण्यासाठी तपासणी करा',
   'garage.card.inspectToList': 'तपासणी करून लिस्ट करा',
   'garage.vehicle.selfInspect': 'आता AI स्व-तपासणी करा',
   'garage.vehicle.selfInspecting': 'सुरू होत आहे…',
@@ -69,9 +68,7 @@ export default {
   'garage.hint.pendingQc': 'एक Turag इन्स्पेक्टर हे तपासत आहे. तयार झाल्यावर आम्ही इथे अपडेट करू.',
   'garage.hint.qcRejected': 'ही तपासणी व्हेरिफाय होऊ शकली नाही. पुन्हा प्रयत्न करण्यासाठी इन्स्पेक्टर बुक करा.',
   'garage.hint.preparing': 'तुमची तपासणी तयार होत आहे. हे आपोआप अपडेट होईल.',
-  'garage.card.payQuestion': 'उघडण्यासाठी पेमेंट पूर्ण करा',
   'garage.card.completePayment': 'पेमेंट पूर्ण करा',
-  'garage.card.resumeQuestion': 'जिथे सोडले तिथून सुरू करा',
   'garage.card.continue': 'AI स्व-तपासणी सुरू ठेवा',
   'garage.card.withTurag': 'Turag कडे रिव्ह्यूमध्ये',
   'garage.card.viewSummary': 'सारांश पहा',

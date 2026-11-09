@@ -1,21 +1,28 @@
 import { useCallback, useState } from 'react';
-import { FlatList, StyleSheet } from 'react-native';
+import { FlatList, StyleSheet, useWindowDimensions } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   AppRefreshControl,
   Button,
+  CardListSkeleton,
   HeaderCard,
   ScreenContainer,
   StatusView,
   useTabBarSpace,
-  VehicleGridSkeleton,
 } from '../../../components';
 import { spacing } from '../../../theme';
-import useVehicleGrid from '../../../hooks/useVehicleGrid';
-import { loadGarage, useGarage, useGarageStatus } from '../../../store/garageStore';
+import { MAX_CONTENT_WIDTH } from '../../../constants/layout';
+import { isTablet } from '../../../utils/responsive';
+import { loadGarage, markOpenInspectionsSeen, useGarage, useGarageStatus } from '../../../store/garageStore';
 import { ROUTES } from '../../../navigation/routes';
 import { useT } from '../../../i18n';
+import { selfInspectionParams } from '../garagePhase';
 import GarageCard from './components/GarageCard';
+
+// One card a row on phones (as the web on a phone: everything on a card reads in
+// full, its button included), two side by side on tablets.
+const COLUMNS = isTablet ? 2 : 1;
+const GAP = spacing.md;
 
 // Garage tab: the user's saved vehicles (GET /saved-vehicles), refreshed
 // quietly each time the tab opens; placeholders only on the first load.
@@ -24,14 +31,22 @@ function Garage({ navigation }) {
   const vehicles = useGarage();
   const status = useGarageStatus();
   const tabBarSpace = useTabBarSpace();
-  const grid = useVehicleGrid();
-  const { columns, cardWidth, gap } = grid;
+  const { width } = useWindowDimensions();
   const [refreshing, setRefreshing] = useState(false);
+  const contentWidth = Math.min(width, MAX_CONTENT_WIDTH) - spacing.lg * 2;
+  const cardWidth = (contentWidth - GAP * (COLUMNS - 1)) / COLUMNS;
 
   useFocusEffect(
     useCallback(() => {
       loadGarage();
     }, []),
+  );
+  // Seen here: the open self-inspections on show no longer need the tab's dot
+  // (also those that arrive while the Garage is open).
+  useFocusEffect(
+    useCallback(() => {
+      markOpenInspectionsSeen(vehicles);
+    }, [vehicles]),
   );
 
   const onRefresh = async () => {
@@ -53,7 +68,7 @@ function Garage({ navigation }) {
       } else if (kind === 'view') {
         navigation.navigate(ROUTES.MY_LISTING, { listingId: vehicle.listingId });
       } else if (kind === 'resume' || kind === 'pay' || kind === 'summary') {
-        navigation.navigate(ROUTES.SELF_INSPECTION, { inspectionId: vehicle.inspectionId, vehicle, valuation });
+        navigation.navigate(ROUTES.SELF_INSPECTION, selfInspectionParams(vehicle));
       } else if (kind === 'book') {
         navigation.navigate(ROUTES.BOOK_APPOINTMENT, { vehicle, valuation });
       } else {
@@ -67,7 +82,7 @@ function Garage({ navigation }) {
     ({ item }) => (
       <GarageCard
         vehicle={item}
-        width={cardWidth}
+        style={COLUMNS > 1 ? { width: cardWidth } : styles.single}
         onPress={() => navigation.navigate(ROUTES.GARAGE_VEHICLE, { vehicle: item })}
         onAction={onAction}
       />
@@ -77,7 +92,7 @@ function Garage({ navigation }) {
 
   let empty;
   if (!status.loaded && status.loading) {
-    empty = <VehicleGridSkeleton {...grid} />;
+    empty = <CardListSkeleton cards={[3, 3, 3]} style={styles.skeleton} />;
   } else if (!status.loaded && status.error) {
     empty = (
       <StatusView title={t('garage.error.title')} message={status.error} style={styles.empty}>
@@ -104,9 +119,8 @@ function Garage({ navigation }) {
   return (
     <ScreenContainer padded={false}>
       <FlatList
-        key={columns}
         data={vehicles}
-        numColumns={columns}
+        numColumns={COLUMNS}
         keyExtractor={item => item.id}
         renderItem={renderItem}
         ListHeaderComponent={
@@ -117,12 +131,12 @@ function Garage({ navigation }) {
           />
         }
         ListEmptyComponent={empty}
-        columnWrapperStyle={[styles.row, { gap, marginTop: gap }]}
-        contentContainerStyle={{ paddingBottom: tabBarSpace }}
+        columnWrapperStyle={COLUMNS > 1 ? styles.row : undefined}
+        contentContainerStyle={{ paddingBottom: tabBarSpace + spacing.md }}
         refreshControl={<AppRefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         showsVerticalScrollIndicator={false}
-        initialNumToRender={8}
-        maxToRenderPerBatch={8}
+        initialNumToRender={6}
+        maxToRenderPerBatch={6}
         windowSize={9}
         removeClippedSubviews
       />
@@ -135,8 +149,18 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     marginHorizontal: spacing.lg,
   },
+  single: {
+    marginTop: GAP,
+    marginHorizontal: spacing.lg,
+  },
   row: {
+    gap: GAP,
+    marginTop: GAP,
     paddingHorizontal: spacing.lg,
+  },
+  skeleton: {
+    marginTop: GAP,
+    marginHorizontal: spacing.lg,
   },
   empty: {
     paddingVertical: spacing.xxl,

@@ -17,7 +17,8 @@ const screenOptions = {
 const renderTabBar = props => <TabBar {...props} />;
 
 // Shared bottom tabs; each role passes its own list (see MainTabs / InspectorTabs).
-// tab: { name, titleKey (i18n), icon (components/icons/iconPaths.js), component, opens? }
+// tab: { name, titleKey (i18n), icon (components/icons/iconPaths.js), component, opens?, dot? }
+// `dot`: a component drawing the tab's own small dot (or nothing), see TabBar.
 // `opens`: the tab doesn't switch; it opens this full-screen flow instead
 // (flows with their own back button and bottom button, no tab bar).
 // `loginReason`: that flow needs an account - a guest is asked to log in.
@@ -41,12 +42,12 @@ function RoleTabs({ tabs, initialRouteName }) {
       screenOptions={screenOptions}
       initialRouteName={initialRouteName}
     >
-      {tabs.map(({ name, titleKey, icon, component, opens, loginReason }) => (
+      {tabs.map(({ name, titleKey, icon, dot, component, opens, loginReason }) => (
         <Tab.Screen
           key={name}
           name={name}
           component={component}
-          options={{ title: t(titleKey), icon }}
+          options={{ title: t(titleKey), icon, dot }}
           listeners={
             opens
               ? ({ navigation }) => ({

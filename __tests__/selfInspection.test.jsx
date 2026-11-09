@@ -559,6 +559,42 @@ describe('Self-inspection screen', () => {
     expect(navigation.dispatch).toHaveBeenCalledWith({ type: 'GO_BACK' });
   });
 
+  test('where to find it again: "saved as you go" on the screen, and "Saved in your Garage" on leaving', async () => {
+    const bannerStore = require('../src/push/bannerStore');
+    const show = jest.spyOn(bannerStore, 'showBanner');
+    const root = await render();
+    expect(hasText(root, 'Saved as you go. Continue anytime from your Garage.')).toBe(true);
+    expect(show).not.toHaveBeenCalled();
+
+    await act(async () => listeners.beforeRemove({ preventDefault: jest.fn(), data: { action: { type: 'GO_BACK' } } }));
+    expect(navigation.dispatch).toHaveBeenCalledWith({ type: 'GO_BACK' });
+    expect(show).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Saved in your Garage',
+        body: 'Continue your AI Self Inspection anytime, right where you left off.',
+        icon: 'check',
+        tone: 'success',
+        onPress: expect.any(Function),
+      }),
+    );
+    show.mockRestore();
+  });
+
+  test('continuing one already in progress (instead of a second one) says so, once', async () => {
+    const bannerStore = require('../src/push/bannerStore');
+    const show = jest.spyOn(bannerStore, 'showBanner');
+    await render({ resumed: true });
+    expect(show).toHaveBeenCalledTimes(1);
+    expect(show).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Continuing your inspection',
+        body: 'You already started one for this vehicle. All you added is still here.',
+      }),
+    );
+    expect(navigation.setParams).toHaveBeenCalledWith({ resumed: undefined });
+    show.mockRestore();
+  });
+
   test('from Estimate, a "what\'s left" item opens there and back returns to Estimate', async () => {
     const root = await render();
     const back = async () => {
@@ -1112,6 +1148,18 @@ describe('a self-inspection follows the new server rules', () => {
 describe('inspector (M2) on the same capture screen', () => {
   const m2Sections = sectionsFor(fixture, 'M2');
   const m2 = { ...inspection, mode: 'M2' };
+
+  test('no Garage messages for the officer (an inspector job is not in their Garage)', async () => {
+    const bannerStore = require('../src/push/bannerStore');
+    const show = jest.spyOn(bannerStore, 'showBanner');
+    api.getSelfInspection.mockResolvedValue({ inspection: m2, sections: m2Sections, media: [] });
+    const root = await render({ bookingId: 'bkg_1' });
+    expect(hasText(root, 'Saved as you go')).toBe(false);
+    await act(async () => listeners.beforeRemove({ preventDefault: jest.fn(), data: { action: { type: 'GO_BACK' } } }));
+    expect(navigation.dispatch).toHaveBeenCalledWith({ type: 'GO_BACK' });
+    expect(show).not.toHaveBeenCalled();
+    show.mockRestore();
+  });
 
   test('the AI read stays on the phone, and its result is saved from here', async () => {
     api.getSelfInspection.mockResolvedValue({ inspection: m2, sections: m2Sections, media: [] });

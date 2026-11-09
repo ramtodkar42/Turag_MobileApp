@@ -97,6 +97,30 @@ describe('List a vehicle', () => {
     expect(navigation.replace).toHaveBeenCalledWith(ROUTES.SELF_INSPECTION, { inspectionId: 'ins_1', vehicle: car, valuation: null });
   });
 
+  test('a self-inspection already open for this vehicle is continued - never a second one', async () => {
+    jest.spyOn(valuationApi, 'proposeVehicle').mockResolvedValue(car);
+    jest.spyOn(valuationApi, 'confirmVehicle').mockResolvedValue(car);
+    const open = { id: 'g1', vehicleId: 'veh_1', inspectionId: 'ins_open', phase: 'resume_self', valuationId: null };
+    jest.spyOn(garageStore, 'findOpenSelfInspection').mockResolvedValue(open);
+    const save = jest.spyOn(garageStore, 'saveToGarage');
+    const begin = jest.spyOn(valuationApi, 'startSelfInspection');
+    const navigation = nav();
+    const root = await render(<ListVehicleStart navigation={navigation} />);
+    await find(root);
+    await act(async () => root.findByType(InspectionConsent).props.onToggle());
+    await act(async () => button(root, 'AI Self Inspection').props.onPress());
+
+    expect(garageStore.findOpenSelfInspection).toHaveBeenCalledWith('veh_1');
+    expect(begin).not.toHaveBeenCalled();
+    expect(save).not.toHaveBeenCalled();
+    expect(navigation.replace).toHaveBeenCalledWith(ROUTES.SELF_INSPECTION, {
+      inspectionId: 'ins_open',
+      vehicle: open,
+      valuation: null,
+      resumed: true,
+    });
+  });
+
   test('saving to the Garage failing does not stop the inspection', async () => {
     jest.spyOn(valuationApi, 'proposeVehicle').mockResolvedValue(car);
     jest.spyOn(valuationApi, 'confirmVehicle').mockResolvedValue(car);

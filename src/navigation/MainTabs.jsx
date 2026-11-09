@@ -3,6 +3,7 @@ import RoleTabs from './RoleTabs';
 import Home from '../screens/home/Home/Home';
 import Saved from '../screens/saved/Saved/Saved';
 import Garage from '../screens/garage/Garage/Garage';
+import GarageTabDot from '../screens/garage/GarageTabDot';
 import Profile from '../screens/profile/Profile/Profile';
 import accountScreen from './accountScreen';
 
@@ -37,7 +38,8 @@ const TABS = [
     opens: ROUTES.EVALUATE_CHAT,
     loginReason: 'evaluate',
   },
-  { name: ROUTES.GARAGE, titleKey: 'nav.garage', icon: 'car', component: GarageTab },
+  // The dot: an AI self-inspection there is still open.
+  { name: ROUTES.GARAGE, titleKey: 'nav.garage', icon: 'car', dot: GarageTabDot, component: GarageTab },
   { name: ROUTES.SAVED, titleKey: 'nav.saved', icon: 'bookmark', component: SavedTab },
   { name: ROUTES.PROFILE, titleKey: 'nav.profile', icon: 'user', component: Profile },
 ];

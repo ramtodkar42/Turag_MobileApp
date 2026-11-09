@@ -10,7 +10,7 @@ import ValuationResult from '../src/screens/valuation/ValuationResult/ValuationR
 import GarageVehicle from '../src/screens/garage/GarageVehicle/GarageVehicle';
 import Garage from '../src/screens/garage/Garage/Garage';
 import GarageCard from '../src/screens/garage/Garage/components/GarageCard';
-import { Button, KeyValueRow, SuccessSheet, VehicleGridSkeleton } from '../src/components';
+import { Button, CardListSkeleton, KeyValueRow, SuccessSheet, VehicleImage } from '../src/components';
 import { clearGarage, saveToGarage } from '../src/store/garageStore';
 import { ROUTES } from '../src/navigation/routes';
 import { sampleValuation, sampleVehicle } from '../src/api/mock/valuation';
@@ -188,6 +188,40 @@ test('Garage vehicle page: details; not inspected yet - self-inspect (after cons
   }
 });
 
+test('Garage vehicle page: starting never makes a second self-inspection - one still open is continued', async () => {
+  const garageStore = require('../src/store/garageStore');
+  const valuationApi = require('../src/api/services/valuation.api');
+  const { InspectionConsent } = require('../src/components');
+  const fresh = { ...vehicle, id: 'g_fresh', valuationId: 'val_mock_1', estimatedValue: 831300, phase: 'fresh' };
+  const open = { ...fresh, inspectionId: 'ins_open', phase: 'resume_self' };
+  const find = jest.spyOn(garageStore, 'findOpenSelfInspection').mockResolvedValueOnce(open).mockResolvedValueOnce(null);
+  const begin = jest.spyOn(valuationApi, 'startSelfInspection').mockResolvedValue({ inspectionId: 'ins_new' });
+  const navigation = { navigate: jest.fn(), goBack: jest.fn() };
+  const root = await render(<GarageVehicle navigation={navigation} route={{ params: { vehicle: fresh } }} />);
+  await act(async () => root.findByType(InspectionConsent).props.onToggle());
+
+  // Started elsewhere (another phone, the web) and still open: that one is continued.
+  await act(async () => button(root, 'Start AI Self Inspection').props.onPress());
+  expect(begin).not.toHaveBeenCalled();
+  expect(navigation.navigate).toHaveBeenLastCalledWith(ROUTES.SELF_INSPECTION, {
+    inspectionId: 'ins_open',
+    vehicle: open,
+    valuation: { valuationId: 'val_mock_1', estimatedValue: 831300 },
+    resumed: true,
+  });
+
+  // None open: a new one.
+  await act(async () => button(root, 'Start AI Self Inspection').props.onPress());
+  expect(begin).toHaveBeenCalledTimes(1);
+  expect(navigation.navigate).toHaveBeenLastCalledWith(ROUTES.SELF_INSPECTION, {
+    inspectionId: 'ins_new',
+    vehicle: fresh,
+    valuation: { valuationId: 'val_mock_1', estimatedValue: 831300 },
+  });
+  find.mockRestore();
+  begin.mockRestore();
+});
+
 test('Garage vehicle page: inspected + valued - Create Listing; listed - View listing; no value - Book', async () => {
   const navigation = { navigate: jest.fn(), goBack: jest.fn() };
   const ready = { ...vehicle, valuationId: 'val_1', phase: 'can_list', inspectionEligible: true };
@@ -212,7 +246,9 @@ test('Garage vehicle page: inspected + valued - Create Listing; listed - View li
 test('Garage tab: placeholders, empty state, then saved vehicles with their status badge', async () => {
   const navigation = { navigate: jest.fn() };
   let root = await render(<Garage navigation={navigation} />);
-  expect(root.findAllByType(VehicleGridSkeleton)).toHaveLength(1);
+  expect(root.findAllByType(CardListSkeleton)).toHaveLength(1);
+  // The page says what it is (as the web).
+  expect(root.findAll(n => n.props.title === 'Garage' && n.props.subtitle === 'Vehicles you have evaluated or had inspected.')).not.toHaveLength(0);
   await advance(400);
   expect(root.findAll(n => n.props.title === 'Your garage is empty').length).toBeGreaterThan(0);
   act(() => tree.unmount());
@@ -230,9 +266,12 @@ test('Garage tab: placeholders, empty state, then saved vehicles with their stat
   expect(cards.map(c => c.props.vehicle.status).sort()).toEqual(['in_review', 'not_inspected']);
   const badge = label => root.findAll(n => n.props.label === label && n.props.tone)[0];
   // The web's stage chip (short, one line on the card): what's happening.
-  expect(badge('In progress').props.tone).toBe('warningOnPhoto'); // white pill, orange text
-  expect(badge('Not inspected').props.tone).toBe('neutralOnPhoto');
-  expect(root.findAll(n => n.props.children === 'Not available').length).toBeGreaterThan(0);
+  expect(badge('In progress').props.tone).toBe('warning');
+  expect(badge('Not inspected').props.tone).toBe('neutral');
+  // No estimate: said plainly, never as a value.
+  expect(root.findAll(n => n.props.children === 'No estimate yet').length).toBeGreaterThan(0);
+  // No photo comes with a saved vehicle: an icon, never an empty "No Image" frame.
+  expect(root.findAllByType(VehicleImage)).toHaveLength(0);
 
   const card = cards.find(c => c.props.vehicle.status === 'in_review');
   await act(async () => card.props.onPress());
@@ -245,13 +284,28 @@ test('Garage tab: placeholders, empty state, then saved vehicles with their stat
 test('Garage card actions (as the web): one next step per stage', async () => {
   const onAction = jest.fn();
   const actionOf = async v => {
-    const root = await render(<GarageCard vehicle={v} width={180} onPress={jest.fn()} onAction={onAction} />);
+    const root = await render(<GarageCard vehicle={v} onPress={jest.fn()} onAction={onAction} />);
     const b = root.findAllByType(Button)[0];
     const title = b.props.title;
     await act(async () => b.props.onPress());
     act(() => tree.unmount());
     return [title, onAction.mock.calls.at(-1)[0]];
   };
+  const textsOf = async v => {
+    const root = await render(<GarageCard vehicle={v} onPress={jest.fn()} onAction={onAction} />);
+    const all = root.findAll(n => typeof n.props.children === 'string').map(n => n.props.children);
+    act(() => tree.unmount());
+    return all;
+  };
+
+  // In progress: the full "Continue" label and the line saying what it does.
+  const open = { ...vehicle, phase: 'resume_self', inspectionId: 'insp_1', inspectionMode: 'M1', inspectionStatus: 'IN_PROGRESS' };
+  expect(await actionOf(open)).toEqual(['Continue AI Self Inspection', 'resume']);
+  expect(await textsOf(open)).toEqual(expect.arrayContaining(['In progress', 'Pick up your AI self-inspection where you left off.']));
+  // Ready to list: says so in words (not "List to market place?").
+  expect(await textsOf({ ...vehicle, valuationId: 'val_1', phase: 'can_list', inspectionEligible: true })).toEqual(
+    expect.arrayContaining(['Inspected and valued. List it to reach buyers.']),
+  );
 
   // Not inspected yet (valued or not): inspect first (ADR-0038).
   expect(await actionOf({ ...vehicle, valuationId: 'val_1', phase: 'fresh' })).toEqual(['Inspect to list', 'inspect']);

@@ -7,15 +7,16 @@ import {
   ButtonRow,
   Card,
   CardListSkeleton,
+  CheckCircle,
   FadeIn,
   Header,
   ScreenContainer,
   StatusView,
 } from '../../../components';
-import { colors, fonts, spacing } from '../../../theme';
+import { colors, fonts, spacing, typography } from '../../../theme';
 import { fs, ms } from '../../../utils/responsive';
 import { formatINR } from '../../../utils/format';
-import { useT } from '../../../i18n';
+import { isDevanagari, useLanguage, useT } from '../../../i18n';
 import { ROUTES } from '../../../navigation/routes';
 import { currentHomeRoute } from '../../../navigation/homeRoute';
 import { pickImageFromGallery } from '../../../utils/pickImage';
@@ -23,6 +24,8 @@ import { pickPdf } from '../../../utils/pickDocument';
 import { pickVideoFromGallery, recordVideo } from '../../../utils/pickVideo';
 import { warmPhotoLocation } from '../../../utils/photoLocation';
 import { saveToGarage, useIsInGarage } from '../../../store/garageStore';
+import { showBanner } from '../../../push/bannerStore';
+import { navigationRef } from '../../../navigation/navigationRef';
 import useLeaveGuard from './useLeaveGuard';
 import useGuidedVideos from './useGuidedVideos';
 import useSelfInspection, { slotKey } from './useSelfInspection';
@@ -57,6 +60,8 @@ const FOCUS_FOR_MS = 1500;
 //   or { inspectionId, bookingId } (an inspector's job).
 function SelfInspection({ navigation, route }) {
   const t = useT();
+  // One line of caption text (taller for Hindi / Marathi, as AppText draws it).
+  const noteLine = Math.round(typography.caption.lineHeight * (isDevanagari(useLanguage()) ? 1.25 : 1));
   const { inspectionId, vehicle, valuation, bookingId } = route.params ?? {};
   const si = useSelfInspection(inspectionId);
   const inspector = !!bookingId || si.inspection?.mode === 'M2';
@@ -138,12 +143,46 @@ function SelfInspection({ navigation, route }) {
     }
     return false; // The first document: leave the self-inspection
   };
+  // Leaving (everything is already saved): the owner is told where to find it again,
+  // and a tap on that message opens the Garage. A vehicle that somehow isn't in the
+  // Garage yet (started before it was added there by itself) is put there now.
+  const openGarage = () => {
+    if (navigationRef.isReady()) navigationRef.navigate(currentHomeRoute(), { screen: ROUTES.GARAGE });
+  };
   useLeaveGuard({
     navigation,
     enabled: si.screen === 'ready',
     onBack: stepBack,
-    confirmLeave: leave => leave(),
+    confirmLeave: leave => {
+      if (!inspector) {
+        if (vehicle?.vehicleId && valuation && !inGarage) saveToGarage({ vehicle, valuation }).catch(() => {});
+        showBanner({
+          title: t('selfInspection.leave.title'),
+          body: t('selfInspection.leave.body'),
+          icon: 'check',
+          tone: 'success',
+          hint: t('selfInspection.leave.hint'),
+          onPress: openGarage,
+        });
+      }
+      leave();
+    },
   });
+
+  // Opened to continue one already in progress (instead of starting a second one
+  // for the same vehicle): say so, once.
+  const resumed = route.params?.resumed === true;
+  useEffect(() => {
+    if (!resumed || si.screen !== 'ready') return;
+    navigation.setParams({ resumed: undefined });
+    showBanner({
+      title: t('selfInspection.resumed.title'),
+      body: t('selfInspection.resumed.body'),
+      icon: 'check',
+      tone: 'success',
+      hint: '',
+    });
+  }, [resumed, si.screen, navigation, t]);
 
   // A photo from the in-app camera comes back here.
   const captured = route.params?.captured;
@@ -392,6 +431,18 @@ function SelfInspection({ navigation, route }) {
             <AppText variant="caption">{t('selfInspection.doneShort', { done: totalDone, total: totalAll })}</AppText>
           </View>
         </View>
+        {/* Where to find it again: everything saves as it's added. */}
+        {!inspector ? (
+          <View style={styles.saved}>
+            {/* The tick sits on the first line, however many lines the note takes. */}
+            <View style={[styles.savedTick, { height: noteLine }]}>
+              <CheckCircle size={ms(15)} />
+            </View>
+            <AppText variant="caption" color={colors.body} style={styles.savedText}>
+              {t('selfInspection.savedNote')}
+            </AppText>
+          </View>
+        ) : null}
         <View style={styles.heroFoot}>
           {/* A Turag inspector's report goes to QC (it can become Turag Verified); the owner's own is self-declared. */}
           <Badge
@@ -477,6 +528,17 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: fs(19),
     lineHeight: fs(25),
+  },
+  saved: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  savedTick: {
+    justifyContent: 'center',
+  },
+  savedText: {
+    flex: 1,
   },
   heroFoot: {
     flexDirection: 'row',

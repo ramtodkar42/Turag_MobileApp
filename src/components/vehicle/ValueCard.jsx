@@ -7,7 +7,9 @@ import { fs, ms } from '../../utils/responsive';
 import { useT } from '../../i18n';
 
 // Green price card: "Pre-Estimated Value ↗  ₹8,31,300/-" + vehicle name + note.
-function ValueCard({ label: labelProp, value, title, description, style }) {
+// pending: there's no figure yet - `value` is a word ("No estimate yet"), shown
+// calmly in grey rather than as a green price.
+function ValueCard({ label: labelProp, value, title, description, pending = false, style }) {
   const t = useT();
   const label = labelProp ?? t('common.preEstimatedValue');
   return (
@@ -18,7 +20,11 @@ function ValueCard({ label: labelProp, value, title, description, style }) {
         </AppText>
         <Icon name="trendUp" size={ms(12)} color={colors.heading} strokeWidth={2} />
       </View>
-      <AppText variant="h1" color={colors.success} style={styles.value}>
+      <AppText
+        variant={pending ? 'title' : 'h1'}
+        color={pending ? colors.placeholder : colors.success}
+        style={pending ? styles.pending : styles.value}
+      >
         {value}
       </AppText>
       {title ? (
@@ -48,6 +54,11 @@ const styles = StyleSheet.create({
     marginVertical: spacing.xs,
     fontSize: fs(26),
     lineHeight: fs(34),
+  },
+  pending: {
+    marginVertical: spacing.xs,
+    fontSize: fs(18),
+    lineHeight: fs(24),
   },
   title: {
     marginTop: spacing.sm,

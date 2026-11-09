@@ -12,6 +12,7 @@ import QuickFilters from './QuickFilters';
 import SearchStatus from './SearchStatus';
 import SmartSearchChips from './SmartSearchChips';
 import ClosestNote from './ClosestNote';
+import ContinueInspectionCard from './ContinueInspectionCard';
 import { useT } from '../../../../i18n';
 
 const BANNER_IMAGE = require('../../../../assets/images/home/banner-red-car.jpg');
@@ -24,6 +25,8 @@ const BANNER_IMAGE = require('../../../../assets/images/home/banner-red-car.jpg'
 // when nothing matched exactly, a note that the closest vehicles are shown.
 // onLanguagePress(anchor): the language pill (first filter) was tapped.
 // onOpenSearch(): the search button - opens the search screen.
+// Signed in with an AI self-inspection still open: "pick up where you left off"
+// right under the greeting (not while searching) - onOpenGarage() opens the Garage.
 function HomeListHeader({
   user,
   market,
@@ -32,6 +35,7 @@ function HomeListHeader({
   onNotificationsPress,
   onLanguagePress,
   onOpenSearch,
+  onOpenGarage,
 }) {
   const t = useT();
   const firstName = user?.fullName?.split(' ')[0] || t('home.helloFallback');
@@ -106,7 +110,9 @@ function HomeListHeader({
               <SmartSearchChips chips={market.smart?.chips} onRemove={market.removeChip} />
             )}
           </View>
-        ) : null}
+        ) : (
+          <ContinueInspectionCard onOpenGarage={onOpenGarage} style={styles.continue} />
+        )}
       </View>
 
       <QuickFilters filters={market.filters} onChange={market.setFilter} onLanguagePress={onLanguagePress} />
@@ -144,6 +150,9 @@ const styles = StyleSheet.create({
     paddingRight: spacing.sm, // room for the mic
     backgroundColor: colors.white,
     ...shadows.sm,
+  },
+  continue: {
+    marginTop: spacing.md,
   },
   insights: {
     marginTop: spacing.md,

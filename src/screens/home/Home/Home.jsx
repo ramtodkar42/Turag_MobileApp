@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, FlatList, StyleSheet, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { ms } from '../../../utils/responsive';
 import {
   AppRefreshControl,
@@ -17,6 +18,7 @@ import { addRecentSearch } from '../../../store/recentSearchStore';
 import useNotificationBadge from '../../../hooks/useNotificationBadge';
 import useKeyboardVisible from '../../../hooks/useKeyboardVisible';
 import { loadSaved } from '../../../store/savedStore';
+import { loadGarage } from '../../../store/garageStore';
 import { requireLogin } from '../../../store/loginPromptStore';
 import { ROUTES } from '../../../navigation/routes';
 import HomeListHeader from './components/HomeListHeader';
@@ -47,6 +49,15 @@ function Home({ navigation, route }) {
       loadSaved();
     }
   }, [signedIn]);
+
+  // The Garage, fresh each time Home shows: an AI self-inspection still open is
+  // offered first thing ("pick up where you left off"), and the Garage tab's dot.
+  useFocusEffect(
+    useCallback(() => {
+      if (signedIn) loadGarage();
+    }, [signedIn]),
+  );
+  const openGarage = useCallback(() => navigation.navigate(ROUTES.GARAGE), [navigation]);
 
   // A search (typed or recent) from the search screen opens Home with it.
   const incomingQuery = route?.params?.query;
@@ -150,6 +161,7 @@ function Home({ navigation, route }) {
             }
             onLanguagePress={openLanguage}
             onOpenSearch={openSearch}
+            onOpenGarage={openGarage}
           />
         }
         onScrollBeginDrag={languageAt ? closeLanguage : undefined}

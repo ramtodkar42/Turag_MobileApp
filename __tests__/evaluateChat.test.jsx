@@ -57,6 +57,8 @@ const nav = () => ({ navigate: jest.fn(), goBack: jest.fn() });
 beforeEach(() => jest.useFakeTimers());
 afterEach(() => {
   act(() => tree?.unmount());
+  // Starting a self-inspection puts the vehicle in the Garage: each test starts empty.
+  act(() => clearGarage());
   jest.restoreAllMocks();
   jest.useRealTimers();
 });
@@ -151,6 +153,57 @@ test('the whole conversation, the same calls as the web, then AI Self Inspection
     inspectionId: expect.any(String),
     vehicle: expect.objectContaining({ vehicleId: 'veh_mock_1' }),
     valuation: expect.objectContaining({ stage: 'DECLARED' }),
+  });
+});
+
+describe('starting the AI Self Inspection from the chat', () => {
+  const start = async root => {
+    await toResult(root);
+    await act(async () => button(root, 'Inspect Vehicle').props.onPress());
+    await advance(700);
+    await act(async () => button(root, 'AI Self Inspection').props.onPress());
+    await advance(700);
+    await act(async () => {
+      button(root, 'Start AI Self Inspection').props.onPress();
+    });
+    await advance(1500);
+  };
+
+  test('a new one also puts the vehicle in the Garage, so it can be continued after the app is closed', async () => {
+    const garageStore = require('../src/store/garageStore');
+    jest.spyOn(garageStore, 'findOpenSelfInspection').mockResolvedValue(null);
+    const save = jest.spyOn(garageStore, 'saveToGarage');
+    const navigation = nav();
+    const root = await open(navigation);
+    await start(root);
+    expect(save).toHaveBeenCalledWith({
+      vehicle: expect.objectContaining({ vehicleId: 'veh_mock_1' }),
+      valuation: expect.objectContaining({ stage: 'DECLARED' }),
+    });
+    expect(navigation.navigate).toHaveBeenCalledWith(
+      ROUTES.SELF_INSPECTION,
+      expect.not.objectContaining({ resumed: true }),
+    );
+  });
+
+  test('one already open for this vehicle is continued - never a second one', async () => {
+    const garageStore = require('../src/store/garageStore');
+    const inspectorApi = require('../src/api/services/inspector.api');
+    jest
+      .spyOn(garageStore, 'findOpenSelfInspection')
+      .mockResolvedValue({ id: 'g1', vehicleId: 'veh_mock_1', inspectionId: 'insp_open', phase: 'resume_self' });
+    const begin = jest.spyOn(inspectorApi, 'beginSelfInspection');
+    const navigation = nav();
+    const root = await open(navigation);
+    await start(root);
+    expect(garageStore.findOpenSelfInspection).toHaveBeenCalledWith('veh_mock_1');
+    expect(begin).not.toHaveBeenCalled();
+    expect(navigation.navigate).toHaveBeenCalledWith(ROUTES.SELF_INSPECTION, {
+      inspectionId: 'insp_open',
+      vehicle: expect.objectContaining({ vehicleId: 'veh_mock_1' }),
+      valuation: expect.objectContaining({ stage: 'DECLARED' }),
+      resumed: true,
+    });
   });
 });
 

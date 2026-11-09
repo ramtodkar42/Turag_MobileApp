@@ -55,6 +55,15 @@ export const phaseHintKey = vehicle => {
   }
 };
 
+// What the self-inspection screen opens with, for a Garage vehicle.
+// resumed: say that it's an inspection already in progress being continued.
+export const selfInspectionParams = (vehicle, { resumed = false } = {}) => ({
+  inspectionId: vehicle.inspectionId,
+  vehicle,
+  valuation: vehicle.valuationId ? { valuationId: vehicle.valuationId, estimatedValue: vehicle.estimatedValue } : null,
+  ...(resumed ? { resumed: true } : null),
+});
+
 // The main next step:
 //   'view'    - open its listing
 //   'list'    - create a listing (inspected, valued)

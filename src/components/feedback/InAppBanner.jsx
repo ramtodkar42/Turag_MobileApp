@@ -14,9 +14,11 @@ const HIDDEN = -ms(160);
 const SWIPE_CLOSE = -ms(24);
 
 // A notification banner that slides down from the top of the screen (like
-// Instagram's), with an icon, a bold title and up to two lines of text.
+// Instagram's), with an icon, a bold title (up to two lines) and up to three
+// lines of text - room for Hindi / Marathi, which run longer than English.
 // Tap: onPress. Swipe up, or wait BANNER_SHOW_MS: onHide.
-// banner: { id, title, body } | null - a new id shows it again.
+// banner: { id, title, body, icon?, tone? } | null - a new id shows it again.
+// icon: the tile's icon (default the bell); tone 'success': a green tile.
 function InAppBanner({ banner, onPress, onHide, accessibilityHint }) {
   const insets = useSafeAreaInsets();
   const offset = useRef(new Animated.Value(HIDDEN)).current;
@@ -82,15 +84,19 @@ function InAppBanner({ banner, onPress, onHide, accessibilityHint }) {
         accessibilityHint={accessibilityHint}
         style={({ pressed }) => [styles.card, pressed && styles.pressed]}
       >
-        <IconTile name="bell" size={ms(48)} />
+        <IconTile
+          name={banner.icon ?? 'bell'}
+          size={ms(48)}
+          {...(banner.tone === 'success' ? { color: colors.success, backgroundColor: colors.successLight } : null)}
+        />
         <View style={styles.text}>
           {banner.title ? (
-            <AppText variant="title" numberOfLines={1} style={styles.title}>
+            <AppText variant="title" numberOfLines={2} style={styles.title}>
               {banner.title}
             </AppText>
           ) : null}
           {banner.body ? (
-            <AppText variant="caption" color={colors.body} numberOfLines={2} style={styles.body}>
+            <AppText variant="caption" color={colors.body} numberOfLines={3} style={styles.body}>
               {banner.body}
             </AppText>
           ) : null}

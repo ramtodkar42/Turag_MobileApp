@@ -17,7 +17,9 @@ export const useTabBarSpace = () => {
   return TAB_BAR_HEIGHT + Math.max(insets.bottom, TAB_BAR_GAP) + spacing.lg;
 };
 
-// Floating pill tab bar. Each tab screen sets `options.title` and `options.icon`.
+// Floating pill tab bar. Each tab screen sets `options.title` and `options.icon`,
+// and optionally `options.dot`: a component that draws a small dot on the icon
+// (or nothing) by itself.
 // It stays put when the keyboard opens (no jump up) and is hidden meanwhile.
 function TabBar({ state, descriptors, navigation }) {
   const insets = useSafeAreaInsets();
@@ -50,7 +52,11 @@ function TabBar({ state, descriptors, navigation }) {
               accessibilityLabel={options.title}
               style={styles.tab}
             >
-              <Icon name={options.icon} size={ms(22)} color={colors.primary} filled={focused} />
+              <View>
+                <Icon name={options.icon} size={ms(22)} color={colors.primary} filled={focused} />
+                {/* A tab's own dot (e.g. something to finish in the Garage). */}
+                {options.dot ? <options.dot /> : null}
+              </View>
               {/* Every tab is named (the open one: filled icon, full-strength
                   name). Long names ("AI Inspection") shrink to fit narrow phones. */}
               <AppText

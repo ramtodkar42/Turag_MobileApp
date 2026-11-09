@@ -23,9 +23,9 @@ import { codeLabel, keyLabel } from '../../../i18n/vehicleLabels';
 import { FEATURES } from '../../../api/config';
 import { supportsSelfInspection } from '../../../api/mappers/valuation';
 import { startSelfInspection } from '../../../api/services/valuation.api';
-import { loadGarage, removeFromGarageById, useGarage } from '../../../store/garageStore';
+import { findOpenSelfInspection, loadGarage, removeFromGarageById, useGarage } from '../../../store/garageStore';
 import useConfirmDialog from '../../../hooks/useConfirmDialog';
-import { phaseAction, phaseBadge, phaseHintKey } from '../garagePhase';
+import { phaseAction, phaseBadge, phaseHintKey, selfInspectionParams } from '../garagePhase';
 
 // The self-inspection button's text by the next step.
 const PRIMARY_TITLE = {
@@ -99,16 +99,24 @@ function GarageVehicle({ navigation, route }) {
     setStarting(true);
     setError('');
     try {
-      startedId.current ??= (
-        await startSelfInspection({
-          vehicleId: vehicle.vehicleId,
-          category: vehicle.category,
-          consent,
-        })
-      ).inspectionId;
-      const inspectionId = startedId.current;
+      if (!startedId.current) {
+        // Never a second one: a self-inspection still open for this vehicle (started
+        // on another phone, or on the web) is continued instead.
+        const open = await findOpenSelfInspection(vehicle.vehicleId);
+        if (open) {
+          navigation.navigate(ROUTES.SELF_INSPECTION, selfInspectionParams(open, { resumed: true }));
+          return;
+        }
+        startedId.current = (
+          await startSelfInspection({
+            vehicleId: vehicle.vehicleId,
+            category: vehicle.category,
+            consent,
+          })
+        ).inspectionId;
+      }
       navigation.navigate(ROUTES.SELF_INSPECTION, {
-        inspectionId,
+        inspectionId: startedId.current,
         vehicle,
         valuation: valuationParam,
       });
@@ -120,12 +128,7 @@ function GarageVehicle({ navigation, route }) {
   };
 
   // The self-inspection already started (continue it) / submitted (its summary).
-  const openSelfInspection = () =>
-    navigation.navigate(ROUTES.SELF_INSPECTION, {
-      inspectionId: vehicle.inspectionId,
-      vehicle,
-      valuation: valuationParam,
-    });
+  const openSelfInspection = () => navigation.navigate(ROUTES.SELF_INSPECTION, selfInspectionParams(vehicle));
 
   const viewReport = () =>
     navigation.navigate(ROUTES.INSPECTION_REPORT, { inspectionId: vehicle.inspectionId });
@@ -260,7 +263,7 @@ function GarageVehicle({ navigation, route }) {
         {vehicle.inspectionId && vehicle.reportReady ? (
           <Button
             title={t('garage.vehicle.viewReport')}
-            size="sm"
+            size="md"
             variant="outline"
             style={styles.flex}
             disabled={removing}
@@ -269,7 +272,7 @@ function GarageVehicle({ navigation, route }) {
         ) : null}
         <Button
           title={t(removing ? 'garage.vehicle.removing' : 'garage.vehicle.remove')}
-          size="sm"
+          size="md"
           variant="outline"
           style={styles.flex}
           loading={removing}
@@ -310,6 +313,7 @@ function GarageVehicle({ navigation, route }) {
             ? `${formatINR(vehicle.estimatedValue)}/-`
             : t('garage.card.noValue')
         }
+        pending={vehicle.estimatedValue == null}
         title={name}
         description={t('garage.vehicle.valueNote')}
         style={styles.card}

@@ -6,6 +6,7 @@ import {
 } from '../../../api/services/valuation.api';
 import { beginSelfInspection } from '../../../api/services/inspector.api';
 import { supportsSelfInspection } from '../../../api/mappers/valuation';
+import { findOpenSelfInspection, saveToGarage } from '../../../store/garageStore';
 import { formatNumber } from '../../../utils/format';
 import { formatRegNumber } from '../../../utils/validators';
 import { ROUTES } from '../../../navigation/routes';
@@ -275,6 +276,9 @@ export default function useEvaluateChat({ navigation }) {
 
   // Start self-inspection: creates it once, then the step-by-step checklist.
   // consent: the inspection-consent box under the button (ticked to get here).
+  // A self-inspection still open for this vehicle is continued instead (a new one
+  // would hide it: the Garage shows only the newest). A new one also puts the
+  // vehicle in the Garage, so it can be continued after the app is closed.
   const startSelf = async consent => {
     if (startingSelf.current) return;
     startingSelf.current = true;
@@ -283,18 +287,27 @@ export default function useEvaluateChat({ navigation }) {
     setStarting(true);
     try {
       if (!data.current.inspectionId) {
-        const created = await beginSelfInspection({
-          vehicleId: vehicle.vehicleId,
-          category: vehicle.category,
-          consent,
-        });
-        data.current.inspectionId = created.inspectionId;
+        const open = await findOpenSelfInspection(vehicle.vehicleId);
+        if (open) {
+          data.current.inspectionId = open.inspectionId;
+          data.current.resumed = true;
+        } else {
+          const created = await beginSelfInspection({
+            vehicleId: vehicle.vehicleId,
+            category: vehicle.category,
+            consent,
+          });
+          data.current.inspectionId = created.inspectionId;
+          // Best effort: the inspection goes ahead even if this fails.
+          await saveToGarage({ vehicle, valuation }).catch(() => {});
+        }
       }
       if (id === session.current) {
         navigation.navigate(ROUTES.SELF_INSPECTION, {
           inspectionId: data.current.inspectionId,
           vehicle,
           valuation,
+          ...(data.current.resumed ? { resumed: true } : null),
         });
       }
     } catch (e) {
