@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 8+: the red T (foreground) on a white background; the phone's launcher shapes it
+     (circle, squircle, rounded square). The same T is the monochrome layer for Android 13+
+     themed icons. Older phones use the ic_launcher PNGs in the mipmap-* folders. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+    <monochrome android:drawable="@mipmap/ic_launcher_foreground" />
+</adaptive-icon>

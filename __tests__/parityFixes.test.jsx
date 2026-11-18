@@ -172,11 +172,14 @@ describe('listings: sold (launch preview), reserved, and your own', () => {
     expect(root.findAll(n => n.props.accessibilityLabel === 'Save vehicle')).toHaveLength(0);
     await act(async () => root.findAllByType(Button).find(b => b.props.title === 'Manage listing').props.onPress());
     expect(navigation.navigate).toHaveBeenCalledWith(ROUTES.MY_LISTING, { listingId: 'lst_1' });
+    // The seller doesn't report their own listing.
+    expect(hasText(root, 'Report this listing')).toBe(false);
   });
 
-  test("someone else's listing: Make an offer, as before", async () => {
+  test("someone else's listing: Make an offer, as before - and it can be reported", async () => {
     const { root } = await openPage();
     expect(buttonTitles(root)).toContain('Make an offer');
+    expect(hasText(root, 'Report this listing')).toBe(true);
   });
 });
 

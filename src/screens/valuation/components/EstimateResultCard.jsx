@@ -6,55 +6,41 @@ import { fs } from '../../../utils/responsive';
 import { formatINR } from '../../../utils/format';
 import { useT } from '../../../i18n';
 import TierPreview, { TierNote } from './TierPreview';
-import { sellerFigures } from './EstimateSummary';
-
-function Figure({ label, value, range }) {
-  return (
-    <View style={styles.figure}>
-      <View style={styles.figureTop}>
-        <AppText variant="label" color={colors.heading} style={styles.flex}>
-          {label}
-        </AppText>
-        <AppText variant="title" color={colors.success} numberOfLines={1} style={styles.value}>
-          {value}
-        </AppText>
-      </View>
-      {range ? (
-        <AppText variant="caption" color={colors.muted}>
-          {range}
-        </AppText>
-      ) : null}
-    </View>
-  );
-}
+import PriceRange, { priceRange } from './PriceRange';
+import PriceFactors, { knownFactors } from './PriceFactors';
 
 // The estimate in the Evaluate chat, as one short card that fits on screen with its
-// message: the vehicle, what a dealer and a private buyer pay, and the tier today. The
-// longer notes open under "More details". valuation may be null ("Not available yet").
+// message: the vehicle, ONE price range with the most likely price (owner rule, 5 Nov
+// 2026, as the web: no dealer label, no second figure, no confidence) and the tier
+// today. The longer notes and "How we worked this out" open under "More details".
+// valuation may be null ("Not available yet").
+// label: the small heading over the price (default "Estimated value").
 // summary: a short note shown in place of `description`, which then moves to the details.
 // children: anything to ask with it (the value question), at the bottom of the card.
 function EstimateResultCard({ vehicle, valuation, label, description, summary, showTier = false, children }) {
   const t = useT();
   const [expanded, setExpanded] = useState(false);
   const hasValue = valuation?.estimatedValue != null;
-  const { dealer, privateSale } = hasValue ? sellerFigures(valuation) : {};
-  const range = band => t('valuation.estimate.range', { low: formatINR(band.low), high: formatINR(band.high) });
+  const range = hasValue ? priceRange(valuation) : null;
+  const factors = hasValue ? knownFactors(valuation.adjustments) : [];
   const fullNote = summary ? description : null;
-  const hasDetails = !!fullNote || !!privateSale || showTier;
+  const hasDetails = !!fullNote || factors.length > 0 || showTier;
 
   return (
     <Card style={styles.card}>
       <AppText variant="title">{[vehicle.make, vehicle.model, vehicle.year].filter(Boolean).join(' ')}</AppText>
-      <View style={styles.figures}>
-        <Figure
-          label={label ?? t(dealer || privateSale ? 'valuation.estimate.dealerPays' : 'common.preEstimatedValue')}
-          value={hasValue ? formatINR(valuation.estimatedValue) : t('valuation.result.noValue')}
-          range={dealer ? range(dealer) : null}
-        />
-        {privateSale ? (
-          <Figure label={t('valuation.estimate.privateSale')} value={formatINR(privateSale.value)} range={range(privateSale)} />
-        ) : null}
-      </View>
+      {range ? (
+        <PriceRange range={range} value={valuation.estimatedValue} label={label} />
+      ) : (
+        <View style={styles.figure}>
+          <AppText variant="label" color={colors.heading} style={styles.flex}>
+            {label ?? t('common.estimatedValue')}
+          </AppText>
+          <AppText variant="title" color={colors.success} numberOfLines={1} style={styles.value}>
+            {hasValue ? formatINR(valuation.estimatedValue) : t('valuation.result.noValue')}
+          </AppText>
+        </View>
+      )}
       {summary || description ? (
         <AppText variant="caption" color={colors.body}>
           {summary ?? description}
@@ -78,11 +64,7 @@ function EstimateResultCard({ vehicle, valuation, label, description, summary, s
               {fullNote}
             </AppText>
           ) : null}
-          {privateSale ? (
-            <AppText variant="caption" color={colors.body}>
-              {t('valuation.estimate.privateHelp')}
-            </AppText>
-          ) : null}
+          <PriceFactors factors={factors} />
           {showTier ? <TierNote value={valuation?.estimatedValue} /> : null}
         </View>
       ) : null}
@@ -95,13 +77,7 @@ const styles = StyleSheet.create({
   card: {
     gap: spacing.sm,
   },
-  figures: {
-    gap: spacing.sm,
-  },
   figure: {
-    gap: spacing.xxs,
-  },
-  figureTop: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,

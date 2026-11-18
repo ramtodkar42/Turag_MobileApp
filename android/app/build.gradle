@@ -86,7 +86,8 @@ android {
         applicationId "ai.turag.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
+        // Every upload to Play needs a higher versionCode (2 is on Internal testing since 2026-11-17).
+        versionCode 3
         versionName "1.0"
         // Google Maps key (react-native-maps). Kept out of git: add a line
         // MAPS_API_KEY=your_key to android/local.properties.
@@ -134,6 +135,8 @@ dependencies {
     implementation("androidx.activity:activity:1.9.+")
     // Google Play's in-app update (com.turag.update)
     implementation("com.google.android.play:app-update:2.1.0")
+    // Google Play Billing (com.turag.billing): the AI Self Inspection fee. Play needs 8 or newer.
+    implementation("com.android.billingclient:billing:8.3.0")
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")

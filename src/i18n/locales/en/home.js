@@ -7,6 +7,9 @@ export default {
   'home.continue.paymentPending': 'AI Self Inspection payment pending',
   'home.continue.view': 'View',
   'home.continue.viewHint': 'Opens your Garage',
+  // A business member's card on Home (dealer, lender, yard).
+  'home.business.open': 'Open',
+  'home.business.hint': 'Opens your business accounts',
   'home.notifications': 'Notifications',
   'home.searchPlaceholder': 'Search Car',
   'home.banner': 'Find Your Dream Car',

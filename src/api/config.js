@@ -94,6 +94,21 @@ export const FEATURES = {
   dealerMarketplace: false,
 };
 
+// The AI Self Inspection fee in the Android app is paid with Google Play Billing,
+// because Play's rules require a digital service bought in the app to go through
+// Google Play. Booking an inspector and the vehicle token stay on Razorpay.
+// The iPhone app keeps Razorpay for now; it is not on the App Store yet.
+// - selfInspectionProductId: must match the product in Play Console and the
+//   server's GOOGLE_PLAY_SELF_INSPECTION_PRODUCT_ID. It can never change in Play.
+// - devStub (debug builds only): a build that wasn't installed from Google Play
+//   can't buy, so the test server's stub check gets a made-up purchase instead.
+//   The live server checks every purchase with Google and refuses it.
+export const PLAY_BILLING = {
+  enabled: Platform.OS === 'android',
+  selfInspectionProductId: 'self_inspection_fee',
+  devStub: __DEV__,
+};
+
 // Which parts of the app talk to the real backend. Everything else still uses
 // the mock data in src/api/mock until its backend is connected.
 export const USE_REAL_API = {

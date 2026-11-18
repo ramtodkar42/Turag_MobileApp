@@ -113,8 +113,9 @@ test('Valuation result: "sent for review" for 2 s, then Save Vehicle adds it to 
   expect(root.findByType(SuccessSheet).props.visible).toBe(true);
   await advance(2100);
   expect(root.findByType(SuccessSheet).props.visible).toBe(false);
-  // The two figures a seller acts on, as the web: no band table here (only on the report).
-  expect(root.findAll(n => n.props.children === 'Sell to a private buyer for about').length).toBeGreaterThan(0);
+  // One price range, as the web (owner rule, 5 Nov 2026): no band table here (only on the report).
+  expect(root.findAll(n => n.props.children === 'Estimated value').length).toBeGreaterThan(0);
+  expect(root.findAll(n => n.props.children === 'Sell to a private buyer for about')).toHaveLength(0);
   expect(root.findAllByType(KeyValueRow).map(r => r.props.label)).not.toEqual([
     'Distress',
     'Auction',

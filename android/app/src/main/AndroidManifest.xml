@@ -11,6 +11,14 @@
   <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
   <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+  <!-- Not needed, so not asked for (react-native-blob-util adds them): the app saves
+       downloads only in its own folder (CacheDir) and opens them from there, and picked
+       files are copied there first. Fewer permissions on the Play listing. -->
+  <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove" />
+  <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove" />
+  <uses-permission android:name="android.permission.DOWNLOAD_WITHOUT_NOTIFICATION" tools:node="remove" />
+
   <uses-feature
     android:name="android.hardware.camera"
     android:required="false" />
@@ -38,6 +46,16 @@
     <meta-data
       android:name="com.google.android.geo.API_KEY"
       android:value="${MAPS_API_KEY}" />
+    <!-- Push notifications: the status-bar icon (the white Turag "T"; Android shows small
+         icons as white shapes) and the accent colour (theme red). -->
+    <meta-data
+      android:name="com.google.firebase.messaging.default_notification_icon"
+      android:resource="@drawable/ic_notification" />
+    <!-- tools:replace: @react-native-firebase/messaging sets this too (from firebase.json); ours wins. -->
+    <meta-data
+      android:name="com.google.firebase.messaging.default_notification_color"
+      android:resource="@color/notification_color"
+      tools:replace="android:resource" />
     <activity
       android:name=".MainActivity"
       android:label="@string/app_name"

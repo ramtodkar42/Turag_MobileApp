@@ -89,7 +89,7 @@ export default {
   'payouts.settle.receiptError': 'We could not download the receipt.',
   'payouts.settle.addAccount': 'Add a payout account',
   'payouts.settle.breakdown.token': 'Token',
-  'payouts.settle.breakdown.commission': 'Commission',
+  'payouts.settle.breakdown.commission': 'Service fee',
   'payouts.settle.breakdown.gst': 'GST',
   'payouts.settle.status.PAID': 'Settled',
   'payouts.settle.status.PENDING': 'Payout pending',

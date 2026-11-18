@@ -27,6 +27,8 @@ export default {
   'common.payNotice.unavailable': 'पेमेंट उपलब्ध नाही',
   'common.payNotice.failed': 'पेमेंट पूर्ण झाले नाही',
   'common.payNotice.awaiting': 'तुमच्या पेमेंटची पुष्टी होत आहे',
+  'common.payNotice.pending': 'पेमेंट बाकी',
+  'common.payNotice.alreadyPaid': 'पेमेंट आधीच झाले आहे',
   'common.upload': 'अपलोड करा',
   'common.change': 'बदला',
   // Changing an uploaded photo / document (the old one stays until the new one is in)
@@ -72,6 +74,7 @@ export default {
   'common.permission.microphone.title': 'मायक्रोफोन ॲक्सेस बंद आहे',
   'common.permission.microphone.message': 'टाइप करण्याऐवजी बोलण्यासाठी, फोनच्या सेटिंग्जमध्ये Turag ला मायक्रोफोनची परवानगी द्या.',
   'common.preEstimatedValue': 'अंदाजित मूल्य',
+  'common.estimatedValue': 'अंदाजे किंमत',
   'common.showPassword': 'पासवर्ड दाखवा',
   'common.hidePassword': 'पासवर्ड लपवा',
   'common.openAssistant': 'TURAG.AI सहाय्यक उघडा',

@@ -738,7 +738,10 @@ describe('Self-inspection screen', () => {
     const root = await render();
     await act(async () => {});
     expect(api.getReferenceValuation).toHaveBeenCalledWith('insp_1');
-    expect(hasText(root, '₹4,50,000')).toBe(true);
+    // Shown as "about" (≈), in the summary card and the Estimate step, as the web.
+    const shown = root.findAll(n => n.props.children === '≈ ₹4,50,000');
+    expect(shown.length).toBeGreaterThanOrEqual(2);
+    expect(root.findAll(n => n.props.children === '₹4,50,000')).toHaveLength(0);
   });
 
   test('an inspection pinned to the older checklist still opens (PUC upload, dashboard video)', async () => {
@@ -766,7 +769,9 @@ describe('Self-inspection screen', () => {
     await act(async () => {});
     expect(hasText(root, 'AI Self Inspection submitted')).toBe(true);
     expect(api.estimateFinalValue).toHaveBeenCalledWith({ vehicle_id: 'veh_1', stage: 'DECLARED', inspection_id: 'insp_1' });
-    expect(hasText(root, 'Dealer will pay about')).toBe(true);
+    // Owner rule (5 Nov 2026): one value, no dealer label and no confidence.
+    expect(hasText(root, 'Dealer will pay about')).toBe(false);
+    expect(hasText(root, 'confidence')).toBe(false);
     expect(hasText(root, '₹4,50,000')).toBe(true);
   });
 });

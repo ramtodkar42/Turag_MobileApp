@@ -20,6 +20,7 @@ import DescriptionCard from '../components/DescriptionCard';
 import InspectionBanner from '../components/InspectionBanner';
 import InspectionSummaryCard from '../components/InspectionSummaryCard';
 import ReportDetailCard from '../components/ReportDetailCard';
+import ReportListing from '../components/ReportListing';
 import PriceCard from '../components/PriceCard';
 import SpecGrid from '../components/SpecGrid';
 import VehicleGallery from '../components/VehicleGallery';
@@ -252,6 +253,9 @@ function VehicleListing({ navigation, route }) {
           style={styles.section}
         />
 
+        {/* Anyone but the seller can report a listing (Google Play's rule for what people post). */}
+        {!mine && vehicle.id ? <ReportListing vehicle={vehicle} style={styles.report} /> : null}
+
         {error ? (
           <StatusView message={error} style={styles.section}>
             <Button
@@ -297,6 +301,10 @@ const styles = StyleSheet.create({
   },
   action: {
     marginTop: spacing.md,
+  },
+  report: {
+    marginTop: spacing.xl,
+    marginBottom: spacing.sm,
   },
   sold: {
     gap: spacing.xxs,

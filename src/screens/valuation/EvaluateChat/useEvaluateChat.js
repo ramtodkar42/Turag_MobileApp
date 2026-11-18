@@ -210,7 +210,6 @@ export default function useEvaluateChat({ navigation }) {
             kind: 'estimate',
             vehicle,
             valuation,
-            label: tNow('valuation.estimate.dealerPays'),
             askAccuracy: declared.ready,
             showTier: valuation?.estimatedValue != null,
             summary: valuation?.estimatedValue != null ? tNow('valuation.estimate.notFinal') : undefined,

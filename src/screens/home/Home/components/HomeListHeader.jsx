@@ -13,6 +13,7 @@ import SearchStatus from './SearchStatus';
 import SmartSearchChips from './SmartSearchChips';
 import ClosestNote from './ClosestNote';
 import ContinueInspectionCard from './ContinueInspectionCard';
+import BusinessCard from './BusinessCard';
 import { useT } from '../../../../i18n';
 
 const BANNER_IMAGE = require('../../../../assets/images/home/banner-red-car.jpg');
@@ -27,6 +28,8 @@ const BANNER_IMAGE = require('../../../../assets/images/home/banner-red-car.jpg'
 // onOpenSearch(): the search button - opens the search screen.
 // Signed in with an AI self-inspection still open: "pick up where you left off"
 // right under the greeting (not while searching) - onOpenGarage() opens the Garage.
+// A member of a business (dealer, lender, yard) sees their business card first there
+// (BusinessCard) - onOpenBusiness() opens Business accounts.
 function HomeListHeader({
   user,
   market,
@@ -36,6 +39,7 @@ function HomeListHeader({
   onLanguagePress,
   onOpenSearch,
   onOpenGarage,
+  onOpenBusiness,
 }) {
   const t = useT();
   const firstName = user?.fullName?.split(' ')[0] || t('home.helloFallback');
@@ -111,7 +115,10 @@ function HomeListHeader({
             )}
           </View>
         ) : (
-          <ContinueInspectionCard onOpenGarage={onOpenGarage} style={styles.continue} />
+          <>
+            <BusinessCard onOpen={onOpenBusiness} style={styles.continue} />
+            <ContinueInspectionCard onOpenGarage={onOpenGarage} style={styles.continue} />
+          </>
         )}
       </View>
 

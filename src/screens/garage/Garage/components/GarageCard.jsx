@@ -86,12 +86,13 @@ function GarageCard({ vehicle, style, onPress, onAction }) {
         </View>
 
         <View style={styles.value}>
+          {/* One figure, never labelled a dealer price (owner rule, 5 Nov 2026, as the web). */}
           <AppText variant="caption" style={styles.flex}>
-            {t('common.preEstimatedValue')}
+            {t('common.estimatedValue')}
           </AppText>
           {hasValue ? (
             <AppText variant="title" color={colors.success} numberOfLines={1} style={styles.amount}>
-              {`${formatINR(vehicle.estimatedValue)}/-`}
+              {`≈ ${formatINR(vehicle.estimatedValue)}`}
             </AppText>
           ) : (
             <AppText variant="label" color={colors.placeholder} numberOfLines={1}>

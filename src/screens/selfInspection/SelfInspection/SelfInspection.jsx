@@ -424,7 +424,8 @@ function SelfInspection({ navigation, route }) {
         badge={t(inspector ? 'selfInspection.inspector.badge' : 'selfInspection.selfDeclared')}
         done={totalDone}
         total={totalAll}
-        live={liveMinor != null ? inr(liveMinor) : null}
+        // "About" this much, as the web and the Estimate tab below (owner rule: never a precise price).
+        live={liveMinor != null ? `≈ ${inr(liveMinor)}` : null}
         onLivePress={() => goStep('review')}
         saved={inspector ? null : t('selfInspection.savedShort')}
         style={styles.summary}

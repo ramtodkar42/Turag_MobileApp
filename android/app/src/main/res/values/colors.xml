@@ -1,3 +1,7 @@
 <resources>
     <color name="bootsplash_background">#ffffff</color>
+    <!-- Launcher icon background (behind the red T) -->
+    <color name="ic_launcher_background">#FFFFFF</color>
+    <!-- Push notification accent (theme primary red) -->
+    <color name="notification_color">#E82127</color>
 </resources>

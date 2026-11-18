@@ -307,10 +307,12 @@ function GarageVehicle({ navigation, route }) {
         style={styles.card}
       />
 
+      {/* One figure, never labelled a dealer price (owner rule, 5 Nov 2026, as the web). */}
       <ValueCard
+        label={t('common.estimatedValue')}
         value={
           vehicle.estimatedValue != null
-            ? `${formatINR(vehicle.estimatedValue)}/-`
+            ? `≈ ${formatINR(vehicle.estimatedValue)}`
             : t('garage.card.noValue')
         }
         pending={vehicle.estimatedValue == null}

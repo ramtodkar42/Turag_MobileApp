@@ -55,7 +55,7 @@ export const mapVehicle = (data, { registrationNumber } = {}) => {
 
 const band = value => ({ min: toRupees(value?.low), max: toRupees(value?.high) });
 
-// valuationOutput -> { valuationId, estimatedValue, priceBands, confidence, ... }.
+// valuationOutput -> { valuationId, estimatedValue, priceBands, confidence, adjustments, ... }.
 export const mapValuation = valuation => ({
   valuationId: valuation.valuation_id,
   vehicleId: valuation.vehicle_id,
@@ -69,6 +69,8 @@ export const mapValuation = valuation => ({
     retail: band(valuation.bands?.retail),
   },
   confidence: valuation.confidence?.level ?? null,
+  // What moved the estimate ("How we worked this out"): [{ factor, impactPct }].
+  adjustments: (valuation.adjustments ?? []).map(a => ({ factor: a.factor, impactPct: a.impact_pct })),
   validUntil: valuation.valid_until ?? null,
 });
 

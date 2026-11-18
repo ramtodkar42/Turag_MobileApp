@@ -14,6 +14,10 @@ const KINDS = {
   unavailable: { icon: 'rupee', fg: colors.body, bg: colors.input, titleKey: 'common.payNotice.unavailable' },
   // Paid, but the server hasn't confirmed it yet.
   awaiting: { icon: 'clock', fg: colors.primary, bg: colors.input, titleKey: 'common.payNotice.awaiting' },
+  // Google Play: the payment itself isn't complete yet (e.g. cash at a shop).
+  pending: { icon: 'clock', fg: colors.primary, bg: colors.input, titleKey: 'common.payNotice.pending' },
+  // Paid earlier another way; this purchase wasn't used (and is refunded).
+  alreadyPaid: { icon: 'check', fg: colors.success, bg: colors.input, titleKey: 'common.payNotice.alreadyPaid' },
   failed: { icon: 'rupee', fg: colors.warning, bg: colors.warningLight, titleKey: 'common.payNotice.failed' },
 };
 

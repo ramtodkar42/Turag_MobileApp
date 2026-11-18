@@ -8,6 +8,9 @@ export default {
   'home.continue.paymentPending': 'AI सेल्फ़-इंस्पेक्शन का भुगतान बाकी',
   'home.continue.view': 'देखें',
   'home.continue.viewHint': 'आपका गैराज खोलता है',
+  // A business member's card on Home (dealer, lender, yard).
+  'home.business.open': 'खोलें',
+  'home.business.hint': 'आपके बिज़नेस खाते खोलता है',
   'home.notifications': 'सूचनाएँ',
   'home.searchPlaceholder': 'कार खोजें',
   'home.banner': 'अपनी पसंदीदा कार खोजें',

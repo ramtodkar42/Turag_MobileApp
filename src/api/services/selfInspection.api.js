@@ -7,7 +7,15 @@ import { PAYMENT_CANCELLED, isTestGateway, openRazorpayCheckout } from '../razor
 import { openHostedCheckout } from '../hostedCheckout';
 import { tNow } from '../../i18n';
 import { ENDPOINTS } from '../endpoints';
-import { UPLOAD_TIMEOUT_MS } from '../config';
+import { PLAY_BILLING, UPLOAD_TIMEOUT_MS } from '../config';
+import {
+  PLAY_ALREADY_OWNED,
+  PLAY_CANCELLED,
+  PLAY_UNAVAILABLE,
+  buyPlayProduct,
+  consumePlayPurchase,
+  getPlayPurchases,
+} from '../playBilling';
 import { mapValuation } from '../mappers/valuation';
 import { mediaUrl } from '../../utils/mediaUrl';
 import { selectFinalValuationCard } from '../../vendor/selfInspectionLogic';
@@ -126,15 +134,166 @@ export const SELF_INSPECTION_FEE_REQUIRED = 'SELF_INSPECTION_FEE_REQUIRED';
 
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-// Pays the self-inspection fee (as the web's payForSelfInspection). The amount
-// is the server's. The test gateway completes it with /pay/simulate, a real one
-// opens Razorpay, a redirect provider (PhonePe) opens its page in a secure tab;
-// then the payment is checked (1 s apart, 10 times) until the server confirms
-// it - the app never decides it's paid. onPhase('starting' | 'confirming') for
-// the button text. opts.prefill: { name, email, contact } for the checkout.
-// Returns { result: 'paid' | 'awaiting' (not confirmed yet) | 'failed' |
-// 'unavailable' (payments off), amountMinor, error? }.
-export const payForSelfInspection = async (inspectionId, { onPhase, prefill } = {}) => {
+// Pays the self-inspection fee. Android: Google Play Billing (payWithGooglePlay).
+// Elsewhere: the payment gateway, as the web (payWithGateway). The app never
+// decides it's paid; only the server's CAPTURED counts.
+// onPhase('starting' | 'confirming') for the button text. opts: { onPhase,
+// prefill: { name, email, contact } (gateway checkout), accountId (the Turag
+// user id, sent with a Google Play purchase) }.
+// Returns { result: 'paid' | 'awaiting' (not confirmed yet) | 'pending' (Google
+// Play: the payment itself isn't complete yet) | 'failed' | 'unavailable',
+// amountMinor, kind?, messageKey?, error? }.
+export const payForSelfInspection = (inspectionId, opts = {}) =>
+  PLAY_BILLING.enabled ? payWithGooglePlay(inspectionId, opts) : payWithGateway(inspectionId, opts);
+
+// --- Google Play Billing (Android) ----------------------------------------------------
+// Google's sheet takes the money; the purchase token then goes to the server, which
+// checks it with Google and records the fee. The purchase is consumed only after the
+// server has it, so a purchase made just before the app closed is sent again later
+// (recoverPlayPurchases) and is never charged twice. A purchase the server refuses is
+// not consumed either: Google refunds it after 3 days when it isn't acknowledged.
+
+const PLAY_VERIFY_TIMEOUT_MS = 30000;
+
+// Server answers that mean "this purchase can't be used for this inspection".
+const PLAY_REFUSED = new Set(['STORE_PURCHASE_INVALID', 'PAYMENT_CONFLICT_STATE', 'PAYMENT_NOT_FOUND', 'VALIDATION_ERROR']);
+
+// The inspection's fee was already paid another way (e.g. Razorpay on the web): the
+// server refuses this purchase without recording it. The inspection counts as paid,
+// and the purchase is left unfinished so Google refunds it.
+const FEE_ALREADY_PAID = 'FEE_ALREADY_PAID';
+// Purchases the server answered that way in this app session: not sent again.
+const alreadyPaidTokens = new Set();
+
+// Sends one purchase to the server for `inspectionId`; consumes it once the server
+// has recorded the fee. Returns the same shape as payForSelfInspection, plus
+// alreadyPaid: true when the fee had been paid another way.
+export const settlePlayPurchase = async (inspectionId, purchase) => {
+  let payment;
+  try {
+    ({ payment } = await request(ENDPOINTS.inspectionPayGooglePlay(inspectionId), {
+      method: 'POST',
+      body: { product_id: PLAY_BILLING.selfInspectionProductId, purchase_token: purchase.token },
+      timeoutMs: PLAY_VERIFY_TIMEOUT_MS,
+    }));
+  } catch (e) {
+    if (e?.code === FEE_ALREADY_PAID) {
+      alreadyPaidTokens.add(purchase.token);
+      return { result: 'paid', amountMinor: null, alreadyPaid: true };
+    }
+    if (e?.code === 'PAYMENTS_UNAVAILABLE') {
+      return { result: 'unavailable', amountMinor: null, messageKey: 'selfInspection.pay.unavailable' };
+    }
+    if (PLAY_REFUSED.has(e?.code)) {
+      return { result: 'failed', kind: 'failed', amountMinor: null, messageKey: 'selfInspection.pay.playRefused' };
+    }
+    // No connection, or Google's check is down: the purchase stays and is sent again.
+    return { result: 'awaiting', amountMinor: null };
+  }
+  const amountMinor = payment?.amount?.amount_minor ?? null;
+  if (payment?.status !== 'CAPTURED') {
+    return { result: 'awaiting', amountMinor };
+  }
+  if (!purchase.stub) {
+    // Not fatal: the fee is recorded; an unconsumed purchase is finished next time.
+    await consumePlayPurchase(purchase.token).catch(() => {});
+  }
+  return { result: 'paid', amountMinor };
+};
+
+const isFeePurchase = purchase => purchase?.products?.includes(PLAY_BILLING.selfInspectionProductId);
+
+// A purchase of the fee for this inspection that the server doesn't have yet, if any.
+const ownedPurchaseFor = async inspectionId => {
+  try {
+    return (await getPlayPurchases()).find(p => isFeePurchase(p) && p.profileId === inspectionId) ?? null;
+  } catch {
+    return null;
+  }
+};
+
+// Purchases bought but not recorded yet (the app closed before the server had one,
+// or a pending payment went through later): each is sent for its own inspection.
+// Never buys anything. Resolves the number recorded now.
+let recovering = null;
+export const recoverPlayPurchases = () => {
+  recovering ??= (async () => {
+    let recorded = 0;
+    try {
+      const owned = (await getPlayPurchases()).filter(
+        p => isFeePurchase(p) && p.state === 'purchased' && p.profileId && !alreadyPaidTokens.has(p.token),
+      );
+      for (const purchase of owned) {
+        if ((await settlePlayPurchase(purchase.profileId, purchase)).result === 'paid') {
+          recorded += 1;
+        }
+      }
+    } catch {
+      // Google Play billing isn't available on this phone.
+    }
+    return recorded;
+  })().finally(() => {
+    recovering = null;
+  });
+  return recovering;
+};
+
+const payWithGooglePlay = async (inspectionId, { onPhase, accountId } = {}) => {
+  onPhase?.('starting');
+  // Already bought for this inspection (the app closed before the server had it, or
+  // a pending payment went through): send that one, no second charge.
+  const owned = await ownedPurchaseFor(inspectionId);
+  if (owned?.state === 'pending') {
+    return { result: 'pending', amountMinor: null, messageKey: 'selfInspection.pay.pending' };
+  }
+  if (owned?.state === 'purchased') {
+    onPhase?.('confirming');
+    return settlePlayPurchase(inspectionId, owned);
+  }
+
+  let purchase;
+  try {
+    purchase = await buyPlayProduct({
+      productId: PLAY_BILLING.selfInspectionProductId,
+      accountId,
+      profileId: inspectionId,
+    });
+  } catch (e) {
+    if (e?.code === PLAY_CANCELLED) {
+      return { result: 'failed', kind: 'cancelled', amountMinor: null, messageKey: 'selfInspection.pay.cancelled' };
+    }
+    if (e?.code === PLAY_ALREADY_OWNED) {
+      // An earlier purchase on this phone isn't finished yet: record what can be, then ask to try again.
+      await recoverPlayPurchases();
+      return { result: 'awaiting', amountMinor: null, messageKey: 'selfInspection.pay.playOwned' };
+    }
+    if (e?.code === PLAY_UNAVAILABLE && PLAY_BILLING.devStub) {
+      // Debug build not installed from Google Play: the test server's stub check.
+      purchase = { token: `gp_stub_${inspectionId}_${Date.now()}`, state: 'purchased', stub: true };
+    } else if (e?.code === PLAY_UNAVAILABLE) {
+      return { result: 'unavailable', amountMinor: null, messageKey: 'selfInspection.pay.playUnavailable' };
+    } else if (e?.code === 'network') {
+      return { result: 'failed', kind: 'network', amountMinor: null, messageKey: 'selfInspection.pay.playNetwork' };
+    } else {
+      return { result: 'failed', kind: 'failed', amountMinor: null, messageKey: 'selfInspection.pay.failed' };
+    }
+  }
+  if (purchase.state === 'pending') {
+    // e.g. paying with cash at a shop: Google tells the app when it goes through.
+    return { result: 'pending', amountMinor: null, messageKey: 'selfInspection.pay.pending' };
+  }
+  if (purchase.state !== 'purchased') {
+    return { result: 'failed', kind: 'failed', amountMinor: null, messageKey: 'selfInspection.pay.failed' };
+  }
+  onPhase?.('confirming');
+  return settlePlayPurchase(inspectionId, purchase);
+};
+
+// --- Payment gateway (iPhone; the web's payForSelfInspection) --------------------------
+// The amount is the server's. The test gateway completes it with /pay/simulate, a
+// real one opens Razorpay, a redirect provider (PhonePe) opens its page in a secure
+// tab; then the payment is checked (1 s apart, 10 times) until the server confirms it.
+const payWithGateway = async (inspectionId, { onPhase, prefill } = {}) => {
   onPhase?.('starting');
   let payment;
   try {

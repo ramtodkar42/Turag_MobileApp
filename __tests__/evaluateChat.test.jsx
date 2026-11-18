@@ -124,8 +124,12 @@ test('the whole conversation, the same calls as the web, then AI Self Inspection
   // (The list is inverted: the newest card comes first.)
   const cards = root.findAllByType(EstimateResultCard);
   expect(cards).toHaveLength(2);
-  expect(cards[0].props.label).toBe('Dealer will pay about');
-  expect(hasText(root, 'Sell to a private buyer for about')).toBe(true);
+  // One price range (owner rule, 5 Nov 2026, as the web): no dealer label, no private-sale figure.
+  expect(cards[0].props.label).toBeUndefined();
+  expect(hasText(root, 'Estimated value')).toBe(true);
+  expect(hasText(root, 'Most likely around')).toBe(true);
+  expect(hasText(root, 'Dealer will pay about')).toBe(false);
+  expect(hasText(root, 'Sell to a private buyer')).toBe(false);
   expect(hasText(root, 'This is an estimate, not the final price.')).toBe(true);
   expect(hasText(root, 'Turag tier today')).toBe(true);
   // One short card: the longer notes wait under "More details".

@@ -406,7 +406,7 @@ describe('Settlements', () => {
     expect(badges(root)).toEqual(['Settled', 'Settled', 'Payout pending', 'Add a bank account', 'Being prepared', 'Failed']);
     expect(hasText(root, 'Hyundai Creta 2022')).toBe(true);
     expect(hasText(root, 'ord_4')).toBe(true); // no vehicle: the order id
-    expect(hasText(root, 'Token ₹1,200 − Commission ₹170 − GST ₹30')).toBe(true);
+    expect(hasText(root, 'Token ₹1,200 − Service fee ₹170 − GST ₹30')).toBe(true);
     expect(hasText(root, '••••9012')).toBe(true);
     expect(hasText(root, 'UTR12345678')).toBe(true);
     expect(hasText(root, '05 Oct 2026')).toBe(true); // settled_at

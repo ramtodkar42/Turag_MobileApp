@@ -89,7 +89,7 @@ export default {
   'payouts.settle.receiptError': 'आम्ही पावती डाउनलोड करू शकलो नाही.',
   'payouts.settle.addAccount': 'पेमेंट खाते जोडा',
   'payouts.settle.breakdown.token': 'टोकन',
-  'payouts.settle.breakdown.commission': 'कमिशन',
+  'payouts.settle.breakdown.commission': 'सेवा शुल्क',
   'payouts.settle.breakdown.gst': 'जीएसटी',
   'payouts.settle.status.PAID': 'निपटले',
   'payouts.settle.status.PENDING': 'पेमेंट प्रलंबित',

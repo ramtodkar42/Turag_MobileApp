@@ -27,6 +27,8 @@ export default {
   'common.payNotice.unavailable': 'Payment not available',
   'common.payNotice.failed': 'Payment not completed',
   'common.payNotice.awaiting': 'Confirming your payment',
+  'common.payNotice.pending': 'Payment pending',
+  'common.payNotice.alreadyPaid': 'Already paid',
   'common.upload': 'Upload',
   'common.change': 'Change',
   // Changing an uploaded photo / document (the old one stays until the new one is in)
@@ -72,6 +74,7 @@ export default {
   'common.permission.microphone.title': 'Microphone access is off',
   'common.permission.microphone.message': 'To speak instead of typing, allow Microphone for Turag in your phone’s Settings.',
   'common.preEstimatedValue': 'Pre-Estimated Value',
+  'common.estimatedValue': 'Estimated value',
   'common.showPassword': 'Show password',
   'common.hidePassword': 'Hide password',
   'common.openAssistant': 'Open TURAG.AI assistant',

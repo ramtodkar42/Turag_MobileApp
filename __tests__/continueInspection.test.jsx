@@ -99,7 +99,9 @@ describe('finding a self-inspection still open for a vehicle', () => {
 describe('Home: pick up where you left off', () => {
   // The whole row is the button (its small "View" just says what a tap does).
   const row = root =>
-    root.findAll(n => n.props.accessibilityHint === 'Opens your Garage' && n.props.onPress)[0];
+    root.findAll(
+      n => n.props.accessibilityRole === 'button' && n.props.accessibilityHint === 'Opens your Garage' && n.props.onPress,
+    )[0];
 
   test('one in progress: the message, a small View and the X - a tap opens the Garage', async () => {
     await garageIs([car(), car({ id: 'g2', vehicleId: 'veh_2', phase: 'in_review', inspectionId: 'ins_2' })]);

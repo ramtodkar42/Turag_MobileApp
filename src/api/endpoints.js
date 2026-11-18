@@ -33,6 +33,8 @@ export const ENDPOINTS = {
   inspectionSubmit: id => `/inspections/${encodeURIComponent(id)}/submit`,
   inspectionPay: id => `/inspections/${encodeURIComponent(id)}/pay`, // the self-inspection fee
   inspectionPaySimulate: id => `/inspections/${encodeURIComponent(id)}/pay/simulate`, // dev/stub only
+  // Android: the fee bought with Google Play Billing; the server checks the purchase with Google.
+  inspectionPayGooglePlay: id => `/inspections/${encodeURIComponent(id)}/pay/google-play`,
   CAR_ALERTS: '/car-alerts', // WhatsApp alerts for newly listed cars
   carAlert: id => `/car-alerts/${encodeURIComponent(id)}`,
   mediaRequestUpload: inspectionId =>

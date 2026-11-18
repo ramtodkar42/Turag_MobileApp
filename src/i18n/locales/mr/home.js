@@ -8,6 +8,9 @@ export default {
   'home.continue.paymentPending': 'AI स्व-तपासणीचे पेमेंट बाकी',
   'home.continue.view': 'पाहा',
   'home.continue.viewHint': 'तुमचे गॅरेज उघडते',
+  // A business member's card on Home (dealer, lender, yard).
+  'home.business.open': 'उघडा',
+  'home.business.hint': 'तुमची बिझनेस खाती उघडते',
   'home.notifications': 'सूचना',
   'home.searchPlaceholder': 'कार शोधा',
   'home.banner': 'तुमची आवडती कार शोधा',

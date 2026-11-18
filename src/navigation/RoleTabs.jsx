@@ -6,6 +6,7 @@ import { colors } from '../theme';
 import { useT } from '../i18n';
 import { useSignedIn } from '../store/userStore';
 import { requireLogin } from '../store/loginPromptStore';
+import usePlayPurchaseRecovery from '../hooks/usePlayPurchaseRecovery';
 
 const Tab = createBottomTabNavigator();
 
@@ -35,6 +36,9 @@ function RoleTabs({ tabs, initialRouteName }) {
       openWaitingPush();
     }
   }, [signedIn]);
+
+  // Android: a Google Play fee that was paid but not yet recorded is sent to the server.
+  usePlayPurchaseRecovery(signedIn);
 
   return (
     <Tab.Navigator

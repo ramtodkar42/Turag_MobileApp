@@ -55,6 +55,9 @@ const hasText = (root, text) =>
     .findAll(n => typeof n.props.children === 'string' || Array.isArray(n.props.children))
     .flatMap(n => [n.props.children].flat())
     .some(c => typeof c === 'string' && c.includes(text));
+// The Home row asking the optional questions (the whole row is the button).
+const answerRow = root =>
+  root.findAll(n => n.props.accessibilityHint === 'Opens three quick questions' && n.props.onPress)[0];
 const chip = (root, label) =>
   root.findAll(n => n.props.accessibilityRole === 'radio' && n.props.onPress).find(n => n.findAll(c => c.props.children === label).length);
 
@@ -277,7 +280,7 @@ describe('the optional questions', () => {
     const save = jest.spyOn(insightsApi, 'saveProfileAnswers').mockResolvedValue({});
     const root = await render(<HomeInsightsCard />);
     expect(hasText(root, 'Help us improve Turag')).toBe(true);
-    await act(async () => button(root, 'Answer now').props.onPress());
+    await act(async () => answerRow(root).props.onPress());
     // One question at a time.
     expect(hasText(root, 'Question 1 of 3')).toBe(true);
     expect(hasText(root, 'What brings you')).toBe(false);
@@ -298,7 +301,7 @@ describe('the optional questions', () => {
     jest.spyOn(insightsApi, 'getMyProfileAnswers').mockResolvedValue(null);
     const save = jest.spyOn(insightsApi, 'saveProfileAnswers').mockResolvedValue({});
     const root = await render(<HomeInsightsCard />);
-    await act(async () => button(root, 'Answer now').props.onPress());
+    await act(async () => answerRow(root).props.onPress());
     await act(async () => button(root, 'Next').props.onPress());
     expect(button(root, 'Save and continue').props.disabled).toBe(true);
     await act(async () => chip(root, 'Just looking around').props.onPress());
@@ -309,6 +312,27 @@ describe('the optional questions', () => {
     expect(chip(root, 'Just looking around').props.accessibilityState.selected).toBe(true);
     await act(async () => button(root, 'Save and continue').props.onPress());
     expect(save).toHaveBeenCalledWith({ heard_from: null, heard_from_other: null, intents: ['EXPLORE'], timeline: null });
+  });
+
+  test('Home card: a small row; the questions open in a sheet; closing it keeps the row, Skip removes it', async () => {
+    jest.spyOn(insightsApi, 'getMyProfileAnswers').mockResolvedValue(null);
+    const save = jest.spyOn(insightsApi, 'saveProfileAnswers').mockResolvedValue({});
+    const root = await render(<HomeInsightsCard />);
+    // Short on Home: the title, "3 quick questions" and a small Answer - no questions yet.
+    expect(hasText(root, 'Help us improve Turag')).toBe(true);
+    expect(hasText(root, '3 quick questions')).toBe(true);
+    expect(hasText(root, 'Answer')).toBe(true);
+    expect(hasText(root, 'Question 1 of 3')).toBe(false);
+    await act(async () => answerRow(root).props.onPress());
+    expect(hasText(root, 'Question 1 of 3')).toBe(true);
+    // Closed midway: the row stays for later.
+    await act(async () => root.findAll(n => n.props.accessibilityLabel === 'Close' && n.props.onPress)[0].props.onPress());
+    expect(answerRow(root)).toBeDefined();
+    // Skip records it and the row goes.
+    await act(async () => answerRow(root).props.onPress());
+    await act(async () => button(root, 'Skip').props.onPress());
+    expect(save).toHaveBeenCalledWith({ skip: true });
+    expect(answerRow(root)).toBeUndefined();
   });
 
   test('Home card: hidden when already answered or skipped, and when the lookup fails', async () => {

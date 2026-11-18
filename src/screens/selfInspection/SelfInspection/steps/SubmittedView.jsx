@@ -1,5 +1,5 @@
 import { StyleSheet, View } from 'react-native';
-import { AppText, Button, Icon, IconTile, PopIn } from '../../../../components';
+import { AppText, Button, Icon, IconTile, PaymentNotice, PopIn } from '../../../../components';
 import { colors, radius, spacing } from '../../../../theme';
 import { ms } from '../../../../utils/responsive';
 import { useT } from '../../../../i18n';
@@ -67,13 +67,17 @@ function SubmittedView({
         ) : null}
       </SectionCard>
 
+      {/* e.g. the fee had already been paid, so the Google Play purchase is refunded. */}
+      <PaymentNotice problem={si.payNote} />
+
       {!failed ? (
+        // Owner rule (5 Nov 2026, as the web): the customer sees no dealer label and no
+        // confidence. The inspector's view keeps its confidence.
         <EstimateCard
-          label={inspector ? undefined : t('selfInspection.estimate.dealerPays')}
           valueMinor={si.final.card?.valueMinor ?? null}
           lowerMinor={null}
           upperMinor={null}
-          confidenceLevel={si.final.card?.confidenceLevel ?? null}
+          confidenceLevel={inspector ? si.final.card?.confidenceLevel ?? null : null}
           vehicleLabel={vehicleLabel || t(inspector ? 'selfInspection.thisVehicle' : 'selfInspection.yourVehicle')}
           loading={si.final.loading}
           emptyText={si.final.error || si.final.note || t('selfInspection.submitted.preparing')}

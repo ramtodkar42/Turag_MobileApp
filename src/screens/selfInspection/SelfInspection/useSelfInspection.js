@@ -231,6 +231,8 @@ export default function useSelfInspection(inspectionId) {
   const [submitError, setSubmitError] = useState('');
   // The self-inspection fee didn't go through: { kind, message } (PaymentNotice).
   const [payProblem, setPayProblem] = useState(null);
+  // A note about the fee shown after submitting (PaymentNotice), e.g. it was already paid.
+  const [payNote, setPayNote] = useState(null);
   // The self-inspection fee being taken during submit: 'starting' | 'confirming' | null.
   const [payPhase, setPayPhase] = useState(null);
   const [finalStatus, setFinalStatus] = useState(null);
@@ -958,6 +960,7 @@ export default function useSelfInspection(inspectionId) {
     setSubmitting(true);
     setSubmitError('');
     setPayProblem(null);
+    setPayNote(null);
     // Answers still being typed are saved before the server checks them.
     await flushTyped();
     const labels = buildItemLabelMap(allItems);
@@ -974,9 +977,14 @@ export default function useSelfInspection(inspectionId) {
       const paid = await payForSelfInspection(inspectionId, {
         onPhase: setPayPhase,
         prefill: { name: user?.fullName || undefined, email: user?.email || undefined, contact: user?.contact || undefined },
+        accountId: user?.id || undefined,
       });
       setPayPhase(null);
       if (paid.result === 'paid') {
+        // Paid earlier another way: this Google Play purchase wasn't used and is refunded.
+        if (paid.alreadyPaid) {
+          setPayNote({ kind: 'alreadyPaid', messageKey: 'selfInspection.pay.alreadyPaid' });
+        }
         try {
           await runSubmit();
         } catch (e2) {
@@ -987,9 +995,13 @@ export default function useSelfInspection(inspectionId) {
       // Not paid (yet): stay on review, with a PaymentNotice card; Submit
       // again once it's confirmed.
       if (paid.result === 'awaiting') {
-        setPayProblem({ kind: 'awaiting', messageKey: 'selfInspection.pay.awaiting' });
+        setPayProblem({ kind: 'awaiting', messageKey: paid.messageKey ?? 'selfInspection.pay.awaiting' });
+      } else if (paid.result === 'pending') {
+        setPayProblem({ kind: 'pending', messageKey: paid.messageKey ?? 'selfInspection.pay.pending' });
       } else if (paid.result === 'unavailable') {
-        setPayProblem({ kind: 'unavailable', messageKey: 'selfInspection.pay.unavailable' });
+        setPayProblem({ kind: 'unavailable', messageKey: paid.messageKey ?? 'selfInspection.pay.unavailable' });
+      } else if (paid.messageKey) {
+        setPayProblem({ kind: paid.kind ?? 'failed', messageKey: paid.messageKey });
       } else {
         setPayProblem({ kind: paid.kind ?? 'failed', message: paid.error || tNow('selfInspection.pay.failed') });
       }
@@ -1212,6 +1224,7 @@ export default function useSelfInspection(inspectionId) {
     submit,
     submitError,
     payProblem,
+    payNote,
     reopening,
     fixPhotos,
     finalStatus,

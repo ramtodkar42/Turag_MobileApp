@@ -89,7 +89,7 @@ export default {
   'payouts.settle.receiptError': 'हम रसीद डाउनलोड नहीं कर सके।',
   'payouts.settle.addAccount': 'भुगतान खाता जोड़ें',
   'payouts.settle.breakdown.token': 'टोकन',
-  'payouts.settle.breakdown.commission': 'कमीशन',
+  'payouts.settle.breakdown.commission': 'सेवा शुल्क',
   'payouts.settle.breakdown.gst': 'जीएसटी',
   'payouts.settle.status.PAID': 'निपटान हुआ',
   'payouts.settle.status.PENDING': 'भुगतान लंबित',

@@ -6,6 +6,7 @@ import com.facebook.react.ReactApplication
 import com.facebook.react.ReactHost
 import com.facebook.react.ReactNativeApplicationEntryPoint.loadReactNative
 import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
+import com.turag.billing.PlayBillingPackage
 import com.turag.engineclip.EngineClipPackage
 import com.turag.file.TuragFilePackage
 import com.turag.update.InAppUpdatePackage
@@ -24,6 +25,7 @@ class MainApplication : Application(), ReactApplication {
           add(InAppUpdatePackage()) // Google Play's in-app update
           add(EngineClipPackage()) // the self-inspection's engine clip, read for QC
           add(TuragFilePackage()) // a big file's size + SHA-256, read in pieces (video uploads)
+          add(PlayBillingPackage()) // Google Play Billing: the AI Self Inspection fee
         },
     )
   }

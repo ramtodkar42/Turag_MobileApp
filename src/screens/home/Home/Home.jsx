@@ -21,6 +21,7 @@ import { loadSaved } from '../../../store/savedStore';
 import { loadGarage } from '../../../store/garageStore';
 import { requireLogin } from '../../../store/loginPromptStore';
 import { ROUTES } from '../../../navigation/routes';
+import { BUSINESS_ROUTES } from '../../business/routes';
 import HomeListHeader from './components/HomeListHeader';
 import LanguageMenu from './components/LanguageMenu';
 import ListStatus from './components/ListStatus';
@@ -58,6 +59,8 @@ function Home({ navigation, route }) {
     }, [signedIn]),
   );
   const openGarage = useCallback(() => navigation.navigate(ROUTES.GARAGE), [navigation]);
+  // The business card opens Business accounts (the dealer picks their portal there).
+  const openBusiness = useCallback(() => navigation.navigate(BUSINESS_ROUTES.HOME), [navigation]);
 
   // A search (typed or recent) from the search screen opens Home with it.
   const incomingQuery = route?.params?.query;
@@ -162,6 +165,7 @@ function Home({ navigation, route }) {
             onLanguagePress={openLanguage}
             onOpenSearch={openSearch}
             onOpenGarage={openGarage}
+            onOpenBusiness={openBusiness}
           />
         }
         onScrollBeginDrag={languageAt ? closeLanguage : undefined}
