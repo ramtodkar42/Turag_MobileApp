@@ -3,9 +3,12 @@ import { completeDigiLocker, startDigiLocker } from '../../../api/services/verif
 import { tNow } from '../../../i18n';
 
 // DigiLocker can take a few seconds to report the consent after sending the
-// user back, so the result is checked a few times (as the web's return page).
-const POLL_ATTEMPTS = 5;
-const POLL_INTERVAL_MS = 3000;
+// user back, so the result is checked once more after a short wait (as the web's
+// return page). Every check is a PAID provider status call (₹2.50 + GST), so it
+// stops at two; "Check again" runs at most two more, and the server makes the
+// final check itself when the journey's window ends.
+const POLL_ATTEMPTS = 2;
+const POLL_INTERVAL_MS = 4000;
 
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 

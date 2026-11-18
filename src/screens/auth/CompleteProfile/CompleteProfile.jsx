@@ -17,6 +17,7 @@ import { hasChosenGuest } from '../../../utils/appPrefs';
 import completeSignUp from './completeSignUp';
 import ConsentList from './components/ConsentList';
 import PurposePicker from './components/PurposePicker';
+import ReferralField from './components/ReferralField';
 import { CONSENTS, PURPOSES } from './constants';
 import useProfileForm from './useProfileForm';
 import { useT } from '../../../i18n';
@@ -156,6 +157,18 @@ function CompleteProfile({ navigation, route }) {
             error={errors.purpose}
             style={styles.section}
           />
+
+          {/* A dealer: the Turag executive's referral code, if they have one (ADR-0089). */}
+          {values.purpose === 'dealer' ? (
+            <ReferralField
+              hasReferral={values.hasReferral}
+              code={values.referralCode}
+              onHasReferral={form.setField('hasReferral')}
+              onCode={form.setField('referralCode')}
+              error={errors.referralCode}
+              style={styles.section}
+            />
+          ) : null}
         </>
       ) : null}
 

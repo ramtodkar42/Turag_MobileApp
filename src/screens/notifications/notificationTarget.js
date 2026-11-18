@@ -17,12 +17,15 @@ const TARGETS = [
   { pattern: /^\/account\/verification\/?$/, route: ROUTES.IDENTITY_VERIFICATION },
 ];
 
+// Just the path: no site, query or #fragment.
+const pathOf = link => String(link).replace(/^https?:\/\/[^/]+/, '').split(/[?#]/)[0];
+
 // link -> { route, params } or null.
 export default function notificationTarget(link) {
   if (!link) {
     return null;
   }
-  const path = String(link).replace(/^https?:\/\/[^/]+/, '').split(/[?#]/)[0];
+  const path = pathOf(link);
   for (const target of TARGETS) {
     const match = path.match(target.pattern);
     if (match) {
@@ -34,3 +37,28 @@ export default function notificationTarget(link) {
   }
   return null;
 }
+
+// A new message in an order's buyer-seller chat (ADR-0096): the first of a turn, or
+// one more in the same burst.
+const CHAT_TYPES = ['order_message', 'order_message_followup'];
+export const isChatNotification = type => CHAT_TYPES.includes(type);
+
+// A push's data { type, entity_type, entity_id, link } -> { route, params } or null.
+// A chat message opens its chat: the push names the order, and its link says whose
+// side it is (/sell/{listing} for the seller, /buy/offers for the buyer). Anything
+// else, or a chat push without the order, opens its link's page as in the list.
+export const pushTarget = data => {
+  if (isChatNotification(data?.type) && data.entity_type === 'order' && data.entity_id && data.link) {
+    const path = pathOf(data.link);
+    let role = null;
+    if (path.startsWith('/sell/')) {
+      role = 'SELLER';
+    } else if (path.startsWith('/buy/')) {
+      role = 'BUYER';
+    }
+    if (role) {
+      return { route: ROUTES.ORDER_CHAT, params: { orderId: data.entity_id, role } };
+    }
+  }
+  return notificationTarget(data?.link);
+};

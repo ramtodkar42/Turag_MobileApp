@@ -15,3 +15,19 @@ export const loadCameraLibrary = load => {
 
 export const visionCamera = loadCameraLibrary(() => require('react-native-vision-camera'));
 export const isCameraAvailable = visionCamera !== null;
+
+// The QR / barcode scanner (react-native-vision-camera-barcode-scanner, ML Kit), the
+// same way: null in an app built before it was added (then the code is typed instead).
+export const loadScannerLibrary = load => {
+  try {
+    const library = load();
+    return library && typeof library.useBarcodeScannerOutput === 'function' ? library : null;
+  } catch {
+    return null;
+  }
+};
+
+export const barcodeScanner = isCameraAvailable
+  ? loadScannerLibrary(() => require('react-native-vision-camera-barcode-scanner'))
+  : null;
+export const isScannerAvailable = barcodeScanner !== null;

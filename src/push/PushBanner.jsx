@@ -12,7 +12,7 @@ function PushBanner() {
   return (
     <InAppBanner
       banner={banner}
-      onPress={() => (banner?.onPress ? banner.onPress() : openPushLink(banner?.link))}
+      onPress={() => (banner?.onPress ? banner.onPress() : openPushLink(banner?.link, banner?.type))}
       onHide={hideBanner}
       accessibilityHint={banner?.hint ?? t('notifications.bannerHint')}
     />

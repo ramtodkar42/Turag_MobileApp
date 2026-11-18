@@ -30,6 +30,8 @@ import { ROUTES } from '../../../navigation/routes';
 import { OFFER_STATUS, ORDER_STATUS } from '../../account/statuses';
 import CounterSheet from '../components/CounterSheet';
 import TransferChecklist from '../components/TransferChecklist';
+import HandoverCodeEntry from '../components/HandoverCodeEntry';
+import OrderChatButton, { orderChatVisible } from '../components/OrderChatButton';
 import { expiresLabel, vehicleName } from '../offerTime';
 import NpsCard from '../../insights/NpsCard';
 import OfferTimeline from './components/OfferTimeline';
@@ -405,18 +407,39 @@ function OfferDetails({ navigation, route }) {
           </Card>
         ) : null}
 
-        {/* Token paid: the buyer's own transfer documents */}
-        {order?.status === 'TOKEN_PAID' ? (
+        {/* Token paid, and after the handover too (insurance and the RC transfer usually
+            come later, ADR-0098): the buyer's own transfer documents. */}
+        {order?.status === 'TOKEN_PAID' || order?.status === 'HANDED_OVER' ? (
           <Card style={styles.card}>
             <TransferChecklist orderId={order.id} role="BUYER" />
           </Card>
         ) : null}
 
-        {/* Handed over: the purchase's documents */}
-        {order && handedOver ? (
+        {/* At the handover: scan the seller's QR, or type its code (ADR-0097). */}
+        {order?.status === 'TOKEN_PAID' ? (
+          <Card style={styles.card}>
+            <HandoverCodeEntry
+              onScan={() => navigation.navigate(ROUTES.HANDOVER_SCAN, { orderId: order.id })}
+              onCode={shortCode => navigation.navigate(ROUTES.HANDOVER_CONFIRM, { orderId: order.id, shortCode })}
+            />
+          </Card>
+        ) : null}
+
+        {/* Completed: the purchase's documents (read only) */}
+        {order && completed ? (
           <Card style={styles.card}>
             <TransferChecklist orderId={order.id} role="BUYER" mode="documents" />
           </Card>
+        ) : null}
+
+        {/* The buyer-seller chat (opens once the token is paid, ADR-0096). */}
+        {orderChatVisible(order) ? (
+          <OrderChatButton
+            role="BUYER"
+            readOnly={order.status === 'COMPLETED' || order.status === 'CANCELLED'}
+            onPress={() => navigation.navigate(ROUTES.ORDER_CHAT, { orderId: order.id, role: 'BUYER' })}
+            style={styles.card}
+          />
         ) : null}
 
         {d.actionError ? (

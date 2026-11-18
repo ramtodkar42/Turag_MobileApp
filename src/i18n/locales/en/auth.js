@@ -133,4 +133,12 @@ export default {
   'auth.consent.privacy.suffix': '',
   'auth.consent.updates.prefix': 'Send me updates on offers, price drops and new listings (optional)',
   'auth.consent.whatsapp.prefix': 'Send me booking, offer and listing updates on WhatsApp (optional)',
+  // A dealer executive's referral code at sign-up (the web's ADR-0089).
+  'auth.referral.question': 'Do you have a referral code?',
+  'auth.referral.yes': 'Yes',
+  'auth.referral.no': 'No',
+  'auth.referral.label': 'Referral code',
+  'auth.referral.hint': 'The 7 character code from the Turag executive who told you about us.',
+  'auth.referral.errEmpty': 'Enter the referral code, or choose No.',
+  'auth.referral.errInvalid': 'This referral code isn\'t active. Check it with your Turag executive, or choose No.',
 };

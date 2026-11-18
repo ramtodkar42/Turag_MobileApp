@@ -224,12 +224,25 @@ export const acceptConsents = async ({ terms, privacy, marketing, whatsapp }) =>
 // after Turag verifies the organisation. kind: 'DEALER' | 'BANK'.
 // recorded: false when the server couldn't save the sign-up (it ignores a repeat of one
 // it did save, so this can safely be tried again).
-export const registerBusinessInterest = async kind => {
+// referralCode: a Turag dealer executive's code the dealer typed at sign-up (the web's
+// ADR-0089), so the executive who brought them is credited. Dealers only.
+export const registerBusinessInterest = async (kind, referralCode) => {
   if (!real()) {
     return { whatsappQueued: false, recorded: true };
   }
-  const data = await request(ENDPOINTS.BUSINESS_INTEREST, { method: 'POST', body: { kind } });
+  const body = kind === 'DEALER' && referralCode ? { kind, referral_code: referralCode } : { kind };
+  const data = await request(ENDPOINTS.BUSINESS_INTEREST, { method: 'POST', body });
   return { whatsappQueued: !!data?.whatsapp_queued, recorded: !!data?.recorded };
+};
+
+// Whether a dealer executive's referral code is active (checked before signing up,
+// so a mistyped code is fixed now instead of silently crediting no one).
+export const checkReferralCode = async code => {
+  if (!real()) {
+    return true;
+  }
+  const data = await request(ENDPOINTS.referralCode(code));
+  return data?.valid === true;
 };
 
 // Verify the account's own mobile (as the web's Account page): a code goes to

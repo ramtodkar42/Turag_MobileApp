@@ -468,26 +468,6 @@ describe('real backend', () => {
     await expect(offerApi.payOrderToken('ord_9')).rejects.toMatchObject({ code: 'PAYMENTS_UNAVAILABLE' });
   });
 
-  test('handover', async () => {
-    fetch.mockResolvedValueOnce(
-      reply(200, {
-        order: {
-          order_id: 'ord_9',
-          listing_id: 'lst_1',
-          offer_id: 'off_1',
-          agreed_price: { amount_minor: 45000000, currency: 'INR' },
-          status: 'HANDED_OVER',
-          created_at: '2026-10-20T10:00:00Z',
-          updated_at: '2026-10-21T10:00:00Z',
-          handover_at: '2026-10-21T10:00:00Z',
-        },
-      }),
-    );
-    const order = await offerApi.handoverOrder('ord_9');
-    expect(fetch.mock.calls[0][0]).toMatch(/\/orders\/ord_9\/handover$/);
-    expect(order).toMatchObject({ id: 'ord_9', status: 'HANDED_OVER', agreedPrice: 450000 });
-  });
-
   test('a transfer document goes as its raw bytes with its type and name', async () => {
     const { uploadTransferDocument } = jest.requireActual('../src/api/services/transfer.api');
     const bytes = new Blob(['%PDF-1.4']);

@@ -67,6 +67,9 @@ export const ROUTES = {
   OFFER_DETAILS: 'OfferDetails', // buyer: one offer - pay the token, transfer documents
   LOAN_APPLICATION: 'LoanApplication', // apply for a loan for an accepted vehicle
   MY_LISTING: 'MyListing', // seller: one listing (manage it) and the offers it received
+  ORDER_CHAT: 'OrderChat', // buyer <-> seller chat on an order { orderId, role }
+  HANDOVER_SCAN: 'HandoverScan', // buyer: scan the seller's handover QR { orderId }
+  HANDOVER_CONFIRM: 'HandoverConfirm', // buyer: confirm the handover { token } | { orderId, shortCode }
 
   // Business accounts (Profile > Business accounts; only for organization members)
   BUSINESS_HOME: 'BusinessHome',

@@ -87,7 +87,7 @@ export const loadNotifications = ({ userRefresh = false, force = false } = {}) =
       // the latest; only one shows at a time.
       const arrived = items.find(i => i.isNew && i.unread);
       if (arrived) {
-        showBanner({ title: arrived.title, body: arrived.body, link: arrived.link });
+        showBanner({ title: arrived.title, body: arrived.body, link: arrived.link, type: arrived.type });
       }
     })
     .catch(e => {

@@ -131,4 +131,12 @@ export default {
   'auth.consent.privacy.suffix': ' वाचले आहे आणि ते स्वीकारतो/स्वीकारते',
   'auth.consent.updates.prefix': 'मला ऑफर, किमतीतील घट आणि नवीन लिस्टिंगबद्दल अपडेट पाठवा (ऐच्छिक)',
   'auth.consent.whatsapp.prefix': 'मला बुकिंग, ऑफर आणि लिस्टिंगचे अपडेट WhatsApp वर पाठवा (ऐच्छिक)',
+  // A dealer executive's referral code at sign-up (the web's ADR-0089).
+  'auth.referral.question': 'तुमच्याकडे रेफरल कोड आहे का?',
+  'auth.referral.yes': 'होय',
+  'auth.referral.no': 'नाही',
+  'auth.referral.label': 'रेफरल कोड',
+  'auth.referral.hint': 'ज्या Turag एक्झिक्युटिव्हने तुम्हाला आमच्याबद्दल सांगितले, त्यांचा 7 अक्षरी कोड.',
+  'auth.referral.errEmpty': 'रेफरल कोड टाका, किंवा नाही निवडा.',
+  'auth.referral.errInvalid': 'हा रेफरल कोड सक्रिय नाही. तुमच्या Turag एक्झिक्युटिव्हकडून तपासा, किंवा नाही निवडा.',
 };

@@ -8,7 +8,8 @@
 //   doesn't get the last user's pushes.
 // - While the app is open a push shows as a banner at the top (like
 //   Instagram's) and the bell's count refreshes.
-// - Tapping a push opens its page (same links as the bell's list).
+// - Tapping a push opens its page (same links as the bell's list); a chat
+//   message opens its chat (the push names the order; the list doesn't).
 import { PermissionsAndroid, Platform } from 'react-native';
 import {
   AuthorizationStatus,
@@ -25,7 +26,8 @@ import {
 import { registerPushDevice, unregisterPushDevice } from '../api/services/notification.api';
 import { hasSession } from '../api/session';
 import { navigationRef } from '../navigation/navigationRef';
-import notificationTarget from '../screens/notifications/notificationTarget';
+import { ROUTES } from '../navigation/routes';
+import notificationTarget, { isChatNotification, pushTarget } from '../screens/notifications/notificationTarget';
 import { refreshNotifications } from '../store/notificationStore';
 import { hideBanner } from './bannerStore';
 
@@ -50,9 +52,8 @@ const askPermission = async messaging => {
   return status === AuthorizationStatus.AUTHORIZED || status === AuthorizationStatus.PROVISIONAL;
 };
 
-// A push's link -> open its page (now, or once the screens are ready).
-export const openPushLink = link => {
-  const target = notificationTarget(link);
+// Opens a page (now, or once the screens are ready).
+const openTarget = target => {
   if (!target || !hasSession()) {
     return;
   }
@@ -63,7 +64,30 @@ export const openPushLink = link => {
   }
 };
 
-const open = message => openPushLink(message?.data?.link);
+// The last chat message pushed while the app was open. Its banner comes from the
+// notifications list, which doesn't name the order, so this is how tapping the
+// banner opens the chat too: { link, target }.
+let lastChat = null;
+
+// A banner's link (and type) -> open its page.
+export const openPushLink = (link, type) => {
+  const chat = isChatNotification(type) && lastChat?.link === link ? lastChat.target : null;
+  openTarget(chat ?? notificationTarget(link));
+};
+
+// A tapped push: a chat message opens its chat, anything else its link's page.
+const open = message => openTarget(pushTarget(message?.data));
+
+// A push while the app is open: remember a chat message's order (see lastChat), then
+// refresh the list - the notification store shows the banner for the new item (one
+// source, so no double banner).
+const onForegroundPush = message => {
+  const target = pushTarget(message?.data);
+  if (target?.route === ROUTES.ORDER_CHAT) {
+    lastChat = { link: message.data.link, target };
+  }
+  refreshNotifications();
+};
 
 // Called when the screens are ready: opens a push tapped while the app was
 // starting (also one that launched the app).
@@ -133,9 +157,7 @@ export const startPush = async () => {
     const messaging = getMessaging();
     listeners = [
       onTokenRefresh(messaging, register),
-      // A push while the app is open: refresh the list - the notification store
-      // shows the banner for the new item (one source, so no double banner).
-      onMessage(messaging, () => refreshNotifications()),
+      onMessage(messaging, onForegroundPush),
       onNotificationOpenedApp(messaging, open),
     ];
     if (await askPermission(messaging)) {
@@ -155,6 +177,7 @@ export const stopPush = async ({ expired = false } = {}) => {
   listeners.forEach(unsubscribe => unsubscribe());
   listeners = [];
   waitingTarget = null;
+  lastChat = null;
   hideBanner();
   const last = token;
   token = null;

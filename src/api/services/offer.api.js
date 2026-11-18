@@ -198,19 +198,7 @@ export const payOrderToken = async (orderId, { prefill } = {}) => {
   return { result: 'awaiting', amount, paymentId: payment.payment_id };
 };
 
-// The seller confirms the vehicle was handed over (TOKEN_PAID -> HANDED_OVER).
-// Allowed once the transfer forms are in (the server checks). Returns the order.
-export const handoverOrder = async orderId => {
-  if (!real()) {
-    await wait(600);
-    const raw = mockOfferState().orders[orderId];
-    raw.status = 'HANDED_OVER';
-    raw.handover_at = new Date().toISOString();
-    return mapOrder(raw);
-  }
-  const data = await request(ENDPOINTS.orderHandover(orderId), { method: 'POST', body: {} });
-  return mapOrder(data.order);
-};
+// The handover is the buyer's now (by the seller's QR or its code): see handover.api.js.
 
 // --- Offers --------------------------------------------------------------------
 

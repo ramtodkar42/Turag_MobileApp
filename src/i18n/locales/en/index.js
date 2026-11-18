@@ -23,6 +23,7 @@ import payouts from './payouts';
 import business from './business';
 import guest from './guest';
 import insights from './insights';
+import handover from './handover';
 
 export default {
   ...common,
@@ -49,4 +50,5 @@ export default {
   ...business,
   ...guest,
   ...insights,
+  ...handover,
 };

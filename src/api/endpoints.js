@@ -79,6 +79,7 @@ export const ENDPOINTS = {
   DIGILOCKER_COMPLETE: '/verification/digilocker/complete', // back from DigiLocker: finish it
   SUPPORT_TOKEN: '/support-token', // short-lived pass so the support chat knows who is asking (signed in)
   BUSINESS_INTEREST: '/me/business-interest', // signed up as a dealer / bank: tell Turag's team
+  referralCode: code => `/referral-codes/${encodeURIComponent(code)}`, // a dealer executive's code (ADR-0089)
   SERVICE_AREA_CHECK: '/service-area/check', // public: is doorstep inspection offered at this place?
   SERVICE_AREA_LEADS: '/service-area/leads', // "notify me" when Turag launches in a city
   report: inspectionId => `/reports/${encodeURIComponent(inspectionId)}`,
@@ -92,7 +93,13 @@ export const ENDPOINTS = {
   orderCancel: id => `/orders/${encodeURIComponent(id)}/cancel`,
   orderTokenPayment: id => `/orders/${encodeURIComponent(id)}/token-payment`,
   orderTokenPaymentSimulate: id => `/orders/${encodeURIComponent(id)}/token-payment/simulate`,
-  orderHandover: id => `/orders/${encodeURIComponent(id)}/handover`,
+  // Buyer-confirmed handover by QR (ADR-0097): the seller starts it, the buyer answers.
+  orderHandoverStart: id => `/orders/${encodeURIComponent(id)}/handover/start`,
+  HANDOVER_PREVIEW: '/handover/preview',
+  HANDOVER_CONFIRM: '/handover/confirm',
+  HANDOVER_REFUSE: '/handover/refuse',
+  // The buyer-seller chat on an order (ADR-0096).
+  orderMessages: id => `/orders/${encodeURIComponent(id)}/messages`,
   transferChecklist: id => `/orders/${encodeURIComponent(id)}/transfer-checklist`,
   transferDocument: (id, itemCode) =>
     `/orders/${encodeURIComponent(id)}/transfer-checklist/${encodeURIComponent(itemCode)}/document`,

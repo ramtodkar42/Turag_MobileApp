@@ -3,7 +3,8 @@ import { validateAccount } from '../../../utils/validators';
 import { INITIAL_CONSENTS } from './constants';
 import { tNow } from '../../../i18n';
 
-const INITIAL_VALUES = { fullName: '', email: '', purpose: null };
+// hasReferral / referralCode: a dealer's answer to "Do you have a referral code?" (ADR-0089).
+const INITIAL_VALUES = { fullName: '', email: '', purpose: null, hasReferral: false, referralCode: '' };
 
 // Form state for Create Account: name, email, purpose and consents. The email
 // only has to look right here; it's confirmed later from the link Turag emails.
@@ -39,13 +40,25 @@ export default function useProfileForm({ needsProfile = true, needsConsent = tru
 
   const submit = async () => {
     const found = validateAccount({ ...values, consents, needsProfile, needsConsent });
+    // A dealer who said they have a referral code must type it (or choose No).
+    const askedReferral = needsProfile && values.purpose === 'dealer' && values.hasReferral;
+    const referralCode = askedReferral ? values.referralCode.trim().toUpperCase() : '';
+    if (askedReferral && !referralCode) {
+      found.referralCode = tNow('auth.referral.errEmpty');
+    }
     setErrors(found);
     if (Object.keys(found).length > 0) {
       return;
     }
     setLoading(true);
     try {
-      await onSubmit({ fullName: values.fullName.trim(), email, purpose: values.purpose, consents });
+      await onSubmit({
+        fullName: values.fullName.trim(),
+        email,
+        purpose: values.purpose,
+        referralCode: referralCode || undefined,
+        consents,
+      });
     } catch (error) {
       const message = error.message || tNow('errors.generic');
       setErrors(error.field ? { [error.field]: message } : { form: message });

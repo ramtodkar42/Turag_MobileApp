@@ -23,7 +23,7 @@ import { formatINR } from '../../../utils/format';
 import { timeAgo } from '../../../utils/date';
 import useRemoteData from '../../../hooks/useRemoteData';
 import useConfirmDialog from '../../../hooks/useConfirmDialog';
-import { acceptOffer, counterOffer, declineOffer, handoverOrder } from '../../../api/services/offer.api';
+import { acceptOffer, counterOffer, declineOffer } from '../../../api/services/offer.api';
 import {
   getMyListing,
   submitListing,
@@ -38,6 +38,8 @@ import CounterSheet from '../../offers/components/CounterSheet';
 import TransferChecklist from '../../offers/components/TransferChecklist';
 import { LISTING_STATUS, ORDER_STEPS } from '../../account/statuses';
 import ReceivedOfferRow from './components/ReceivedOfferRow';
+import HandoverQrPanel from './components/HandoverQrPanel';
+import OrderChatButton, { orderChatVisible } from '../../offers/components/OrderChatButton';
 
 // The seller's own listing (My listings, a new listing, offer notifications),
 // as the web's listing page: status, asking price (change it while draft /
@@ -60,7 +62,6 @@ function MyListing({ navigation, route }) {
   const [editingPrice, setEditingPrice] = useState(false);
   const [listingBusy, setListingBusy] = useState(null); // 'submit' | 'withdraw'
   const [transferReady, setTransferReady] = useState(false);
-  const [handingOver, setHandingOver] = useState(false);
 
   // Runs a change to the listing itself; the updated listing replaces the old.
   const changeListing = async (kind, action) => {
@@ -129,27 +130,6 @@ function MyListing({ navigation, route }) {
   const name = [listing.vehicle.make, listing.vehicle.model, listing.vehicle.year].filter(Boolean).join(' ');
   const accepted = offers.find(o => o.status === 'ACCEPTED' && o.order);
   const order = accepted?.order;
-
-  const onHandover = () =>
-    confirm({
-      title: t('selling.handover.confirmTitle'),
-      message: t('selling.handover.confirmMessage', { amount: formatINR(order.agreedPrice) }),
-      confirmLabel: t('selling.handover.button'),
-      cancelLabel: t('offers.keep'),
-      onConfirm: async () => {
-        setHandingOver(true);
-        setActionError('');
-        try {
-          await handoverOrder(order.id);
-          loadGarage();
-        } catch (e) {
-          setActionError(e.message || t('offers.error.action'));
-        } finally {
-          await reload();
-          setHandingOver(false);
-        }
-      },
-    });
 
   const onWithdraw = () =>
     confirm({
@@ -355,25 +335,37 @@ function MyListing({ navigation, route }) {
           </TitledCard>
         ) : null}
 
-        {/* Token paid: the seller provides the transfer forms, then confirms
-            handover (as the web: only once Forms 29 / 30 are in). */}
+        {/* Token paid: the seller provides the transfer forms; the checklist stays
+            open after the handover too (the RC transfer proof comes later, ADR-0098). */}
         {order && order.status !== 'CREATED' && order.status !== 'CANCELLED' ? (
           <Card style={styles.card}>
             <TransferChecklist orderId={order.id} role="SELLER" onReadyChange={setTransferReady} />
-            {order.status === 'TOKEN_PAID' ? (
-              <View style={styles.handover}>
-                <Button
-                  title={t(handingOver ? 'selling.handover.confirming' : 'selling.handover.button')}
-                  onPress={onHandover}
-                  loading={handingOver}
-                  disabled={!transferReady || handingOver}
-                />
-                <AppText variant="caption" align="center">
-                  {t(transferReady ? 'selling.handover.ready' : 'selling.handover.needForms')}
-                </AppText>
-              </View>
-            ) : null}
           </Card>
+        ) : null}
+
+        {/* The handover: only the buyer can confirm it, by scanning the seller's QR
+            (or typing its code), once the transfer forms are in (ADR-0097). */}
+        {order?.status === 'TOKEN_PAID' ? (
+          <Card style={styles.card}>
+            <HandoverQrPanel
+              orderId={order.id}
+              ready={transferReady}
+              onHandedOver={() => {
+                loadGarage();
+                reload();
+              }}
+            />
+          </Card>
+        ) : null}
+
+        {/* The buyer-seller chat (opens once the token is paid). */}
+        {orderChatVisible(order) ? (
+          <OrderChatButton
+            readOnly={order.status === 'COMPLETED' || order.status === 'CANCELLED'}
+            role="SELLER"
+            onPress={() => navigation.navigate(ROUTES.ORDER_CHAT, { orderId: order.id, role: 'SELLER' })}
+            style={styles.card}
+          />
         ) : null}
 
         {actionError ? (
@@ -474,10 +466,6 @@ const styles = StyleSheet.create({
   },
   orderNote: {
     marginTop: spacing.sm,
-  },
-  handover: {
-    marginTop: spacing.lg,
-    gap: spacing.sm,
   },
   action: {
     marginTop: spacing.lg,

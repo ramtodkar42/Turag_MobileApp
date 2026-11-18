@@ -188,14 +188,38 @@ describe('signing up as a dealer', () => {
     clearUser();
     jest.restoreAllMocks();
   });
-  const signUp = purpose =>
-    completeSignUp({ needsProfile: false, needsConsent: false, values: { purpose }, consents: {} });
+  const signUp = (purpose, referralCode) =>
+    completeSignUp({ needsProfile: false, needsConsent: false, values: { purpose, referralCode }, consents: {} });
 
   test('saved the first time: asked once', async () => {
     register.mockResolvedValue({ recorded: true });
     await signUp('dealer');
     expect(register).toHaveBeenCalledTimes(1);
-    expect(register).toHaveBeenCalledWith('DEALER');
+    expect(register).toHaveBeenCalledWith('DEALER', undefined);
+  });
+
+  test('a referral code: checked first, then sent with the sign-up (ADR-0089)', async () => {
+    register.mockResolvedValue({ recorded: true });
+    const check = jest.spyOn(profileApi, 'checkReferralCode').mockResolvedValue(true);
+    await signUp('dealer', 'TRG7K2Q');
+    expect(check).toHaveBeenCalledWith('TRG7K2Q');
+    expect(register).toHaveBeenCalledWith('DEALER', 'TRG7K2Q');
+  });
+
+  test('an inactive referral code: shown on its field, and nothing is saved', async () => {
+    jest.spyOn(profileApi, 'checkReferralCode').mockResolvedValue(false);
+    await expect(signUp('dealer', 'WRONG12')).rejects.toMatchObject({
+      field: 'referralCode',
+      message: "This referral code isn't active. Check it with your Turag executive, or choose No.",
+    });
+    expect(register).not.toHaveBeenCalled();
+  });
+
+  test('the check itself fails: sign-up goes ahead and the server decides', async () => {
+    register.mockResolvedValue({ recorded: true });
+    jest.spyOn(profileApi, 'checkReferralCode').mockRejectedValue(new Error('offline'));
+    await signUp('dealer', 'TRG7K2Q');
+    expect(register).toHaveBeenCalledWith('DEALER', 'TRG7K2Q');
   });
 
   test('not saved, or the request failed: tried once more, so the lead is not lost', async () => {

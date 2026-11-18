@@ -1,6 +1,7 @@
 import { ApiError } from '../../../api/client';
 import {
   acceptConsents,
+  checkReferralCode,
   getMe,
   registerBusinessInterest,
   saveMyEmail,
@@ -32,11 +33,19 @@ const fieldError = (field, message) => Object.assign(new Error(message), { field
 export default async function completeSignUp({
   needsProfile,
   needsConsent,
-  values: { fullName, email, purpose },
+  values: { fullName, email, purpose, referralCode },
   consents,
   verifiedEmail = null,
 }) {
   const phone = getUser()?.contact;
+
+  // A dealer's referral code is checked before anything is saved (as the web), so a
+  // mistyped one is fixed now instead of silently crediting no one. If the check
+  // itself can't run, sign-up goes ahead and the server decides.
+  const dealerReferral = purpose === 'dealer' && referralCode ? referralCode : null;
+  if (dealerReferral && !(await checkReferralCode(dealerReferral).catch(() => true))) {
+    throw fieldError('referralCode', tNow('auth.referral.errInvalid'));
+  }
 
   if (needsConsent) {
     await acceptConsents({
@@ -79,8 +88,9 @@ export default async function completeSignUp({
   // that was just made.
   const businessKind = BUSINESS_KINDS[purpose];
   if (businessKind) {
-    const first = await registerBusinessInterest(businessKind).catch(() => null);
-    if (!first?.recorded) await registerBusinessInterest(businessKind).catch(() => {});
+    const code = businessKind === 'DEALER' ? dealerReferral ?? undefined : undefined;
+    const first = await registerBusinessInterest(businessKind, code).catch(() => null);
+    if (!first?.recorded) await registerBusinessInterest(businessKind, code).catch(() => {});
   }
 
   const signedUp = { ...user, contact: phone ?? user.contact, ...(purpose ? { purpose } : null) };

@@ -28,6 +28,9 @@ import BookingReceipt from '../screens/account/BookingReceipt/BookingReceipt';
 import MyOffers from '../screens/offers/MyOffers/MyOffers';
 import Search from '../screens/search/Search/Search';
 import OfferDetails from '../screens/offers/OfferDetails/OfferDetails';
+import OrderChat from '../screens/offers/OrderChat/OrderChat';
+import HandoverScan from '../screens/offers/HandoverScan/HandoverScan';
+import HandoverConfirm from '../screens/offers/HandoverConfirm/HandoverConfirm';
 import LoanApplication from '../screens/offers/LoanApplication/LoanApplication';
 import MyListing from '../screens/selling/MyListing/MyListing';
 import MyListings from '../screens/selling/MyListings/MyListings';
@@ -206,6 +209,10 @@ function RootNavigator({ initialRoute = { name: ROUTES.INTRO } }) {
       <Stack.Screen name={ROUTES.OFFER_DETAILS} component={OfferDetails} />
       <Stack.Screen name={ROUTES.LOAN_APPLICATION} component={LoanApplication} />
       <Stack.Screen name={ROUTES.MY_LISTING} component={MyListing} />
+      {/* An order: the buyer-seller chat and the QR handover (ADR-0096 / 0097). */}
+      <Stack.Screen name={ROUTES.ORDER_CHAT} component={OrderChat} />
+      <Stack.Screen name={ROUTES.HANDOVER_SCAN} component={HandoverScan} />
+      <Stack.Screen name={ROUTES.HANDOVER_CONFIRM} component={HandoverConfirm} />
       <Stack.Screen name={ROUTES.MY_LISTINGS} component={AccountMyListings} />
       <Stack.Screen name={ROUTES.LISTING_PREVIEW} component={ListingPreview} />
       <Stack.Screen name={ROUTES.SETTLEMENTS} component={AccountSettlements} />

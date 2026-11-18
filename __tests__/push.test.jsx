@@ -79,6 +79,71 @@ test('tapping a push opens its page (booking, offers, the seller listing)', asyn
   expect(navigate).not.toHaveBeenCalled();
 });
 
+test('tapping a chat message push opens the chat itself (seller and buyer)', async () => {
+  const navigate = jest.spyOn(navigationRef, 'navigate').mockImplementation(() => {});
+  jest.spyOn(navigationRef, 'isReady').mockReturnValue(true);
+  await startPush();
+
+  messaging.__emit('opened', {
+    data: { type: 'order_message', entity_type: 'order', entity_id: 'ord_1', link: '/sell/lst_3' },
+  });
+  expect(navigate).toHaveBeenLastCalledWith(ROUTES.ORDER_CHAT, { orderId: 'ord_1', role: 'SELLER' });
+
+  messaging.__emit('opened', {
+    data: { type: 'order_message_followup', entity_type: 'order', entity_id: 'ord_2', link: '/buy/offers' },
+  });
+  expect(navigate).toHaveBeenLastCalledWith(ROUTES.ORDER_CHAT, { orderId: 'ord_2', role: 'BUYER' });
+
+  // No order named: its link's page, as before.
+  messaging.__emit('opened', { data: { type: 'order_message', link: '/sell/lst_3' } });
+  expect(navigate).toHaveBeenLastCalledWith(ROUTES.MY_LISTING, { listingId: 'lst_3' });
+});
+
+test('a chat message while the app is open: tapping its banner opens the chat', async () => {
+  const navigate = jest.spyOn(navigationRef, 'navigate').mockImplementation(() => {});
+  jest.spyOn(navigationRef, 'isReady').mockReturnValue(true);
+  const base = [{ id: 'n1', type: 'offer_accepted', title: 'Old', body: 'x', link: '/buy/offers', unread: false, createdAt: 1 }];
+  const chat = {
+    id: 'n2',
+    type: 'order_message',
+    title: 'New message from the seller',
+    body: 'You have a new message about your vehicle order.',
+    link: '/buy/offers',
+    unread: true,
+    createdAt: 2,
+  };
+  jest
+    .spyOn(notificationApi, 'getNotifications')
+    .mockResolvedValueOnce({ items: base, unreadCount: 0 })
+    .mockResolvedValue({ items: [chat, ...base], unreadCount: 1 });
+  clearNotifications();
+  await startPush();
+
+  let tree;
+  await act(async () => {
+    tree = ReactTestRenderer.create(
+      <SafeAreaProvider initialMetrics={metrics}>
+        <PushBanner />
+      </SafeAreaProvider>,
+    );
+  });
+  await act(async () => loadNotifications());
+  await act(async () =>
+    messaging.__emit('message', {
+      notification: { title: chat.title, body: chat.body },
+      data: { type: 'order_message', entity_type: 'order', entity_id: 'ord_7', link: '/buy/offers' },
+    }),
+  );
+  await act(async () => {});
+  expect(bannerText(tree)).toEqual(expect.arrayContaining([chat.title]));
+
+  await act(async () =>
+    tree.root.findAll(n => n.props.accessibilityRole === 'alert' && n.props.onPress)[0].props.onPress(),
+  );
+  expect(navigate).toHaveBeenCalledWith(ROUTES.ORDER_CHAT, { orderId: 'ord_7', role: 'BUYER' });
+  act(() => tree.unmount());
+});
+
 // A new notification detected on a refresh is what raises the banner (the web
 // shows its popup the same way). Drives the notification store directly.
 const bannerText = tree =>

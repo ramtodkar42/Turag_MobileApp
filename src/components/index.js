@@ -71,6 +71,7 @@ export { default as Spinner } from './feedback/Spinner';
 export { default as StatusView } from './feedback/StatusView';
 export { default as PaymentNotice } from './feedback/PaymentNotice';
 export { default as NoticeRow } from './feedback/NoticeRow';
+export { default as QrCode } from './common/QrCode';
 export { default as Snackbar } from './feedback/Snackbar';
 export { default as SuccessSheet } from './feedback/SuccessSheet';
 
