@@ -201,13 +201,34 @@ describe('a listing sent back for changes', () => {
 });
 
 describe('the rest of the web parity', () => {
-  test('RC and VIN scans open the camera, not the gallery', async () => {
-    launchCamera.mockResolvedValueOnce({ didCancel: true });
+  // As the web: the VIN plate's photo is kept as evidence (taken now, of this car);
+  // the RC's is only read for its details, so a saved photo of it is fine too.
+  test('the VIN scan opens the camera, never the gallery', async () => {
+    launchCamera.mockClear();
     launchImageLibrary.mockClear();
-    const root = await render(<IdentityExtractCard embedded inspectionId="ins_1" kind="RC" onConfirm={jest.fn()} />);
-    await act(async () => button(root, 'Add RC photo').props.onPress());
+    const root = await render(<IdentityExtractCard embedded inspectionId="ins_1" kind="VIN" onConfirm={jest.fn()} />);
+    await act(async () => button(root, 'Add VIN photo').props.onPress());
     expect(launchCamera).toHaveBeenCalledWith(expect.objectContaining({ mediaType: 'photo', includeBase64: true }));
     expect(launchImageLibrary).not.toHaveBeenCalled();
+  });
+
+  test('the RC scan: take a photo or choose one from the gallery', async () => {
+    const afterSheet = () => act(async () => new Promise(resolve => setTimeout(resolve, 400)));
+    launchCamera.mockClear();
+    launchImageLibrary.mockClear();
+    const root = await render(<IdentityExtractCard embedded inspectionId="ins_1" kind="RC" onConfirm={jest.fn()} />);
+    expect(hasText(root, 'Take a photo or choose one from the gallery')).toBe(true);
+
+    await act(async () => button(root, 'Add RC photo').props.onPress());
+    await act(async () => chip(root, 'Choose from gallery').props.onPress());
+    await afterSheet();
+    expect(launchImageLibrary).toHaveBeenCalledWith(expect.objectContaining({ mediaType: 'photo', includeBase64: true }));
+    expect(launchCamera).not.toHaveBeenCalled();
+
+    await act(async () => button(root, 'Add RC photo').props.onPress());
+    await act(async () => chip(root, 'Take a photo').props.onPress());
+    await afterSheet();
+    expect(launchCamera).toHaveBeenCalledWith(expect.objectContaining({ mediaType: 'photo', includeBase64: true }));
   });
 
   test('the tier preview: Budget today, and what Premium needs at this value', async () => {

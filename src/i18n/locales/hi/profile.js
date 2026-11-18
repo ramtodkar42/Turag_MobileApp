@@ -136,6 +136,7 @@ export default {
   'profile.item.settlements': 'सेटलमेंट',
   'profile.item.payoutAccounts': 'पेआउट खाते',
   'profile.item.business': 'बिज़नेस खाते',
+  'profile.item.businessDealer': 'डीलर बिज़नेस खाता',
   'profile.photo.saved': 'फ़ोटो अपडेट हो गई',
   'profile.item.verified': 'Turag सत्यापित',
   'profile.item.about': 'हमारे बारे में',

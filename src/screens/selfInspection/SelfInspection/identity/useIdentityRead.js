@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { extractInspectionIdentity } from '../../../../api/services/valuation.api';
 import { tNow } from '../../../../i18n';
-import { takePhotoWithBase64 } from '../../../../utils/pickVideo';
+import { pickPhotoWithBase64, takePhotoWithBase64 } from '../../../../utils/pickVideo';
 
 // The VIN / RC photo read behind IdentityExtractCard. The photo is taken with the
-// camera and read here; nothing is uploaded until the values are confirmed.
+// camera (the RC may also come from the gallery) and read here; nothing is
+// uploaded until the values are confirmed.
 //   phase: 'start' | 'reading' | 'ready'
 //   read: what the AI read ({} for manual entry); fromPhoto: it came from a photo
 //   notDocument: the photo isn't a VIN plate / an RC (manual review; retake or type)
@@ -54,12 +55,14 @@ export default function useIdentityRead(inspectionId, kind, { initial, onChange 
     persist({ phase: 'ready', read: {}, fromPhoto: false, notDocument: false, scanFile: null });
   }, []);
 
-  const choosePhoto = useCallback(async () => {
+  // source: 'camera' (default) | 'gallery' (the RC only, as the web: a saved photo of
+  // the RC is fine, since only its details are read and saved).
+  const choosePhoto = useCallback(async (source = 'camera') => {
     const id = ++run.current;
     let image;
     let file;
     try {
-      const photo = await takePhotoWithBase64();
+      const photo = source === 'gallery' ? await pickPhotoWithBase64() : await takePhotoWithBase64();
       if (!photo) {
         return; // cancelled
       }

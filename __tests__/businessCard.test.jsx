@@ -55,3 +55,43 @@ test('nothing for everyone else, or while loading', async () => {
   useMyOrganizations.mockReturnValue({ orgs: [], loading: true });
   expect(buttons(await render(<BusinessCard onOpen={jest.fn()} />))).toHaveLength(0);
 });
+
+describe('Profile: the business item says which kind', () => {
+  const { SafeAreaProvider } = require('react-native-safe-area-context');
+  const Profile = require('../src/screens/profile/Profile/Profile').default;
+  const { clearUser, setUser } = require('../src/store/userStore');
+  const metrics = { frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 0, left: 0, right: 0, bottom: 0 } };
+
+  beforeEach(() => setUser({ contact: '9876543210' }));
+  afterEach(() => clearUser());
+
+  const labels = async orgs => {
+    useMyOrganizations.mockReturnValue({ orgs, loading: false });
+    let tree;
+    await act(async () => {
+      tree = ReactTestRenderer.create(
+        <SafeAreaProvider initialMetrics={metrics}>
+          <Profile navigation={{ navigate: jest.fn(), getParent: () => null }} />
+        </SafeAreaProvider>,
+      );
+    });
+    await act(async () => {});
+    const shown = texts(tree.root);
+    act(() => tree.unmount());
+    return shown;
+  };
+
+  test('only dealerships: "Dealer business account"', async () => {
+    const shown = await labels([dealer]);
+    expect(shown).toContain('Dealer business account');
+    expect(shown).not.toContain('Business accounts');
+  });
+
+  test('a lender (or a mix): "Business accounts"; no organization: neither', async () => {
+    expect(await labels([lender])).toContain('Business accounts');
+    expect(await labels([dealer, lender])).toContain('Business accounts');
+    const none = await labels([]);
+    expect(none).not.toContain('Business accounts');
+    expect(none).not.toContain('Dealer business account');
+  });
+});

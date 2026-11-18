@@ -7,6 +7,7 @@ import { ROUTES } from '../../../navigation/routes';
 // `showsLanguage`: shows the current app language on the right.
 // `account` (group): only when signed in - hidden for guests (log out, delete).
 // `orgsOnly`: only for members of a business organization (dealer / lender / yard).
+// `dealerLabelKey`: the label instead, when all of those organizations are dealerships.
 export const PROFILE_MENU = [
   {
     titleKey: 'profile.group.settings',
@@ -27,6 +28,8 @@ export const PROFILE_MENU = [
       },
       {
         labelKey: 'profile.item.business',
+        // Every organization the user belongs to is a dealership: says so.
+        dealerLabelKey: 'profile.item.businessDealer',
         route: ROUTES.BUSINESS_HOME,
         orgsOnly: true,
       },

@@ -24,7 +24,6 @@ import TermsNote from './components/TermsNote';
 import AgeConfirm from './components/AgeConfirm';
 import SignInMethods from './components/SignInMethods';
 import TrustNote from './components/TrustNote';
-import KeyboardFade from './components/KeyboardFade';
 import GooglePhoneNote from './components/GooglePhoneNote';
 import useGoogleSignIn from './useGoogleSignIn';
 import { googleSignInConfigured } from '../../../api/googleAuth';
@@ -46,8 +45,8 @@ const getPhoneProblem = phone => {
 // under "OR", SMS and Google side by side - SMS only when the server offers
 // it. The code buttons wait for the 18+ box (they look inactive and say why
 // when tapped). Mobile number -> OTP (VerifyOtp decides Home vs new account).
-// With the keyboard up the spacing tightens so the logo, the field and the
-// button all stay on screen, even on small phones.
+// With the keyboard up nothing moves: the logo, the field and the button stay
+// above it, and the rest (SMS, Google, Terms, Email sign-in) is a scroll away.
 // Google (as the web): signs straight in when the Google email belongs to an
 // account; otherwise the mobile number is still needed (the account is the
 // phone) and the Google email is linked after the OTP.
@@ -63,14 +62,14 @@ function Login({ navigation, route }) {
   const [showDeleted, setShowDeleted] = useState(!!route?.params?.accountDeleted);
   // Signed out because the session ran out (or was ended on another device).
   const sessionExpired = !!route?.params?.sessionExpired;
-  // Typing: the extra choices step aside (smoothly, from the moment the number
-  // box is tapped) so the logo and the number stay above the keyboard.
-  // (No layout animation: nothing is added / removed, only faded - see KeyboardFade.)
+  // Typing (from the moment the number box is tapped, before the keyboard is
+  // up): the layout below stops measuring, so the content holds its place.
+  // (No layout animation: nothing on the screen changes.)
   const { compact: keyboardOpen, onFocus: onPhoneFocus } = useCompactOnKeyboard({ animate: false });
   // Where the content sits: centred in the screen as measured with the
   // keyboard CLOSED, then held there - so opening / closing the keyboard
-  // never re-centres it (no logo jumping up and back). Only the extra choices
-  // under the main button fade away while typing.
+  // never re-centres it (no logo jumping up and back). Everything stays
+  // visible; what the keyboard covers is a scroll away.
   const [frame, setFrame] = useState({ area: 0, block: 0 });
   const onAreaLayout = e => {
     if (keyboardOpen) return; // the keyboard shrinks the area on some phones
@@ -179,10 +178,12 @@ function Login({ navigation, route }) {
         // The number box sits high, above the keyboard on every phone: no
         // automatic scroll to it (that only pushed the content up).
         followFocus={false}
-        // No room made for the keyboard: nothing moves; what it covers (the
-        // faded choices) is simply under it. On phones that also shrink the
-        // screen, that room was counted twice and the page scrolled up.
-        keyboardRoom={false}
+        // The keyboard's room goes after the last item, not around the screen:
+        // nothing moves when it opens, and scrolling down still reaches SMS,
+        // Google, the Terms and Email sign-in under it. (Shrinking the screen
+        // instead was counted twice on phones that shrink it themselves, and
+        // the page jumped up.)
+        keyboardRoom="scrollEnd"
         backgroundColor={colors.primary}
         header={
           <View style={[styles.header, !fromGuest && styles.headerEnd]}>
@@ -282,25 +283,20 @@ function Login({ navigation, route }) {
               error: google.error,
               onPress: google.start,
             }}
-            // Keyboard open: everything under the main button fades away in place
-            // (nothing re-lays out, so nothing moves or blinks) and fades back.
-            compact={keyboardOpen}
             style={styles.button}
           />
-          <KeyboardFade hidden={keyboardOpen}>
-            <TrustNote style={styles.trust} />
-            {/* The website's Terms / Privacy Policy. */}
-            <TermsNote
-              onTerms={() => openPage('profile.item.terms', '/terms')}
-              onPrivacy={() => openPage('profile.item.privacyPolicy', '/privacy_policy')}
-              style={styles.terms}
-            />
-            <LoginLink
-              label={t('auth.emailLogin.short')}
-              onPress={() => navigation.navigate(ROUTES.EMAIL_LOGIN, fromGuest ? { fromGuest } : undefined)}
-              style={styles.emailLink}
-            />
-          </KeyboardFade>
+          <TrustNote style={styles.trust} />
+          {/* The website's Terms / Privacy Policy. */}
+          <TermsNote
+            onTerms={() => openPage('profile.item.terms', '/terms')}
+            onPrivacy={() => openPage('profile.item.privacyPolicy', '/privacy_policy')}
+            style={styles.terms}
+          />
+          <LoginLink
+            label={t('auth.emailLogin.short')}
+            onPress={() => navigation.navigate(ROUTES.EMAIL_LOGIN, fromGuest ? { fromGuest } : undefined)}
+            style={styles.emailLink}
+          />
         </View>
         </View>
       </ScreenContainer>

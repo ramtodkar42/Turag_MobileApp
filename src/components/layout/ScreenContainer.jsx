@@ -5,6 +5,7 @@ import { colors, spacing } from '../../theme';
 import { MAX_CONTENT_WIDTH } from '../../constants/layout';
 import useKeyboardVisible from '../../hooks/useKeyboardVisible';
 import useKeyboardInset from '../../hooks/useKeyboardInset';
+import useKeyboardHeight from '../../hooks/useKeyboardHeight';
 
 const IOS = Platform.OS === 'ios';
 // Room kept between the focused field and the top of the keyboard.
@@ -31,11 +32,16 @@ const FOCUS_CHECK_MS = 300;
 // followFocus: false - the screen never scrolls by itself to the focused field
 // (Login: its field sits high, always above the keyboard; scrolling there only
 // moved the content up for nothing, as some keyboards over-report their height).
-// keyboardRoom: false - no room is made for the keyboard at all (Login: its
-// content stays where it is and the parts under the keyboard just fade). Some
-// phones (e.g. Samsung on Android 15) shrink the screen themselves AND get the
-// padding, so the scroll area ended far above the keyboard and Android
-// scrolled the page up to "keep the field in view".
+// keyboardRoom: true (default) - the screen ends at the top of the keyboard.
+//   'scrollEnd' (scroll screens; Login) - the screen keeps its full size and
+//   the room is added at the END of the scroll content instead: nothing moves
+//   when the keyboard opens, and scrolling down still reaches everything the
+//   keyboard covers. (Making the screen itself smaller went wrong on some
+//   phones, e.g. Samsung on Android 15, that shrink the screen themselves AND
+//   got the padding: the scroll area ended far above the keyboard and Android
+//   scrolled the page up to "keep the field in view". Extra room at the end
+//   never moves anything; at worst there is a little spare space at the bottom.)
+//   false - no room at all.
 function ScreenContainer({
   children,
   header,
@@ -56,6 +62,10 @@ function ScreenContainer({
   const iosKeyboardOpen = useKeyboardVisible();
   const androidKeyboard = useKeyboardInset({ animate: animateKeyboard });
   const keyboardOpen = IOS ? iosKeyboardOpen : androidKeyboard.open;
+  const roomAtEnd = scroll && keyboardRoom === 'scrollEnd';
+  const iosKeyboardHeight = useKeyboardHeight(IOS && roomAtEnd);
+  // What the keyboard covers, as space after the last item (roomAtEnd only).
+  const endRoom = roomAtEnd ? (IOS ? iosKeyboardHeight : androidKeyboard.bottom) : 0;
   const bodyStyle = [padded && styles.padded, contentStyle];
   const topInset = safeTop ? insets.top : 0;
   const scrollView = useRef(null);
@@ -142,6 +152,7 @@ function ScreenContainer({
           scrollEventThrottle={16}
         >
           {children}
+          {endRoom > 0 ? <View style={{ height: endRoom }} testID="keyboard-end-room" /> : null}
         </ScrollView>
       ) : (
         <View style={[styles.flex, bodyStyle]}>{children}</View>
@@ -166,7 +177,7 @@ function ScreenContainer({
       style={[styles.flex, { backgroundColor, paddingTop: topInset }]}
       onLayout={IOS ? undefined : androidKeyboard.onLayout}
     >
-      {!keyboardRoom ? (
+      {keyboardRoom !== true ? (
         frame
       ) : IOS ? (
         <KeyboardAvoidingView style={styles.flex} behavior="padding">

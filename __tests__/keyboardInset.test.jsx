@@ -6,7 +6,7 @@
  */
 import React from 'react';
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Keyboard, Platform } from 'react-native';
+import { Keyboard, Platform, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import useKeyboardInset from '../src/hooks/useKeyboardInset';
 
@@ -138,6 +138,31 @@ describe('ScreenContainer and the focused field', () => {
   test('other screens make room for the keyboard; Login (keyboardRoom off) makes none', async () => {
     expect(await makesKeyboardRoom({})).toBe(true);
     expect(await makesKeyboardRoom({ keyboardRoom: false })).toBe(false);
+  });
+
+  test("Login (keyboardRoom 'scrollEnd'): the screen keeps its size, the room goes after the last item", async () => {
+    expect(await makesKeyboardRoom({ keyboardRoom: 'scrollEnd' })).toBe(false);
+
+    act(() => tree?.unmount());
+    tree = null;
+    let screen;
+    await act(async () => {
+      screen = ReactTestRenderer.create(
+        <SafeAreaProvider initialMetrics={metrics}>
+          <ScreenContainer scroll keyboardRoom="scrollEnd" followFocus={false} />
+        </SafeAreaProvider>,
+      );
+    });
+    const room = () => screen.root.findAll(n => n.props.testID === 'keyboard-end-room' && typeof n.type === 'string');
+    expect(room()).toHaveLength(0);
+    // (Loaded for iOS here: the room is the keyboard's own height. Android uses
+    // useKeyboardInset's bottom, tested above.)
+    await act(async () => listeners.keyboardDidShow({ endCoordinates: { height: 300 } }));
+    expect(room()).toHaveLength(1);
+    expect(StyleSheet.flatten(room()[0].props.style).height).toBe(300);
+    await act(async () => listeners.keyboardDidHide({}));
+    expect(room()).toHaveLength(0);
+    act(() => screen.unmount());
   });
 
   test('Login (followFocus off): opening the keyboard never scrolls the content up', async () => {

@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { AppText, Badge, Button, Icon, Spinner } from '../../../../components';
+import { AppText, Badge, Button, Icon, OptionSheet, Spinner } from '../../../../components';
 import { colors, radius, spacing } from '../../../../theme';
 import { fs, ms } from '../../../../utils/responsive';
 import { useT } from '../../../../i18n';
@@ -10,22 +10,32 @@ import VinForm from './VinForm';
 import RcForm from './RcForm';
 import UploadTile from '../components/UploadTile';
 
+// gallery: the photo may also come from the gallery (as the web). Only the RC: its
+// photo is just read for its details, while the VIN plate's photo is kept as
+// evidence and checked as taken now, of this car (camera only).
 const COPY = {
   VIN: {
     icon: 'car',
     title: 'inspector.identity.vinTitle',
     description: 'inspector.identity.vinDescription',
     add: 'inspector.identity.addVinPhoto',
+    hint: 'inspector.identity.addHint',
     notDocument: 'inspector.identity.notVin',
+    gallery: false,
   },
   RC: {
     icon: 'document',
     title: 'inspector.identity.rcTitle',
     description: 'inspector.identity.rcDescription',
     add: 'inspector.identity.addRcPhoto',
+    hint: 'inspector.identity.addHintGallery',
     notDocument: 'inspector.identity.notRc',
+    gallery: true,
   },
 };
+
+// The sheet closes before a picker opens (one can't open over a closing sheet).
+const AFTER_SHEET_MS = 350;
 
 // Which registry verdicts to show per card, and their field labels.
 const VERDICT_FIELDS = {
@@ -48,7 +58,8 @@ const VERDICT_TONE = { MATCH: 'verified', MISMATCH: 'danger' };
 // plate / the RC is read by AI, the user confirms or corrects what it read, and
 // only then it's (1) saved as the item's answer, and (2) the confirmed plaintext is
 // checked against the registry baseline (identity-verify) to show per-field verdicts.
-// Typing it in works too.
+// Typing it in works too. The RC's photo can be taken or chosen from the gallery;
+// the VIN plate's is always taken now.
 // kind: 'VIN' | 'RC'. onConfirm(note, evidence, scanFile) saves the item; resolves true
 // once saved. scanFile: the photo behind the values, or null when they were typed.
 // plainNote: a self-inspection. Its note holds the values, and its screen runs the
@@ -64,6 +75,7 @@ function IdentityExtractCard({ inspectionId, kind, plainNote = false, disabled, 
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState(null); // 'saved' | 'failed'
   const [formKey, setFormKey] = useState(0);
+  const [sourceOpen, setSourceOpen] = useState(false);
 
   // Registry verdicts (display-only; never persisted). A generation counter
   // drops a stale response if the user re-reads before it returns.
@@ -86,6 +98,10 @@ function IdentityExtractCard({ inspectionId, kind, plainNote = false, disabled, 
     onDraft?.(d => ({ ...(d ?? {}), formState: null }));
     action();
   };
+
+  // The photo: straight to the camera, or (the RC) first "take one / choose one".
+  const addPhoto = copy.gallery ? () => setSourceOpen(true) : restart(photo.choosePhoto);
+  const onSource = source => setTimeout(restart(() => photo.choosePhoto(source)), AFTER_SHEET_MS);
 
   const runVerify = async evidence => {
     const id = ++verifyRun.current;
@@ -177,8 +193,8 @@ function IdentityExtractCard({ inspectionId, kind, plainNote = false, disabled, 
           <UploadTile
             icon="camera"
             title={t(photo.notDocument ? 'inspector.identity.retake' : copy.add)}
-            subtitle={t('inspector.identity.addHint')}
-            onPress={restart(photo.choosePhoto)}
+            subtitle={t(copy.hint)}
+            onPress={addPhoto}
             disabled={disabled}
           />
           <Button
@@ -236,6 +252,19 @@ function IdentityExtractCard({ inspectionId, kind, plainNote = false, disabled, 
             <AppText variant="caption">{t('inspector.identity.noBaseline')}</AppText>
           )}
         </View>
+      ) : null}
+
+      {copy.gallery ? (
+        <OptionSheet
+          visible={sourceOpen}
+          title={t(copy.add)}
+          options={[
+            { value: 'camera', label: t('selfInspection.source.camera') },
+            { value: 'gallery', label: t('selfInspection.source.gallery') },
+          ]}
+          onSelect={onSource}
+          onClose={() => setSourceOpen(false)}
+        />
       ) : null}
     </View>
   );

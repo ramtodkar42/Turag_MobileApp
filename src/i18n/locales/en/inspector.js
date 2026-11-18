@@ -106,6 +106,7 @@ export default {
   'inspector.identity.addRcPhoto': 'Add RC photo',
   'inspector.identity.enterManually': 'Enter manually',
   'inspector.identity.addHint': 'Opens the camera — we read the details for you',
+  'inspector.identity.addHintGallery': 'Take a photo or choose one from the gallery — we read the details for you',
   'inspector.identity.reading': 'Reading the photo…',
   'inspector.identity.notVin': 'This doesn’t look like a VIN/chassis plate — flagged for manual review. Retake or enter the values manually.',
   'inspector.identity.notRc': 'This doesn’t look like an RC — flagged for manual review. Retake or answer the RC question manually.',

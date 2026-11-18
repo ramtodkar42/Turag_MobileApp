@@ -246,6 +246,35 @@ test('Login: the content stays put when the keyboard opens (no re-centring jump)
   expect(topOf()).toBe(placed);
 });
 
+test('Login: with the keyboard up, SMS, Google and Email sign-in stay (a scroll away), and the room goes at the end', async () => {
+  authApi.getOtpChannels.mockResolvedValueOnce(['whatsapp', 'sms']);
+  const navigation = makeNavigation();
+  const root = await render(<Login navigation={navigation} />);
+  // Measured with the keyboard closed (shown), then the number box is tapped.
+  const layout = height => ({ nativeEvent: { layout: { x: 0, y: 0, width: 375, height } } });
+  await act(async () => root.findAll(n => n.props.testID === 'login-area' && n.props.onLayout)[0].props.onLayout(layout(800)));
+  await act(async () => root.findAll(n => n.props.testID === 'login-block' && n.props.onLayout)[0].props.onLayout(layout(600)));
+  await act(async () => byProp(root, 'placeholder', 'Enter your number').props.onFocus());
+
+  // Nothing above them is hidden or untappable while typing.
+  expect(byProp(root, 'title', 'SMS')).toBeDefined();
+  const hidden = node => {
+    for (let n = node; n; n = n.parent) {
+      const style = StyleSheet.flatten(n.props?.style) ?? {};
+      if (n.props?.pointerEvents === 'none' || style.opacity === 0) return true;
+    }
+    return false;
+  };
+  expect(hidden(byProp(root, 'title', 'SMS'))).toBe(false);
+  const email = byProp(root, 'label', 'Email sign-in');
+  expect(hidden(email)).toBe(false);
+  await act(async () => email.props.onPress());
+  expect(navigation.navigate).toHaveBeenCalledWith(ROUTES.EMAIL_LOGIN, undefined);
+
+  // The screen keeps its size; the keyboard's room is added after the last item.
+  expect(root.findAll(n => n.props.keyboardRoom === 'scrollEnd').length).toBeGreaterThan(0);
+});
+
 test('Login sends the OTP and opens Verify', async () => {
   const navigation = makeNavigation();
   const root = await render(<Login navigation={navigation} />);

@@ -28,6 +28,9 @@ function Profile({ navigation }) {
   // "Business accounts" only for members of a dealer / lender / yard organization.
   const { orgs } = useMyOrganizations();
   const hasOrgs = orgs.length > 0;
+  // Only dealerships (no lender / yard): "Dealer business account".
+  const dealerOnly = hasOrgs && orgs.every(org => org.portal === 'DEALER');
+  const labelOf = item => t(dealerOnly && item.dealerLabelKey ? item.dealerLabelKey : item.labelKey);
   const menu = (signedIn ? PROFILE_MENU : guestMenu).map(group => ({
     ...group,
     items: group.items.filter(item => !item.orgsOnly || hasOrgs),
@@ -64,7 +67,7 @@ function Profile({ navigation }) {
             title={t(group.titleKey)}
             items={group.items.map(item => ({
               key: item.labelKey,
-              label: t(item.labelKey),
+              label: labelOf(item),
               value: item.showsLanguage ? languageName : undefined,
               onPress: () => onItemPress(item),
             }))}
