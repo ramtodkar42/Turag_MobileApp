@@ -12,6 +12,10 @@ import { getUser, setUser } from '../store/userStore';
 import { signOutLocally } from '../store/signOut';
 import { startNetworkWatch } from '../store/networkStore';
 import { stopPush } from '../push/pushNotifications';
+import { knownOtpChannels, loadOtpChannels, waitForOtpChannels } from '../store/otpChannels';
+
+// The longest the splash waits for Login's buttons on a first start.
+const FIRST_CHANNELS_WAIT_MS = 2000;
 
 // Before anything is read: on the first launch after (re)installing, drop any
 // session left in the keychain - on iOS it survives uninstalling the app, and
@@ -23,9 +27,10 @@ const startFresh = async () => {
 };
 
 // App start:
-// 1. Read the saved session and the app language from the keychain (no
+// 1. Read the saved session, the app language and Login's sign-in buttons
+//    (WhatsApp / SMS, as last answered by the server) from the phone (no
 //    network) and pick the first screen, so a signed-in user lands on Home at
-//    once, already in their language. Signed out: the intro slides only until
+//    once, already in their language, and Login opens with its real buttons. Signed out: the intro slides only until
 //    they've been seen once, then Login (or the marketplace, for someone who
 //    chose to browse without logging in).
 // 2. Once the screens are showing, check the session with the backend in the
@@ -44,8 +49,18 @@ export default function useAppBoot() {
   useEffect(() => {
     let active = true;
     startFresh()
-      .then(() => Promise.all([restoreSession(), initLanguage(), hasSeenIntro(), hasChosenGuest()]))
-      .then(([session, , introSeen, guest]) => {
+      .then(() =>
+        Promise.all([restoreSession(), initLanguage(), hasSeenIntro(), hasChosenGuest(), loadOtpChannels()]),
+      )
+      .then(async ([session, , introSeen, guest]) => {
+        const first = initialRouteFor(session, { introSeen, guest });
+        // Login first, with nothing saved about its buttons yet (the first start
+        // after an update): wait a moment for the server, so it never opens on
+        // "Get OTP" and then changes. (Intro slides first: the answer arrives
+        // while they're read.)
+        if (first.name === ROUTES.LOGIN && knownOtpChannels().length === 0) {
+          await waitForOtpChannels(FIRST_CHANNELS_WAIT_MS);
+        }
         if (!active) {
           return;
         }
@@ -57,7 +72,7 @@ export default function useAppBoot() {
             markIntroSeen();
           }
         }
-        setInitialRoute(initialRouteFor(session, { introSeen, guest }));
+        setInitialRoute(first);
       });
     return () => {
       active = false;

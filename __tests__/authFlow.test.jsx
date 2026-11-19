@@ -14,6 +14,7 @@ import CheckRow from '../src/components/common/CheckRow';
 import { ROUTES } from '../src/navigation/routes';
 import * as appPrefs from '../src/utils/appPrefs';
 import { clearUser, getUser, setUser } from '../src/store/userStore';
+import { forgetOtpChannels, loadOtpChannels } from '../src/store/otpChannels';
 import { endSession } from '../src/api/session';
 import { loadSession } from '../src/api/tokenStorage';
 import { ApiError } from '../src/api/client';
@@ -125,6 +126,7 @@ afterEach(async () => {
   mockCalls = [];
   jest.clearAllMocks();
   clearUser();
+  forgetOtpChannels();
   await endSession();
 });
 
@@ -273,6 +275,20 @@ test('Login: with the keyboard up, SMS, Google and Email sign-in stay (a scroll 
 
   // The screen keeps its size; the keyboard's room is added after the last item.
   expect(root.findAll(n => n.props.keyboardRoom === 'scrollEnd').length).toBeGreaterThan(0);
+});
+
+test('Login opens with the remembered buttons: never "Get OTP" first, even while the server is slow', async () => {
+  const prefs = require('@react-native-async-storage/async-storage').createAsyncStorage('turag-prefs');
+  // Saved at an earlier start; this time the server doesn't answer yet.
+  await prefs.setItem('otpChannels', JSON.stringify(['whatsapp', 'sms']));
+  authApi.getOtpChannels.mockReturnValueOnce(new Promise(() => {}));
+  await loadOtpChannels();
+
+  const root = await render(<Login navigation={makeNavigation()} />);
+  expect(byProp(root, 'title', 'Continue with WhatsApp')).toBeDefined();
+  expect(byProp(root, 'title', 'SMS')).toBeDefined();
+  expect(byProp(root, 'title', 'Get OTP')).toBeUndefined();
+  await prefs.removeItem('otpChannels');
 });
 
 test('Login sends the OTP and opens Verify', async () => {

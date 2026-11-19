@@ -12,7 +12,8 @@ import { colors, radius, spacing } from '../../../theme';
 import { fs, ms } from '../../../utils/responsive';
 import { isPhone, phoneError } from '../../../utils/validators';
 import { tNow, useT } from '../../../i18n';
-import { getOtpChannels, sendLoginOtp } from '../../../api/services/auth.api';
+import { sendLoginOtp } from '../../../api/services/auth.api';
+import { knownOtpChannels, refreshOtpChannels } from '../../../store/otpChannels';
 import { ROUTES } from '../../../navigation/routes';
 import useStatusBarStyle from '../../../hooks/useStatusBarStyle';
 import useCompactOnKeyboard from '../../../hooks/useCompactOnKeyboard';
@@ -95,14 +96,17 @@ function Login({ navigation, route }) {
   // The channel whose code is on its way ('whatsapp' | 'sms' | 'any'), or null.
   const [sendingVia, setSendingVia] = useState(null);
   // How the code can be sent, WhatsApp first ([] = not known: the server picks).
-  const [channels, setChannels] = useState([]);
+  // Known from the first frame (remembered on the phone, read at app start), so
+  // the buttons never change under the user; the server is still asked, in case
+  // its answer changed.
+  const [channels, setChannels] = useState(knownOtpChannels);
   const google = useGoogleSignIn(navigation);
 
   useEffect(() => {
     let cancelled = false;
-    getOtpChannels().then(list => {
+    refreshOtpChannels().then(list => {
       if (!cancelled && list.length > 0) {
-        setChannels(list);
+        setChannels(prev => (prev.join() === list.join() ? prev : list));
       }
     });
     return () => {
