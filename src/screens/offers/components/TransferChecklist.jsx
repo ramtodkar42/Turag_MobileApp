@@ -10,6 +10,21 @@ import useTransferChecklist from './useTransferChecklist';
 
 const STATUS_TONE = { PENDING: 'neutral', PROVIDED: 'warning', VERIFIED: 'success', WAIVED: 'neutral' };
 
+// The server names each item in English; the app has these in every language (by
+// code, offers.transfer.item.*). An item the app doesn't know yet keeps the
+// server's name.
+const NAMED_ITEMS = new Set([
+  'FORM_29',
+  'FORM_30',
+  'FORM_28_NOC',
+  'FORM_35_NOC',
+  'RC_TRANSFER',
+  'SELLER_KYC',
+  'BUYER_KYC',
+  'INSURANCE_TRANSFER',
+  'DELIVERY_RECEIPT', // orders from before checklist v2 (ADR-0098)
+]);
+
 // "1.2 MB" / "980 KB".
 const humanSize = bytes => {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -24,8 +39,11 @@ const humanSize = bytes => {
 //     any attached document opens in the phone's viewer.
 //   mode 'documents': the purchase's documents after handover (read only).
 // onReadyChange(ready): whether the handover gate is met (seller).
-function TransferChecklist({ orderId, role, mode = 'checklist', onReadyChange, style }) {
+// handedOver: the vehicle has been handed over (the seller's hint moves on to the
+// RC transfer proof, which comes later from the RTO).
+function TransferChecklist({ orderId, role, mode = 'checklist', handedOver = false, onReadyChange, style }) {
   const t = useT();
+  const itemName = item => (NAMED_ITEMS.has(item.code) ? t(`offers.transfer.item.${item.code}`) : item.label);
   const { checklist, error, busyCode, openingCode, upload, open } = useTransferChecklist(orderId, onReadyChange);
   const [sourceFor, setSourceFor] = useState(null); // item code
 
@@ -67,6 +85,8 @@ function TransferChecklist({ orderId, role, mode = 'checklist', onReadyChange, s
             ? 'offers.transfer.documentsHint'
             : role === 'BUYER'
             ? 'offers.transfer.buyerHint'
+            : handedOver
+            ? 'offers.transfer.sellerHintAfter'
             : 'offers.transfer.sellerHint',
         )}
       </AppText>
@@ -84,7 +104,7 @@ function TransferChecklist({ orderId, role, mode = 'checklist', onReadyChange, s
               <View key={item.code} style={[styles.item, index > 0 && styles.divider]}>
                 <View style={styles.itemTop}>
                   <View style={styles.flex}>
-                    <AppText style={styles.label}>{item.label}</AppText>
+                    <AppText style={styles.label}>{itemName(item)}</AppText>
                     {item.document ? (
                       <View style={styles.fileRow}>
                         <Icon name="document" size={ms(12)} color={colors.body} />

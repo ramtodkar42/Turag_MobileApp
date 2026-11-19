@@ -373,6 +373,38 @@ describe('Ownership transfer + handover gate', () => {
     expect(ready).toHaveBeenLastCalledWith(true);
   });
 
+  test('the seller is told what comes next: forms before the handover, the RC proof after', async () => {
+    transferApi.getTransferChecklist.mockResolvedValue(checklist());
+    let root = await render(<TransferChecklist orderId="ord_1" role="SELLER" />);
+    await wait(10);
+    expect(hasText(root, 'Upload Forms 29 and 30 (and any NOC listed) to start the handover.')).toBe(true);
+    expect(hasText(root, 'confirm handover')).toBe(false);
+    act(() => tree.unmount());
+    root = await render(<TransferChecklist orderId="ord_1" role="SELLER" handedOver />);
+    await wait(10);
+    expect(hasText(root, 'Add the RC transfer proof once the RTO gives it.')).toBe(true);
+  });
+
+  test('item names in the app language (the server sends English); an unknown item keeps its name', async () => {
+    const { setLanguage } = require('../src/i18n');
+    transferApi.getTransferChecklist.mockResolvedValue({
+      version: 2,
+      items: [
+        { code: 'RC_TRANSFER', label: 'RC transfer proof (RTO receipt or new RC)', required: true, responsible: 'SELLER', status: 'PENDING', document: null },
+        { code: 'NEW_ITEM', label: 'Something new', required: true, responsible: 'SELLER', status: 'PENDING', document: null },
+      ],
+    });
+    await act(async () => setLanguage('hi'));
+    try {
+      const root = await render(<TransferChecklist orderId="ord_1" role="SELLER" />);
+      await wait(10);
+      expect(hasText(root, 'RC ट्रांसफ़र का प्रमाण (RTO रसीद या नई RC)')).toBe(true);
+      expect(hasText(root, 'Something new')).toBe(true);
+    } finally {
+      await act(async () => setLanguage('en'));
+    }
+  });
+
   test('purchase documents: only the ones shared, each opens', async () => {
     transferApi.getTransferChecklist.mockResolvedValue(checklist());
     const root = await render(<TransferChecklist orderId="ord_1" role="BUYER" mode="documents" />);

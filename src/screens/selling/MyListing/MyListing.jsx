@@ -339,7 +339,12 @@ function MyListing({ navigation, route }) {
             open after the handover too (the RC transfer proof comes later, ADR-0098). */}
         {order && order.status !== 'CREATED' && order.status !== 'CANCELLED' ? (
           <Card style={styles.card}>
-            <TransferChecklist orderId={order.id} role="SELLER" onReadyChange={setTransferReady} />
+            <TransferChecklist
+              orderId={order.id}
+              role="SELLER"
+              handedOver={order.status === 'HANDED_OVER' || order.status === 'COMPLETED'}
+              onReadyChange={setTransferReady}
+            />
           </Card>
         ) : null}
 
