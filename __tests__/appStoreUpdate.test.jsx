@@ -1,12 +1,12 @@
 /**
- * iPhone: the update popup when the App Store has a newer version, at most once a day.
+ * iPhone: the update popup when the App Store has a newer version, every time the app
+ * opens (until the user updates).
  * (Tests run as iOS; the version comes from the mock in jest.setup.js: 1.0.0.)
  */
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { Linking, Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppStoreUpdatePrompt from '../src/components/feedback/AppStoreUpdatePrompt';
-import { removePref } from '../src/utils/appPrefs';
 import { isNewerVersion } from '../src/utils/version';
 
 const metrics = { frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 0, left: 0, right: 0, bottom: 0 } };
@@ -36,9 +36,8 @@ beforeAll(() => {
   // Jest's Platform has no iOS version of its own.
   Object.defineProperty(Platform, 'Version', { get: () => '18.0', configurable: true });
 });
-beforeEach(async () => {
+beforeEach(() => {
   global.fetch = jest.fn();
-  await removePref('updatePromptAt');
 });
 afterEach(() => {
   act(() => tree?.unmount());
@@ -58,14 +57,14 @@ test('a newer version: asks using this app, and Update opens its App Store page'
   expect(shown(root)).toBe(false);
 });
 
-test('Not now closes it, and it does not ask again the same day', async () => {
+test('Not now closes it, and it asks again the next time the app opens', async () => {
   global.fetch.mockReturnValue(listed('1.0.1'));
   let root = await render();
   await act(async () => button(root, 'Not now').props.onPress());
   expect(shown(root)).toBe(false);
   act(() => tree.unmount());
   root = await render();
-  expect(shown(root)).toBe(false);
+  expect(shown(root)).toBe(true);
 });
 
 test('no popup: up to date, not listed yet, a failed lookup, or an iPhone too old for it', async () => {

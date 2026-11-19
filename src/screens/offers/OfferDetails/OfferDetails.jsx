@@ -27,6 +27,7 @@ import useConfirmDialog from '../../../hooks/useConfirmDialog';
 import { codeLabel } from '../../../i18n/vehicleLabels';
 import { useLanguage, useT } from '../../../i18n';
 import { ROUTES } from '../../../navigation/routes';
+import { FEATURES } from '../../../api/config';
 import { OFFER_STATUS, ORDER_STATUS } from '../../account/statuses';
 import CounterSheet from '../components/CounterSheet';
 import TransferChecklist from '../components/TransferChecklist';
@@ -364,14 +365,16 @@ function OfferDetails({ navigation, route }) {
                   disabled={!!d.busy || payBusy || awaiting}
                   style={styles.flex}
                 />
-                <Button
-                  title={t('offers.loan.button')}
-                  size="md"
-                  variant="outline"
-                  onPress={openLoan}
-                  disabled={payBusy}
-                  style={styles.flex}
-                />
+                {FEATURES.loanApplication ? (
+                  <Button
+                    title={t('offers.loan.button')}
+                    size="md"
+                    variant="outline"
+                    onPress={openLoan}
+                    disabled={payBusy}
+                    style={styles.flex}
+                  />
+                ) : null}
               </ButtonRow>
             </View>
           </TitledCard>

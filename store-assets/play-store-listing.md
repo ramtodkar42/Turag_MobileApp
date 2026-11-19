@@ -43,10 +43,6 @@ AI SELF INSPECTION
 • Your progress is saved as you go, so you can stop and continue later.
 An AI Self Inspection is self-declared. It is not the same as a Turag Verified inspection.
 
-INSPECTION AT YOUR DOORSTEP
-• Book an inspection by a Turag inspector. The inspector comes to you, checks the car and sends a graded report.
-• Available in select cities, with more coming soon.
-
 BUY A USED CAR
 • Browse used cars with photos, details, inspection insights and the asking price.
 • Search by brand or model, and filter by price, city and Turag tier.
@@ -102,10 +98,6 @@ AI सेल्फ-इंस्पेक्शन
 • आपकी प्रगति साथ-साथ सेव होती है, इसलिए आप बीच में रुककर बाद में जारी रख सकते हैं।
 AI सेल्फ-इंस्पेक्शन स्व-घोषित है। यह Turag Verified इंस्पेक्शन नहीं है।
 
-घर पर इंस्पेक्शन
-• Turag इंस्पेक्टर से इंस्पेक्शन बुक करें। इंस्पेक्टर आपके पास आता है, कार जाँचता है और ग्रेड वाली रिपोर्ट भेजता है।
-• चुनिंदा शहरों में उपलब्ध, और शहर जल्द जुड़ रहे हैं।
-
 पुरानी कार खरीदें
 • फ़ोटो, जानकारी, इंस्पेक्शन से मिली जानकारी और माँगी गई कीमत के साथ पुरानी कारें देखें।
 • ब्रांड या मॉडल से खोजें, और कीमत, शहर और Turag टियर से फ़िल्टर करें।
@@ -160,10 +152,6 @@ AI सेल्फ-इन्स्पेक्शन
 • कारच्या प्रत्येक भागाचे मार्गदर्शित फोटो घ्या, एक छोटा व्हिडिओ रेकॉर्ड करा आणि सोपी चेकलिस्ट भरा.
 • तुमची प्रगती सोबतच सेव्ह होते, त्यामुळे तुम्ही मध्येच थांबून नंतर पुढे सुरू करू शकता.
 AI सेल्फ-इन्स्पेक्शन स्व-घोषित आहे. ते Turag Verified इन्स्पेक्शन नाही.
-
-घरी इन्स्पेक्शन
-• Turag इन्स्पेक्टरकडून इन्स्पेक्शन बुक करा. इन्स्पेक्टर तुमच्याकडे येतो, कार तपासतो आणि ग्रेडसह रिपोर्ट पाठवतो.
-• निवडक शहरांमध्ये उपलब्ध, आणखी शहरे लवकरच.
 
 जुनी कार खरेदी करा
 • फोटो, माहिती, इन्स्पेक्शनमधील निष्कर्ष आणि विचारलेली किंमत यासह जुन्या कार पाहा.

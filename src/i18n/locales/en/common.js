@@ -43,6 +43,7 @@ export default {
   'common.select': 'Select',
   'common.selectDate': 'Select a date',
   'common.selectDateTitle': 'Select date',
+  'common.pickYear': 'Choose a year',
   'common.search': 'Search',
   'common.filter.all': 'All',
   'common.filter.anyDate': 'Any date',

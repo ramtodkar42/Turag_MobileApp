@@ -43,6 +43,7 @@ export default {
   'common.select': 'चुनें',
   'common.selectDate': 'तारीख चुनें',
   'common.selectDateTitle': 'तारीख चुनें',
+  'common.pickYear': 'साल चुनें',
   'common.search': 'खोजें',
   'common.filter.all': 'सभी',
   'common.filter.anyDate': 'कोई भी तारीख',

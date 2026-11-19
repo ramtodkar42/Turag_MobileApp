@@ -89,9 +89,14 @@ export const REFRESH_TIMEOUT_MS = 2 * 60000;
 //   Inspector and Ops flows aren't affected. (The Evaluate chat says so in its own message.)
 // dealerMarketplace: the dealer-only marketplace is the next phase; a dealer lists
 //   through the normal seller flow.
+// loanApplication: "Apply for a loan" on an accepted offer. Off until Turag has a
+//   lending partner (decision 2026-11-19): Google Play treats a loan form as a loan
+//   facilitator and asks for the partner's details. The screen stays in the app;
+//   turn this on to bring the button back.
 export const FEATURES = {
   inspectorBooking: false,
   dealerMarketplace: false,
+  loanApplication: false,
 };
 
 // The AI Self Inspection fee in the Android app is paid with Google Play Billing,

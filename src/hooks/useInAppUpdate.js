@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { NativeEventEmitter, NativeModules } from 'react-native';
-import { claimUpdatePrompt } from '../utils/appPrefs';
 
 // Android only (InAppUpdateModule): on iOS, and in builds without it, this does nothing.
 const Updater = NativeModules.InAppUpdate;
 const emitter = Updater ? new NativeEventEmitter(Updater) : null;
 
-// On app open, Google Play's in-app update: its own prompt when a newer version is out
-// (at most once a day), then ready = true once it has downloaded, so the app can offer
-// to restart. A failure (e.g. not installed from Play) is simply no prompt.
+// On app open, Google Play's in-app update: its own prompt every time the app opens
+// while a newer version is out (until the user updates), then ready = true once it has
+// downloaded, so the app can offer to restart. A failure (e.g. not installed from Play)
+// is simply no prompt.
 export default function useInAppUpdate() {
   const [ready, setReady] = useState(false);
 
@@ -24,8 +24,7 @@ export default function useInAppUpdate() {
           setReady(true);
           return;
         }
-        if (!available) return;
-        if (!(await claimUpdatePrompt()) || cancelled) return;
+        if (!available || cancelled) return;
         await Updater.start();
       } catch {
         // No prompt this time; nothing else depends on it.

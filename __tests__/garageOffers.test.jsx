@@ -215,12 +215,9 @@ describe('My offers', () => {
     expect(hasText(root, 'Pay the token amount')).toBe(true);
     expect(hasText(root, 'Next: pay the token to book the vehicle')).toBe(true);
 
-    // Apply for a loan for this vehicle.
-    await act(async () => button(root, 'Apply for a loan').props.onPress());
-    expect(navigation.navigate).toHaveBeenCalledWith(
-      ROUTES.LOAN_APPLICATION,
-      expect.objectContaining({ listingId: 'lst_mock_b2', orderId: 'ord_mock_1' }),
-    );
+    // "Apply for a loan" is switched off until Turag has a lending partner (FEATURES.loanApplication).
+    expect(button(root, 'Apply for a loan')).toBeUndefined();
+    expect(button(root, 'Cancel order')).toBeDefined();
 
     const pay = jest.spyOn(offerApi, 'payOrderToken');
     await act(async () => button(root, 'Pay token').props.onPress());

@@ -43,6 +43,7 @@ export default {
   'common.select': 'निवडा',
   'common.selectDate': 'तारीख निवडा',
   'common.selectDateTitle': 'तारीख निवडा',
+  'common.pickYear': 'वर्ष निवडा',
   'common.search': 'शोधा',
   'common.filter.all': 'सर्व',
   'common.filter.anyDate': 'कोणतीही तारीख',
