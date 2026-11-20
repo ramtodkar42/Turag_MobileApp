@@ -20,6 +20,8 @@ import useEmail from './useEmail';
 import EmailCard from './components/EmailCard';
 import MobileCard from './components/MobileCard';
 import usePhoneVerification from './usePhoneVerification';
+import useName from './useName';
+import NameSheet from './components/NameSheet';
 
 const ROLE_KEYS = {
   [ROLES.INDIVIDUAL]: 'profile.role.individual',
@@ -92,6 +94,8 @@ function PersonalInfo({ navigation }) {
   // The photo saved on the account (shows on every phone and the web).
   const photoSource = useAvatarSource(user?.avatarUrl);
   const photo = useProfilePhoto();
+  // Change the name (as the web): the pencil beside it opens a sheet.
+  const name = useName();
   const mobile = fullMobile(user?.contact) ?? profile?.mobile;
 
   const cardTitle = text => (
@@ -109,11 +113,11 @@ function PersonalInfo({ navigation }) {
     >
       <ProfileHeader
         name={user?.fullName || t('profile.fallbackName')}
-        contact={user?.email || mobile}
         role={t(roleKeyFor(user))}
         photoSource={photoSource}
         photo={photo}
         onBack={navigation.goBack}
+        onEditName={name.start}
       />
 
       <View style={styles.sheet}>
@@ -211,6 +215,7 @@ function PersonalInfo({ navigation }) {
           </>
         ) : null}
       </View>
+      <NameSheet name={name} />
     </ScreenContainer>
   );
 }

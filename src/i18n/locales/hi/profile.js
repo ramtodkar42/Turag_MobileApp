@@ -138,6 +138,8 @@ export default {
   'profile.item.business': 'बिज़नेस खाते',
   'profile.item.businessDealer': 'डीलर बिज़नेस खाता',
   'profile.photo.saved': 'फ़ोटो अपडेट हो गई',
+  'profile.name.edit': 'नाम बदलें',
+  'profile.name.saveError': 'आपका नाम सेव नहीं हो सका। कृपया फिर से कोशिश करें।',
   'profile.item.verified': 'Turag सत्यापित',
   'profile.item.about': 'हमारे बारे में',
   'profile.item.careers': 'करियर',

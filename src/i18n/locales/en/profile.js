@@ -138,6 +138,8 @@ export default {
   'profile.item.business': 'Business accounts',
   'profile.item.businessDealer': 'Dealer business account',
   'profile.photo.saved': 'Photo updated',
+  'profile.name.edit': 'Edit name',
+  'profile.name.saveError': 'Couldn’t save your name. Please try again.',
   'profile.item.verified': 'Turag Verified',
   'profile.item.about': 'About',
   'profile.item.careers': 'Careers',

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { AppText, Avatar, Chevron, IconButton, Icon, OptionSheet, PopIn, Spinner } from '../../../../components';
+import { AppText, Avatar, Chevron, EditIcon, IconButton, Icon, OptionSheet, PopIn, Spinner } from '../../../../components';
 import { colors, radius, shadows, spacing } from '../../../../theme';
 import { fs, ms } from '../../../../utils/responsive';
 import { useT } from '../../../../i18n';
@@ -9,18 +9,19 @@ const PHOTO = ms(104);
 const RING = ms(4);
 const OUTER = PHOTO + RING * 2;
 const BADGE = ms(32);
-const MUTED_WHITE = 'rgba(255, 255, 255, 0.85)';
+const EDIT = ms(32);
 const CIRCLE = 'rgba(255, 255, 255, 0.07)';
 
 // The top of Personal Information (Turag's colours): a red band with the back
-// button, the name and how to reach them; the photo sits half over the band's
-// edge, with a camera badge; under it, on white, the role. Tapping the photo
+// button; the photo sits half over the band's edge, with a camera badge; under
+// it, on white, the name (with a pencil to change it) and the role. The email
+// and mobile have their own cards lower down. Tapping the photo
 // offers the selfie camera or the gallery. While a photo saves, the new picture shows dimmed under a progress
 // ring; once saved, a green tick and "Photo updated"; if saving fails, the
 // reason and "Try again".
 // photoSource: the account photo (useAvatarSource) | null; photo: useProfilePhoto();
-// contact: the email or mobile under the name.
-function ProfileHeader({ name, contact, role, photoSource, photo, onBack }) {
+// onEditName: the pencil beside the name (opens the name sheet).
+function ProfileHeader({ name, role, photoSource, photo, onBack, onEditName }) {
   const t = useT();
   const [sheetOpen, setSheetOpen] = useState(false);
   const { uploading, preview, saved, error, canRetry } = photo;
@@ -52,14 +53,6 @@ function ProfileHeader({ name, contact, role, photoSource, photo, onBack }) {
           </IconButton>
         </View>
 
-        <AppText variant="h1" color={colors.white} align="center" numberOfLines={1} style={styles.name}>
-          {name}
-        </AppText>
-        {contact ? (
-          <AppText variant="caption" color={MUTED_WHITE} align="center" numberOfLines={1} style={styles.contact}>
-            {contact}
-          </AppText>
-        ) : null}
       </View>
 
       {/* The photo, half over the band's edge. */}
@@ -89,6 +82,16 @@ function ProfileHeader({ name, contact, role, photoSource, photo, onBack }) {
           )
         ) : null}
       </Pressable>
+
+      {/* The name, with a pencil to change it. */}
+      <View style={styles.nameRow}>
+        <AppText variant="h2" align="center" numberOfLines={1} style={styles.name}>
+          {name}
+        </AppText>
+        <IconButton onPress={onEditName} size={EDIT} accessibilityLabel={t('profile.name.edit')}>
+          <EditIcon size={ms(16)} color={colors.heading} />
+        </IconButton>
+      </View>
 
       <View style={styles.role}>
         <AppText variant="label" color={colors.primary} style={styles.roleText}>
@@ -182,15 +185,18 @@ const styles = StyleSheet.create({
   back: {
     marginLeft: -ms(2),
   },
-  name: {
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
     maxWidth: '100%',
     marginTop: spacing.md,
-    fontSize: fs(26),
-    lineHeight: fs(32),
+    paddingHorizontal: spacing.lg,
   },
-  contact: {
-    marginTop: spacing.xs,
-    maxWidth: '100%',
+  name: {
+    flexShrink: 1,
+    fontSize: fs(22),
+    lineHeight: fs(28),
   },
   ring: {
     width: OUTER,
@@ -236,7 +242,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.success,
   },
   role: {
-    marginTop: spacing.md,
+    marginTop: spacing.sm,
     paddingHorizontal: spacing.md,
     paddingVertical: ms(4),
     borderRadius: radius.pill,

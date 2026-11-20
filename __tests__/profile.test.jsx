@@ -8,7 +8,8 @@ import { Switch } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Profile from '../src/screens/profile/Profile/Profile';
 import PersonalInfo from '../src/screens/profile/PersonalInfo/PersonalInfo';
-import { Badge, ConfirmDialog, KeyValueRow, MenuGroup, MenuRow } from '../src/components';
+import NameSheet from '../src/screens/profile/PersonalInfo/components/NameSheet';
+import { Badge, BottomSheet, ConfirmDialog, KeyValueRow, MenuGroup, MenuRow } from '../src/components';
 import { clearUser, getUser, setUser } from '../src/store/userStore';
 import { ROUTES } from '../src/navigation/routes';
 import * as profileApi from '../src/api/services/profile.api';
@@ -213,4 +214,45 @@ test('Email (as the web): unverified with "Resend link"; Change saves a new one 
   expect(save).toHaveBeenLastCalledWith('raj.new@gmail.com');
   expect(said('raj.new@gmail.com')).toBe(true);
   save.mockRestore();
+});
+
+test('Name (as the web): the pencil opens a sheet; Save changes the name everywhere', async () => {
+  const update = jest
+    .spyOn(profileApi, 'updateMyName')
+    .mockImplementation(async name => ({ fullName: name, role: 'individual' }));
+  act(() => setUser({ fullName: 'Raj Kumar', role: 'individual', contact: '9876543210' }));
+  const root = await render(<PersonalInfo navigation={{ goBack: jest.fn() }} />);
+  await act(async () => {
+    jest.advanceTimersByTime(500);
+  });
+  const sheetOpen = () => root.findByType(NameSheet).findByType(BottomSheet).props.visible;
+  const field = () => root.findAll(n => n.props.placeholder === 'Your full name' && n.props.onChangeText)[0];
+  const save = () => root.findAll(n => n.props.title === 'Save' && n.props.onPress)[0];
+  const said = text => root.findAll(n => n.props.children === text).length > 0;
+
+  expect(sheetOpen()).toBe(false);
+  await act(async () => root.findAll(n => n.props.accessibilityLabel === 'Edit name' && n.props.onPress)[0].props.onPress());
+  expect(sheetOpen()).toBe(true);
+  expect(field().props.value).toBe('Raj Kumar');
+
+  // Too short: the same rule as Create Account, nothing sent.
+  await act(async () => field().props.onChangeText('R'));
+  await act(async () => save().props.onPress());
+  expect(update).not.toHaveBeenCalled();
+  expect(said('Please enter your full name')).toBe(true);
+
+  // Saving fails: the sheet stays open with the reason.
+  update.mockRejectedValueOnce(new Error('No internet connection.'));
+  await act(async () => field().props.onChangeText('Raj Todkar'));
+  await act(async () => save().props.onPress());
+  expect(sheetOpen()).toBe(true);
+  expect(said('No internet connection.')).toBe(true);
+
+  // Saved: spaces tidied, the sheet closes, the header and the account show the new name.
+  await act(async () => field().props.onChangeText('  Raj   Todkar '));
+  await act(async () => save().props.onPress());
+  expect(update).toHaveBeenLastCalledWith('Raj Todkar', { phone: '9876543210' });
+  expect(sheetOpen()).toBe(false);
+  expect(getUser()).toMatchObject({ fullName: 'Raj Todkar', contact: '9876543210' });
+  expect(said('Raj Todkar')).toBe(true);
 });
