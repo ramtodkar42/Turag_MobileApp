@@ -22,6 +22,8 @@ export const groupName = (t, groupCode, label) => translated(t, `selfInspection.
 // A "what's left" entry (buildMissingList gives English labels in fixed
 // shapes) in the app's language.
 export const missingLabel = (t, entry, items) => {
+  // The "Before you start" selfie + name (ADR-0104).
+  if (entry.kind === 'performer') return t('selfInspection.performer.missing');
   const item = items.find(i => i.item_code === entry.itemCode);
   const name = itemName(t, item) || entry.label;
   const label = entry.label;

@@ -9,6 +9,8 @@ const TYPES = {
   offer_countered: { category: 'offers', icon: 'rupee' },
   offer_declined: { category: 'offers', icon: 'close' },
   offer_withdrawn: { category: 'offers', icon: 'close' },
+  // ADR-0103: an offer ran out of its 72 hours (both the buyer and the seller are told).
+  offer_expired: { category: 'offers', icon: 'clock' },
   listing_live: { category: 'offers', icon: 'check' },
   listing_needs_changes: { category: 'offers', icon: 'document' },
   listing_rejected: { category: 'offers', icon: 'close' },

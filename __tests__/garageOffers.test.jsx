@@ -284,6 +284,17 @@ describe('Token refund on cancel (ADR-0051, as the web)', () => {
     expect(mapOrder({ order_id: 'ord_2', status: 'CREATED' }).token).toBeNull();
   });
 
+  test('before paying, the token the server quotes and the balance at handover are shown (as the web)', async () => {
+    const raw = offerApi.mockOfferState().orders.ord_mock_1;
+    raw.token = { amount: money(10000), paid_at: null, cancellation_quote: null, cancellation_refund: null };
+    const root = await render(<OfferDetails navigation={nav()} route={{ params: { offerId: 'off_mock_2' } }} />);
+    await wait(1300);
+    expect(button(root, 'Pay token')).toBeDefined();
+    expect(hasText(root, 'Token (held in escrow)')).toBe(true);
+    expect(hasText(root, 'Balance at handover')).toBe(true);
+    expect(hasText(root, 'The token amount is shown when you pay.')).toBe(false);
+  });
+
   test('before paying, the refund schedule is shown next to Pay token', async () => {
     const root = await render(<OfferDetails navigation={nav()} route={{ params: { offerId: 'off_mock_2' } }} />);
     await wait(1300);

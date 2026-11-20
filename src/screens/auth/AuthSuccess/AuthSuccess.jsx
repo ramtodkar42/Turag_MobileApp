@@ -32,10 +32,12 @@ function EmailNote({ notice }) {
 // params: { titleKey: 'auth.loginSuccessful' | 'auth.accountCreated' (or a ready `title`), next: home route (by role),
 //   goBack?: a guest logged in from the app - close, back to the screen they were on,
 //   emailNotice?: { email, sent } - from Create Account,
-//   thenOpen?: a screen to open on top of home (a dealer: their Business section) }
+//   thenOpen?: a screen to open on top of home (a dealer: their Business section),
+//   dealerApply?: signed up as a dealer - "Add your documents" opens the dealer
+//     application (as the web), or "Continue to Turag"; it doesn't move on by itself }
 function AuthSuccess({ navigation, route }) {
   const t = useT();
-  const { titleKey, title: readyTitle, goBack, emailNotice, thenOpen } = route.params ?? {};
+  const { titleKey, title: readyTitle, goBack, emailNotice, thenOpen, dealerApply } = route.params ?? {};
   const title = titleKey ? t(titleKey) : readyTitle ?? t('auth.loginSuccessful');
   const next = route.params?.next ?? ROUTES.MAIN_TABS;
 
@@ -50,10 +52,18 @@ function AuthSuccess({ navigation, route }) {
     else navigation.replace(next);
   }, [navigation, next, goBack, thenOpen]);
 
+  // A new dealer chooses: add their documents now, or later (from Profile).
+  const addDocuments = useCallback(() => {
+    if (left.current) return;
+    left.current = true;
+    navigation.reset({ index: 1, routes: [{ name: next }, { name: ROUTES.DEALER_APPLY }] });
+  }, [navigation, next]);
+
   useEffect(() => {
+    if (dealerApply) return undefined;
     const timer = setTimeout(proceed, emailNotice ? EMAIL_NOTE_DELAY : NEXT_SCREEN_DELAY);
     return () => clearTimeout(timer);
-  }, [proceed, emailNotice]);
+  }, [proceed, emailNotice, dealerApply]);
 
   return (
     <ScreenContainer>
@@ -66,11 +76,22 @@ function AuthSuccess({ navigation, route }) {
         title={title}
         message={t('auth.success.message')}
       >
-        {emailNotice ? (
+        {emailNotice ? <EmailNote notice={emailNotice} /> : null}
+        {dealerApply ? (
           <>
-            <EmailNote notice={emailNotice} />
-            <Button title={t('common.continue')} onPress={proceed} style={styles.continue} />
+            <FadeIn style={styles.note}>
+              <View style={styles.noteIcon}>
+                <Icon name="store" size={ms(18)} color={colors.primary} />
+              </View>
+              <AppText variant="caption" color={colors.body} style={styles.noteText}>
+                {t('auth.dealer.note')}
+              </AppText>
+            </FadeIn>
+            <Button title={t('auth.dealer.addDocuments')} onPress={addDocuments} style={styles.continue} />
+            <Button title={t('auth.dealer.continue')} variant="outline" onPress={proceed} style={styles.secondary} />
           </>
+        ) : emailNotice ? (
+          <Button title={t('common.continue')} onPress={proceed} style={styles.continue} />
         ) : null}
       </StatusView>
     </ScreenContainer>
@@ -102,6 +123,10 @@ const styles = StyleSheet.create({
   continue: {
     alignSelf: 'stretch',
     marginTop: spacing.lg,
+  },
+  secondary: {
+    alignSelf: 'stretch',
+    marginTop: spacing.sm,
   },
 });
 

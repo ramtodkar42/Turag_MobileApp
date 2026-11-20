@@ -61,6 +61,8 @@ function CompleteProfile({ navigation, route }) {
           titleKey,
           next: getHomeRoute(user.role),
           ...(emailNotice ? { emailNotice } : null),
+          // Signed up as a dealer: "Add your documents" next (as the web).
+          ...(needsProfile && values.purpose === 'dealer' ? { dealerApply: true } : null),
         },
       ];
       // A new account gets the optional "tell us about you" questions first (as the web).

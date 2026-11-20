@@ -38,6 +38,7 @@ import ListingPreview from '../screens/selling/ListingPreview/ListingPreview';
 import PayoutAccounts from '../screens/selling/PayoutAccounts/PayoutAccounts';
 import Settlements from '../screens/selling/Settlements/Settlements';
 import BusinessHome from '../screens/business/BusinessHome/BusinessHome';
+import DealerApply from '../screens/business/DealerApply/DealerApply';
 import DealerPortal from '../screens/business/DealerPortal/DealerPortal';
 import DealerCreateListing from '../screens/business/DealerCreateListing/DealerCreateListing';
 import InstitutionalPortal from '../screens/business/InstitutionalPortal/InstitutionalPortal';
@@ -83,6 +84,13 @@ const AccountPersonalInfo = accountScreen(PersonalInfo, {
   icon: 'user',
   headingKey: 'guest.personalInfo.title',
   messageKey: 'guest.personalInfo.message',
+});
+const AccountDealerApply = accountScreen(DealerApply, {
+  withBack: true,
+  titleKey: 'dealerApply.title',
+  icon: 'store',
+  headingKey: 'guest.dealerApply.title',
+  messageKey: 'guest.dealerApply.message',
 });
 const AccountCarAlerts = accountScreen(CarAlerts, {
   withBack: true,
@@ -218,6 +226,7 @@ function RootNavigator({ initialRoute = { name: ROUTES.INTRO } }) {
       <Stack.Screen name={ROUTES.SETTLEMENTS} component={AccountSettlements} />
       <Stack.Screen name={ROUTES.PAYOUT_ACCOUNTS} component={AccountPayoutAccounts} />
       {/* Business accounts (organization members only; opened from Profile). */}
+      <Stack.Screen name={ROUTES.DEALER_APPLY} component={AccountDealerApply} />
       <Stack.Screen name={ROUTES.BUSINESS_HOME} component={BusinessHome} />
       <Stack.Screen name={ROUTES.DEALER_PORTAL} component={DealerPortal} />
       <Stack.Screen name={ROUTES.DEALER_CREATE_LISTING} component={DealerCreateListing} />

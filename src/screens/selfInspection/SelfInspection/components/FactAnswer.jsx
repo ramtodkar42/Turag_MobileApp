@@ -4,6 +4,8 @@ import { colors, spacing } from '../../../../theme';
 import { ms } from '../../../../utils/responsive';
 import { useT } from '../../../../i18n';
 import { toIsoDate } from '../../../../utils/date';
+import { formatNumber } from '../../../../utils/format';
+import { moneyDigits } from '../money';
 import { blankAnswer } from '../useSelfInspection';
 import { itemName } from '../labels';
 
@@ -19,10 +21,11 @@ export const isFactItem = item =>
   item.answer_type === 'BOOL' ||
   item.answer_type === 'CHOICE' ||
   item.answer_type === 'DATE' ||
+  item.answer_type === 'MONEY' ||
   COUNT_ITEMS.has(item.item_code);
 
-// A fact's answer (the web's FactAnswer): Yes / No, one of the choices, a date, or
-// the key count. There's no severity scale and no "can't check"; the server checks
+// A fact's answer (the web's FactAnswer): Yes / No, one of the choices, a date, an
+// amount in rupees (the loan left, ADR-0107), or the key count. There's no severity scale and no "can't check"; the server checks
 // every value against the checklist. Yes / No saves as OK / MAJOR; a choice or a
 // date carries its value with OK. An answer that needs details (flood: Yes) is held
 // until they're typed and saved with it.
@@ -107,6 +110,44 @@ function FactAnswer({ si, item, onAnswered }) {
             />
           </View>
         ) : null}
+        {error}
+      </View>
+    );
+  }
+
+  // An amount in whole rupees, grouped as it's typed (2,50,000) so a slipped zero
+  // shows before saving; saved with its Save button (sent as paise).
+  if (item.answer_type === 'MONEY') {
+    const typed = state.money ?? '';
+    const save = () => typed && answer({ money: typed, severity: 'OK' });
+    return (
+      <View style={styles.wrap}>
+        <TextField
+          label={t('selfInspection.fact.amountLabel')}
+          placeholder={t('selfInspection.fact.amountPh')}
+          value={formatNumber(typed)}
+          onChangeText={text => si.updateLocal(code, c => ({ ...c, money: moneyDigits(text), saved: false, error: undefined }))}
+          left={
+            <AppText variant="body" color={colors.heading}>
+              ₹
+            </AppText>
+          }
+          keyboardType="number-pad"
+          returnKeyType="done"
+          onSubmitEditing={save}
+          editable={!disabled}
+          accessibilityLabel={label}
+        />
+        <Button
+          title={t(state.saved ? 'selfInspection.fact.saved' : 'selfInspection.fact.save')}
+          size="md"
+          variant="outline"
+          fullWidth={false}
+          loading={state.saving === true}
+          disabled={disabled || !typed}
+          onPress={save}
+          style={styles.left}
+        />
         {error}
       </View>
     );

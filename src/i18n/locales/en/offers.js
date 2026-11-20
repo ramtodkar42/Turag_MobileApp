@@ -2,7 +2,7 @@
 export default {
   'offers.title': 'My offers',
   'offers.intro':
-    'Offers are binding for 48 hours. A seller’s counter replaces your offer until you accept it.',
+    'Offers are binding for 72 hours, and every counter-offer restarts the 72 hours. A countered offer replaces yours until you accept it.',
   'offers.offer': 'Offer',
   'offers.yourOffer': 'Your offer',
   'offers.sellerCounter': 'Seller’s counter',

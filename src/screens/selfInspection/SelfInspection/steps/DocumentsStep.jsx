@@ -10,10 +10,11 @@ import { detailContent } from '../components/detailContent';
 import SectionCard from '../components/SectionCard';
 import StatusPill from '../components/StatusPill';
 
-// Icon per document: RC, VIN, odometer, owners; papers get the document icon.
-const DOC_ICONS = { P1: 'document', O2: 'user' };
-// Scans confirmed in one tap move on to the next document by themselves.
-const AUTO_NEXT = new Set(['P1']);
+// Icon per document: RC, owners, the loan and its amount; papers get the document icon.
+const DOC_ICONS = { P1: 'document', O2: 'user', FINANCED_M1: 'bank', LOAN_OUTSTANDING_M1: 'rupee' };
+// Answers given in one go move on to the next open document by themselves: a
+// confirmed RC scan, the loan answer ("Yes" opens the amount next) and the amount.
+const AUTO_NEXT = new Set(['P1', 'FINANCED_M1', 'LOAN_OUTSTANDING_M1']);
 const NEXT_DELAY_MS = 700;
 
 // Documents & details (the same items and rules as the web's Documents step),

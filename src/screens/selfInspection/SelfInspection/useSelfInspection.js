@@ -15,6 +15,7 @@ import {
   saveAiFinding,
   submitSelfInspection,
   payForSelfInspection,
+  PERFORMER_REQUIRED,
   SELF_INSPECTION_FEE_REQUIRED,
   submitEngineFrames,
   uploadSelfEvidence,
@@ -31,6 +32,8 @@ import { tNow } from '../../../i18n';
 import { getUser } from '../../../store/userStore';
 import { shotName } from './labels';
 import useIntegrityWatch from './useIntegrityWatch';
+import usePerformer from './usePerformer';
+import { paiseToRupeesText, rupeesToPaise } from './money';
 import { integrityReasonsFor } from './integrityReasons';
 import { videoUploadErrorText } from './videoUploadError';
 import {
@@ -79,7 +82,7 @@ import {
 const DOCUMENT_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp']);
 const DOCUMENT_MAX_BYTES = 20 * 1024 * 1024;
 
-export const blankAnswer = () => ({ note: '', cost: '', num: '', naReason: '', value: '' });
+export const blankAnswer = () => ({ note: '', cost: '', num: '', naReason: '', value: '', money: '' });
 export const slotKey = (itemCode, shotCode) => `${itemCode}:${shotCode}`;
 
 // A typed answer saves this long after the last key.
@@ -189,6 +192,10 @@ export const deleteWhenReady = async (mediaId, remove = deleteSelfMedia) => {
   }
 };
 
+// The "what's left" entry for the selfie + name (shown with the Documents step,
+// where the self-inspection starts; the card itself sits above every step).
+const PERFORMER_MISSING = { step: 'documents', itemCode: null, label: 'Selfie and your name', kind: 'performer' };
+
 export default function useSelfInspection(inspectionId) {
   // 'loading' | 'ready' | 'error' | 'not-editable' | 'submitted'
   const [screen, setScreen] = useState('loading');
@@ -259,6 +266,9 @@ export default function useSelfInspection(inspectionId) {
 
   const allItems = useMemo(() => sections.flatMap(s => s.items), [sections]);
   const isM1 = inspection?.mode === 'M1';
+  // Who is doing it: selfie + name, needed before an owner's submit (ADR-0104).
+  const performer = usePerformer(inspectionId, isM1 && screen === 'ready');
+  const { markMissing: performerMissing } = performer;
   const approved = isM1 && APPROVED_STATUSES.has(inspection?.status);
   const inspectionVehicle = inspection?.vehicle ?? null;
   const vehicleId = inspection?.vehicle_id ?? null;
@@ -309,6 +319,7 @@ export default function useSelfInspection(inspectionId) {
           num: it.numeric_value != null ? String(it.numeric_value) : '',
           naReason: it.na_reason ?? '',
           value: it.value_text ?? '',
+          money: paiseToRupeesText(it.value_money_minor),
           saved: true,
         };
         // Previously recorded verdicts stay recorded - never re-attached.
@@ -456,6 +467,16 @@ export default function useSelfInspection(inspectionId) {
         }
         if (n != null && !cur.severity) cur.severity = 'OK';
       }
+      // An amount (the loan left, ADR-0107): whole rupees in, paise out - a bad amount is never sent.
+      const isMoney = spec?.answer_type === 'MONEY';
+      const moneyMinor = isMoney ? rupeesToPaise(cur.money ?? '') : null;
+      if (isMoney) {
+        if (moneyMinor == null) {
+          updateLocal(code, () => ({ ...cur, saved: false, error: tNow('selfInspection.fact.validAmount') }));
+          return false;
+        }
+        cur.severity = 'OK';
+      }
       updateLocal(code, () => ({ ...cur, saved: false, error: undefined }));
       if (!cur.severity) return false;
       if (cur.severity === 'NOT_ASSESSABLE' && !cur.naReason) return false;
@@ -472,6 +493,7 @@ export default function useSelfInspection(inspectionId) {
       if ((spec?.answer_type === 'CHOICE' || spec?.answer_type === 'DATE') && cur.severity !== 'NOT_ASSESSABLE' && cur.value) {
         body.value_text = cur.value;
       }
+      if (isMoney) body.value_money_minor = moneyMinor;
       if (cur.severity === 'NOT_ASSESSABLE') body.na_reason = cur.naReason;
       // The B1 answer judges a persisted AI finding: its suggestion + the verdict
       // ride along (advisory lineage only; scoring never reads it).
@@ -964,8 +986,14 @@ export default function useSelfInspection(inspectionId) {
     // Answers still being typed are saved before the server checks them.
     await flushTyped();
     const labels = buildItemLabelMap(allItems);
-    const errorText = e =>
-      e?.message ? humanizeSubmitError(e.message, labels) : tNow('selfInspection.error.submitFailed');
+    const errorText = e => {
+      // No selfie + name on record (e.g. it couldn't be checked when the page opened): the card asks for it.
+      if (e?.code === PERFORMER_REQUIRED) {
+        performerMissing();
+        return tNow('selfInspection.performer.required');
+      }
+      return e?.message ? humanizeSubmitError(e.message, labels) : tNow('selfInspection.error.submitFailed');
+    };
     try {
       await runSubmit();
     } catch (e) {
@@ -1010,7 +1038,7 @@ export default function useSelfInspection(inspectionId) {
       setSubmitting(false);
       submitting$.current = false;
     }
-  }, [allItems, inspectionId, runSubmit, flushTyped]);
+  }, [allItems, inspectionId, runSubmit, flushTyped, performerMissing]);
 
   // Integrity failed: reopen (INTEGRITY_FAILED -> IN_PROGRESS) and load the
   // capture again so the flagged photos can be retaken.
@@ -1096,9 +1124,12 @@ export default function useSelfInspection(inspectionId) {
   }, [allItems, analysis, inspection, isM1, local, mediaShots, persisted]);
   const conditionLevel = condition?.level ?? null;
 
-  // The final estimated value after submit: one backend request per input set.
+  // The inspector's final estimated value after submit: one backend request per input set.
+  // Not for a self-inspection (ADR-0106, as the web): before QC approves it there's no
+  // value - QC may correct answers, so an earlier number could differ from the
+  // approved one - and after approval it comes from the report (above).
   useEffect(() => {
-    if (screen !== 'submitted' || approved || finalStatus === 'INTEGRITY_FAILED' || !vehicleId) return;
+    if (screen !== 'submitted' || isM1 || approved || finalStatus === 'INTEGRITY_FAILED' || !vehicleId) return;
     const fetchKey = JSON.stringify([inspectionId, odometerKm, ownerCount, conditionLevel]);
     if (finalFetchRef.current === fetchKey) return;
     finalFetchRef.current = fetchKey;
@@ -1110,8 +1141,9 @@ export default function useSelfInspection(inspectionId) {
       .catch(e =>
         setFinal({ loading: false, card: null, valuation: null, note: '', error: e?.message || tNow('selfInspection.error.finalFailed') }),
       );
-  }, [screen, approved, finalStatus, inspectionId, vehicleId, odometerKm, ownerCount, conditionLevel]);
+  }, [screen, isM1, approved, finalStatus, inspectionId, vehicleId, odometerKm, ownerCount, conditionLevel]);
 
+  const performerDone = performer.done;
   const derived = useMemo(() => {
     // Follow-up questions (show_if) count only once their question has a matching
     // saved answer, as the server's submit rule.
@@ -1120,12 +1152,16 @@ export default function useSelfInspection(inspectionId) {
     const groups = photoSections(photoGroups(allItems));
     const slots = photoSlots(allItems);
     const progress = buildProgress(activeItems, local, mediaShots);
-    const missing = buildMissingList({
-      items: activeItems,
-      answers: local,
-      evidenceCount: mediaCount,
-      parseNumeric: (code, raw) => numericParserFor(code)(raw),
-    });
+    const missing = [
+      // First, as the web: it's asked first, and the server refuses submit without it.
+      ...(performerDone === false ? [PERFORMER_MISSING] : []),
+      ...buildMissingList({
+        items: activeItems,
+        answers: local,
+        evidenceCount: mediaCount,
+        parseNumeric: (code, raw) => numericParserFor(code)(raw),
+      }),
+    ];
     const v = inspectionVehicle;
     const rc = identity.rc;
     const crossCheck = crossValidateVehicle({
@@ -1189,12 +1225,14 @@ export default function useSelfInspection(inspectionId) {
         ? selfIdentityMismatchFields(selfIdentityReads(rcNote, vinNote), identityVerdicts)
         : inspectorMismatchFields(crossCheck),
     };
-  }, [allItems, local, mediaShots, mediaCount, inspectionVehicle, identity, identityVerdicts, isM1, odometerKm, previousOwners, persisted, rcNote, vinNote]);
+  }, [allItems, local, mediaShots, mediaCount, inspectionVehicle, identity, identityVerdicts, isM1, odometerKm, previousOwners, persisted, rcNote, vinNote, performerDone]);
 
   return {
     screen,
     reload: load,
     inspection,
+    // A self-inspection QC has approved (its value is settled and shown after submit).
+    approved,
     sections,
     allItems,
     local,
@@ -1238,6 +1276,8 @@ export default function useSelfInspection(inspectionId) {
     // Previous owners from the RC record (null: the owner types them).
     // Shown (and saved) as the owner count only in the owner's flow: the inspector types it.
     registryPrevOwners: isM1 ? registryPrevOwners : null,
+    // The "Before you start" selfie + name (usePerformer).
+    performer,
     ...derived,
   };
 }

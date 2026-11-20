@@ -9,7 +9,8 @@ import SectionCard from '../components/SectionCard';
 
 // After submitting (the web's submitted screen): done with the final
 // estimated value from Turag's valuation engine - or, when photos failed the
-// integrity checks, which ones and "Retake photos".
+// integrity checks, which ones and "Retake photos". A self-inspection shows its
+// value only once QC has approved it (ADR-0106: QC may correct answers first).
 // inspector: the inspection officer's doorstep inspection - it goes to Turag's
 // QC (the web's PENDING_QC), and the way on is back to the jobs.
 function SubmittedView({
@@ -70,7 +71,7 @@ function SubmittedView({
       {/* e.g. the fee had already been paid, so the Google Play purchase is refunded. */}
       <PaymentNotice problem={si.payNote} />
 
-      {!failed ? (
+      {!failed && (inspector || si.approved) ? (
         // Owner rule (5 Nov 2026, as the web): the customer sees no dealer label and no
         // confidence. The inspector's view keeps its confidence.
         <EstimateCard

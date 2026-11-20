@@ -505,7 +505,8 @@ test('Create Account: saves consents, then name, then email, and opens Home', as
         params: {
           then: [
             ROUTES.AUTH_SUCCESS,
-            { titleKey: 'auth.accountCreated', next: ROUTES.MAIN_TABS, emailNotice: { email: 'raj@gmail.com', sent: true } },
+            // Signed up as a dealer: "Add your documents" is offered next (ADR-0101).
+            { titleKey: 'auth.accountCreated', next: ROUTES.MAIN_TABS, emailNotice: { email: 'raj@gmail.com', sent: true }, dealerApply: true },
           ],
         },
       },

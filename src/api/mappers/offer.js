@@ -57,9 +57,10 @@ const mapRefund = r =>
       }
     : null;
 
-// The booking token (ADR-0051), null until it's paid: { amount (₹), paidAt,
-// quote (TOKEN_PAID: what cancelling right now would refund), refund
-// (CANCELLED after paying: what was decided) }.
+// The booking token (ADR-0051): { amount (₹), paidAt, quote (TOKEN_PAID: what
+// cancelling right now would refund), refund (CANCELLED after paying: what was
+// decided) }. On a new order (CREATED) it's the server's quote of what will be
+// paid (paidAt null); otherwise null until it's paid.
 const mapToken = tk =>
   tk
     ? {
@@ -156,6 +157,9 @@ export const mapMyListing = l => ({
   canResubmit: l.status === 'CHANGES_REQUESTED',
   canEditPrice: PRICE_EDITABLE.has(l.status),
   canWithdraw: WITHDRAWABLE.has(l.status),
+  // Why it was withdrawn (ADR-0105): { reason, note }, both null when not
+  // withdrawn or withdrawn before reasons were asked.
+  withdrawal: { reason: l.withdrawal?.reason ?? null, note: l.withdrawal?.note ?? null },
 });
 
 // GET /listings item (ListingSummary) -> a My listings row.

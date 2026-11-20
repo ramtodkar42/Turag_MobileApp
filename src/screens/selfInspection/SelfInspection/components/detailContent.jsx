@@ -8,6 +8,7 @@ import IdentityExtractCard from '../identity/IdentityExtractCard';
 import { slotKey, uploadKindFor } from '../useSelfInspection';
 import { itemName } from '../labels';
 import EvidenceList from './EvidenceList';
+import FactAnswer from './FactAnswer';
 import ItemAnswer from './ItemAnswer';
 import OdometerScan from './OdometerScan';
 
@@ -175,6 +176,20 @@ export const detailContent = ({ t, si, item, scans, onAddDocument }) => {
             hint: t(forOfficer('selfInspection.documents.ownersHint')),
             body: <ItemAnswer si={si} item={item} />,
           };
+    // The vehicle loan (ADR-0107): is there one, then how much is left. Paperwork,
+    // not condition - it changes how the sale money is paid out, not the price.
+    case 'FINANCED_M1':
+      return {
+        title: t('selfInspection.loan.title'),
+        hint: t('selfInspection.loan.sub'),
+        body: <FactAnswer si={si} item={item} />,
+      };
+    case 'LOAN_OUTSTANDING_M1':
+      return {
+        title: t('selfInspection.loan.amountTitle'),
+        hint: t('selfInspection.loan.amountSub'),
+        body: <FactAnswer si={si} item={item} />,
+      };
     default:
       return {
         title: itemName(t, item),

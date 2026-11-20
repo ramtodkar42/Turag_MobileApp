@@ -357,6 +357,33 @@ const payWithGateway = async (inspectionId, { onPhase, prefill } = {}) => {
 };
 
 // INTEGRITY_FAILED -> IN_PROGRESS, to retake the flagged photos.
+// The server refuses a self-inspection's submit until its selfie + name are added.
+export const PERFORMER_REQUIRED = 'PERFORMER_ATTESTATION_REQUIRED';
+
+const mapPerformer = a => (a ? { name: a.performer_name, addedAt: a.created_at } : null);
+
+// Who is doing this self-inspection (ADR-0104): { name, addedAt } once the
+// selfie and name are added, else null. Only Turag's team reviewing the
+// inspection sees the selfie (never the report or buyers).
+export const getPerformer = async inspectionId => {
+  const data = await request(ENDPOINTS.inspectionPerformer(inspectionId));
+  return mapPerformer(data?.attestation);
+};
+
+// Adds the selfie (file: from takePhoto) and the name - or replaces them (the
+// old ones are kept by the server). Returns { name, addedAt }.
+export const savePerformer = async (inspectionId, { name, file }) => {
+  const form = new FormData();
+  form.append('performer_name', name);
+  form.append('selfie', { uri: file.uri, type: file.type || 'image/jpeg', name: file.fileName || 'selfie.jpg' });
+  const data = await request(ENDPOINTS.inspectionPerformer(inspectionId), {
+    method: 'POST',
+    body: form,
+    timeoutMs: UPLOAD_TIMEOUT_MS,
+  });
+  return mapPerformer(data?.attestation);
+};
+
 export const reopenSelfInspection = inspectionId =>
   request(ENDPOINTS.inspectionReopen(inspectionId), { method: 'POST' });
 

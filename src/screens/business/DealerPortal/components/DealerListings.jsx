@@ -6,47 +6,47 @@ import { fs } from '../../../../utils/responsive';
 import { formatINR } from '../../../../utils/format';
 import { formatSlotDate } from '../../../../utils/date';
 import useRemoteData from '../../../../hooks/useRemoteData';
-import useConfirmDialog from '../../../../hooks/useConfirmDialog';
 import { getDealerListings, withdrawDealerListing } from '../../../../api/services/business.api';
 import { useT } from '../../../../i18n';
 import RemoteList from '../../components/RemoteList';
 import RowCard from '../../components/RowCard';
 import { labelOr, listingStatus, shortId } from '../../statuses';
+import WithdrawListingSheet from '../../../selling/components/WithdrawListingSheet';
 
 // "My listings": the dealer org's own stock (all statuses), newest first as
-// the server sends it. Withdraw asks first; the list then shows it withdrawn.
+// the server sends it. Withdraw asks why first (ADR-0105: a reason is
+// required); the list then shows it withdrawn.
 function DealerListings({ orgId, top }) {
   const t = useT();
   const remote = useRemoteData(() => getDealerListings(orgId), [orgId]);
   const { setData, reload } = remote;
-  const { confirm, dialog } = useConfirmDialog();
   const [busyId, setBusyId] = useState(null);
   const [actionError, setActionError] = useState('');
+  // The listing the withdraw sheet is open for, and the server's refusal (shown in the sheet).
+  const [target, setTarget] = useState(null);
+  const [withdrawError, setWithdrawError] = useState('');
 
-  const withdraw = useCallback(
-    listing =>
-      confirm({
-        title: t('business.dealer.withdraw.title'),
-        message: t('business.dealer.withdraw.message'),
-        confirmLabel: t('business.dealer.withdraw.confirm'),
-        cancelLabel: t('business.dealer.withdraw.keep'),
-        onConfirm: async () => {
-          setBusyId(listing.id);
-          setActionError('');
-          try {
-            const updated = await withdrawDealerListing(orgId, listing.id);
-            setData(list => list.map(l => (l.id === updated.id ? updated : l)));
-          } catch (e) {
-            // As the web: on failure, show what the server has now.
-            setActionError(e.message || t('business.dealer.withdraw.error'));
-            reload();
-          } finally {
-            setBusyId(null);
-          }
-        },
-      }),
-    [confirm, orgId, reload, setData, t],
-  );
+  const withdraw = useCallback(listing => {
+    setActionError('');
+    setWithdrawError('');
+    setTarget(listing);
+  }, []);
+
+  const confirmWithdraw = async (reason, note) => {
+    setBusyId(target.id);
+    setWithdrawError('');
+    try {
+      const updated = await withdrawDealerListing(orgId, target.id, { reason, note });
+      setData(list => list.map(l => (l.id === updated.id ? updated : l)));
+      setTarget(null);
+    } catch (e) {
+      // As the web: on failure, show what the server has now.
+      setWithdrawError(e.message || t('business.dealer.withdraw.error'));
+      reload();
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   const renderItem = useCallback(
     ({ item }) => {
@@ -109,7 +109,13 @@ function DealerListings({ orgId, top }) {
         empty={{ title: t('business.dealer.empty.title'), message: t('business.dealer.empty.message') }}
         errorTitle={t('business.dealer.error')}
       />
-      {dialog}
+      <WithdrawListingSheet
+        visible={!!target}
+        busy={!!target && busyId === target.id}
+        error={withdrawError}
+        onConfirm={confirmWithdraw}
+        onClose={() => setTarget(null)}
+      />
     </>
   );
 }

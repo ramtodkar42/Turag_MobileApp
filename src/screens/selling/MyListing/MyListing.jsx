@@ -17,12 +17,13 @@ import {
   StatusView,
   TitledCard,
 } from '../../../components';
-import { colors, spacing } from '../../../theme';
+import { colors, fonts, spacing } from '../../../theme';
 import { fs, ms } from '../../../utils/responsive';
 import { formatINR } from '../../../utils/format';
 import { timeAgo } from '../../../utils/date';
 import useRemoteData from '../../../hooks/useRemoteData';
 import useConfirmDialog from '../../../hooks/useConfirmDialog';
+import useAskPriceLock from '../../../hooks/useAskPriceLock';
 import { acceptOffer, counterOffer, declineOffer } from '../../../api/services/offer.api';
 import {
   getMyListing,
@@ -40,6 +41,8 @@ import { LISTING_STATUS, ORDER_STEPS } from '../../account/statuses';
 import ReceivedOfferRow from './components/ReceivedOfferRow';
 import HandoverQrPanel from './components/HandoverQrPanel';
 import OrderChatButton, { orderChatVisible } from '../../offers/components/OrderChatButton';
+import WithdrawListingSheet from '../components/WithdrawListingSheet';
+import { withdrawalReasonLabel } from '../../../constants/listingWithdrawal';
 
 // The seller's own listing (My listings, a new listing, offer notifications),
 // as the web's listing page: status, asking price (change it while draft /
@@ -60,7 +63,12 @@ function MyListing({ navigation, route }) {
   const [actionError, setActionError] = useState('');
   const [countering, setCountering] = useState(null);
   const [editingPrice, setEditingPrice] = useState(false);
+  // Turag's price lock (ADR-0102): no "Change" while the price follows the valuation.
+  const priceLocked = useAskPriceLock();
   const [listingBusy, setListingBusy] = useState(null); // 'submit' | 'withdraw'
+  // Withdrawing asks why first (ADR-0105); a refusal shows in the sheet.
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
+  const [withdrawError, setWithdrawError] = useState('');
   const [transferReady, setTransferReady] = useState(false);
 
   // Runs a change to the listing itself; the updated listing replaces the old.
@@ -131,14 +139,28 @@ function MyListing({ navigation, route }) {
   const accepted = offers.find(o => o.status === 'ACCEPTED' && o.order);
   const order = accepted?.order;
 
-  const onWithdraw = () =>
-    confirm({
-      title: t('selling.confirmWithdraw.title'),
-      message: t('selling.confirmWithdraw.message'),
-      confirmLabel: t('selling.withdraw'),
-      cancelLabel: t('offers.keep'),
-      onConfirm: () => changeListing('withdraw', () => withdrawListing(listing.id, listing.version)),
-    });
+  const onWithdraw = () => {
+    setWithdrawError('');
+    setWithdrawOpen(true);
+  };
+
+  // Withdraw with the chosen reason. Stays open with the reason if it's refused
+  // (e.g. the listing changed meanwhile: reloaded, so a retry uses the latest).
+  const confirmWithdraw = async (reason, note) => {
+    setListingBusy('withdraw');
+    setWithdrawError('');
+    try {
+      const updated = await withdrawListing(listing.id, listing.version, { reason, note });
+      setWithdrawOpen(false);
+      setData(prev => ({ ...prev, listing: updated }));
+      loadGarage();
+    } catch (e) {
+      setWithdrawError(e.message || t('offers.error.action'));
+      reload();
+    } finally {
+      setListingBusy(null);
+    }
+  };
 
   const withdrawButton = listing.canWithdraw ? (
     <Button
@@ -189,7 +211,7 @@ function MyListing({ navigation, route }) {
             <AppText variant="h2" color={colors.success} style={styles.priceValue}>
               {listing.askPrice != null ? formatINR(listing.askPrice) : '—'}
             </AppText>
-            {listing.canEditPrice ? (
+            {listing.canEditPrice && !priceLocked ? (
               <Button
                 title={t('selling.changePrice')}
                 size="sm"
@@ -199,6 +221,12 @@ function MyListing({ navigation, route }) {
               />
             ) : null}
           </View>
+          {/* Turag's price lock (ADR-0102): the price follows the valuation. */}
+          {listing.canEditPrice && priceLocked ? (
+            <AppText variant="caption" style={styles.liveNote}>
+              {t('selling.create.priceLocked')}
+            </AppText>
+          ) : null}
           {listing.status === 'LIVE' ? (
             <AppText variant="caption" style={styles.liveNote}>
               {t('selling.liveNote')}
@@ -207,6 +235,16 @@ function MyListing({ navigation, route }) {
           {listing.canResubmit ? (
             <AppText variant="caption" style={styles.liveNote}>
               {t('selling.changes.priceNote')}
+            </AppText>
+          ) : null}
+          {/* Why it was withdrawn (ADR-0105), with the seller's note if any. */}
+          {listing.status === 'WITHDRAWN' && listing.withdrawal.reason ? (
+            <AppText variant="caption" style={styles.liveNote}>
+              <AppText variant="caption" color={colors.heading} style={styles.strong}>
+                {t('selling.withdraw.yourReason')}
+              </AppText>
+              {` ${withdrawalReasonLabel(t, listing.withdrawal.reason)}`}
+              {listing.withdrawal.note ? ` (${listing.withdrawal.note})` : ''}
             </AppText>
           ) : null}
           {listing.valuationValue != null && listing.status !== 'LIVE' ? (
@@ -411,6 +449,13 @@ function MyListing({ navigation, route }) {
           reload();
         }}
       />
+      <WithdrawListingSheet
+        visible={withdrawOpen}
+        busy={listingBusy === 'withdraw'}
+        error={withdrawError}
+        onConfirm={confirmWithdraw}
+        onClose={() => setWithdrawOpen(false)}
+      />
       {dialog}
     </ScreenContainer>
   );
@@ -443,6 +488,9 @@ const styles = StyleSheet.create({
   preview: {
     marginTop: spacing.md,
     alignSelf: 'flex-start',
+  },
+  strong: {
+    fontFamily: fonts.subtitle.bold,
   },
   liveNote: {
     marginTop: spacing.xxs,

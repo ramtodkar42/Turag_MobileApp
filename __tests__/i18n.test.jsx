@@ -25,6 +25,15 @@ import Profile from '../src/screens/profile/Profile/Profile';
 import { MenuRow } from '../src/components';
 import { timeAgo } from '../src/utils/date';
 
+// Profile reloads (the dealer application) when it comes into view; here, once after mounting.
+jest.mock('@react-navigation/native', () => {
+  const { useEffect } = require('react');
+  return {
+    ...jest.requireActual('@react-navigation/native'),
+    useFocusEffect: callback => useEffect(callback, [callback]),
+  };
+});
+
 const metrics = {
   frame: { x: 0, y: 0, width: 375, height: 812 },
   insets: { top: 0, left: 0, right: 0, bottom: 0 },

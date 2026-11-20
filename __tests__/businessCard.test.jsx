@@ -9,6 +9,15 @@ import ReactTestRenderer, { act } from 'react-test-renderer';
 import BusinessCard from '../src/screens/home/Home/components/BusinessCard';
 import useMyOrganizations from '../src/hooks/useMyOrganizations';
 
+// Profile reloads (the dealer application) when it comes into view; here, once after mounting.
+jest.mock('@react-navigation/native', () => {
+  const { useEffect } = require('react');
+  return {
+    ...jest.requireActual('@react-navigation/native'),
+    useFocusEffect: callback => useEffect(callback, [callback]),
+  };
+});
+
 jest.mock('../src/hooks/useMyOrganizations', () => ({ __esModule: true, default: jest.fn() }));
 
 const dealer = { id: 'org_1', name: 'Paradox Motors', type: 'DEALER', status: 'ACTIVE', role: 'ADMIN', active: true, portal: 'DEALER' };

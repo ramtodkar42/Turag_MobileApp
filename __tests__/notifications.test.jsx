@@ -94,6 +94,13 @@ describe('mapping the backend notification', () => {
     expect(mapNotification(raw()[3])).toEqual(expect.objectContaining({ category: 'alerts', unread: false }));
   });
 
+  test('an expired offer (ADR-0103) is under Offers, with a clock', () => {
+    const base = { id: 'x', title: 'Offer expired', body: 'b', link: '/buy/offers', read: false, created_at: ago(1) };
+    expect(mapNotification({ ...base, type: 'offer_expired' })).toEqual(
+      expect.objectContaining({ category: 'offers', icon: 'clock' }),
+    );
+  });
+
   test('chat types are Messages; unknown types still show as Alerts', () => {
     const base = { id: 'x', title: 't', body: 'b', link: null, read: false, created_at: ago(1) };
     expect(mapNotification({ ...base, type: 'chat_message' }).category).toBe('messages');

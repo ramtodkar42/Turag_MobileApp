@@ -7,12 +7,13 @@ import React from 'react';
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Badge, Button, CheckRow, TextField } from '../src/components';
-import ConfirmDialog from '../src/components/feedback/ConfirmDialog';
 import CreateListing from '../src/screens/listing/CreateListing/CreateListing';
 import MyListing from '../src/screens/selling/MyListing/MyListing';
 import MyListings from '../src/screens/selling/MyListings/MyListings';
 import CounterSheet from '../src/screens/offers/components/CounterSheet';
+import WithdrawListingSheet from '../src/screens/selling/components/WithdrawListingSheet';
 import * as listingApi from '../src/api/services/sellerListing.api';
+import * as featureFlagsApi from '../src/api/services/featureFlags.api';
 import { resetMockOffers } from '../src/api/services/offer.api';
 import { USE_REAL_API } from '../src/api/config';
 import { endSession, startSession } from '../src/api/session';
@@ -66,12 +67,6 @@ const field = (root, label) => root.findAllByType(TextField).find(f => f.props.l
 const hasText = (root, text) =>
   root.findAll(n => typeof n.props.children === 'string' && n.props.children.includes(text)).length > 0;
 const badges = root => [...new Set(root.findAllByType(Badge).map(b => b.props.label))];
-const confirmDialog = async root => {
-  const dialog = root.findAllByType(ConfirmDialog).find(d => d.props.visible);
-  await act(async () => {
-    dialog.props.onConfirm();
-  });
-};
 
 beforeEach(() => {
   jest.useFakeTimers();
@@ -216,16 +211,50 @@ describe('My listing (manage)', () => {
     expect(hasText(root, '₹11,20,000')).toBe(true);
   });
 
-  test('withdrawing asks first, then it is final', async () => {
+  test('withdrawing asks why first (a reason; Other needs a note), then it is final with the reason shown', async () => {
     const listing = await createDraft();
+    const withdraw = jest.spyOn(listingApi, 'withdrawListing');
     const root = await render(<MyListing navigation={nav()} route={{ params: { listingId: listing.id } }} />);
     await advance(600);
 
     await act(async () => button(root, 'Withdraw').props.onPress());
-    await confirmDialog(root);
+    const sheet = () => root.findByType(WithdrawListingSheet);
+    expect(sheet().props.visible).toBe(true);
+    expect(hasText(root, 'Withdraw this listing?')).toBe(true);
+    expect(hasText(root, 'any open offers are closed and those buyers are told')).toBe(true);
+    const reasons = root.findAll(n => n.props.accessibilityRole === 'radio' && n.props.onPress);
+    expect(reasons).toHaveLength(8);
+
+    // No reason yet: says so, nothing sent.
+    await act(async () => button(root, 'Withdraw listing').props.onPress());
+    expect(hasText(root, 'Choose why you’re withdrawing this listing.')).toBe(true);
+    // Other without a note: asks for one.
+    await act(async () => reasons[7].props.onPress());
+    expect(field(root, 'Tell us a little more (required for Other)')).toBeDefined();
+    await act(async () => button(root, 'Withdraw listing').props.onPress());
+    expect(hasText(root, 'Tell us a little more when you choose Other.')).toBe(true);
+    expect(withdraw).not.toHaveBeenCalled();
+
+    // "Keep listing" closes it and nothing changes.
+    await act(async () => button(root, 'Keep listing').props.onPress());
+    expect(sheet().props.visible).toBe(false);
+
+    await act(async () => button(root, 'Withdraw').props.onPress());
+    await act(async () => root.findAll(n => n.props.accessibilityRole === 'radio' && n.props.onPress)[0].props.onPress());
+    await act(async () => field(root, 'Anything you’d like to add? (optional)').props.onChangeText('  Sold to a neighbour  '));
+    await act(async () => {
+      button(root, 'Withdraw listing').props.onPress();
+    });
     await advance(600);
+    expect(withdraw).toHaveBeenCalledWith(listing.id, expect.any(Number), { reason: 'SOLD_OUTSIDE_TURAG', note: 'Sold to a neighbour' });
+    expect(sheet().props.visible).toBe(false);
     expect(badges(root)).toContain('Withdrawn');
     expect(hasText(root, 'You withdrew this listing. Create a new listing to sell again.')).toBe(true);
+    expect(hasText(root, 'Your reason:')).toBe(true);
+    // One line: the bold label, then the reason and the note.
+    const line = root.findAll(n => Array.isArray(n.props.children) && n.props.children.includes(' I sold the vehicle outside Turag'));
+    expect(line.length).toBeGreaterThan(0);
+    expect(line[0].props.children).toContain(' (Sold to a neighbour)');
     expect(button(root, 'Withdraw')).toBeUndefined();
   });
 });
@@ -340,9 +369,32 @@ describe('real backend', () => {
     expect(JSON.parse(call(1).init.body)).toEqual({ ask_price: { amount_minor: 110000000, currency: 'INR' }, version: 3 });
     expect(priced).toEqual(expect.objectContaining({ askPrice: 1100000, version: 4 }));
 
-    const withdrawn = await listingApi.withdrawListing('lst_1', 4);
-    expect(JSON.parse(call(2).init.body)).toEqual({ status: 'WITHDRAWN', version: 4 });
+    const withdrawn = await listingApi.withdrawListing('lst_1', 4, { reason: 'OTHER', note: 'Moving abroad' });
+    expect(JSON.parse(call(2).init.body)).toEqual({
+      status: 'WITHDRAWN',
+      version: 4,
+      withdrawal_reason: 'OTHER',
+      withdrawal_note: 'Moving abroad',
+    });
     expect(withdrawn).toEqual(expect.objectContaining({ status: 'WITHDRAWN', canWithdraw: false }));
+  });
+
+  test('withdraw: the stored reason comes back; a refused reason says why in plain words', async () => {
+    fetch
+      .mockResolvedValueOnce(
+        reply(200, { listing: listingView({ status: 'WITHDRAWN', version: 5, withdrawal: { reason: 'KEEPING_VEHICLE', note: null } }) }),
+      )
+      .mockResolvedValueOnce(
+        reply(422, {
+          error: { code: 'LISTING_WITHDRAWAL_REASON_INVALID', message: 'Note required', details: { field: 'withdrawal_note', problem: 'NOTE_REQUIRED' } },
+        }),
+      );
+    const done = await listingApi.withdrawListing('lst_1', 4, { reason: 'KEEPING_VEHICLE' });
+    expect(done.withdrawal).toEqual({ reason: 'KEEPING_VEHICLE', note: null });
+    await expect(listingApi.withdrawListing('lst_1', 5, { reason: 'OTHER' })).rejects.toMatchObject({
+      code: 'LISTING_WITHDRAWAL_REASON_INVALID',
+      message: 'Tell us a little more when you choose Other.',
+    });
   });
 
   test('My listings maps the summaries', async () => {
@@ -373,5 +425,105 @@ describe('real backend', () => {
         vehicle: { make: 'Hyundai', model: 'Creta', year: 2022 },
       }),
     ]);
+  });
+});
+
+// Turag's price lock (ADR-0102): while it's on, the asking price is the valuation.
+describe('price lock', () => {
+  const locked = () => jest.spyOn(featureFlagsApi, 'isAskPriceLocked').mockResolvedValue(true);
+  const fillAndList = async root => {
+    await act(async () => root.findByType(CheckRow).props.onToggle());
+    await act(async () => field(root, 'City').props.onChangeText('Pune'));
+    await act(async () => field(root, 'State').props.onChangeText('Maharashtra'));
+    await act(async () => {
+      button(root, 'List & send for review').props.onPress();
+    });
+    await advance(1500);
+  };
+
+  test('List this vehicle: the price is the estimate, read-only, and is what gets sent', async () => {
+    locked();
+    const create = jest.spyOn(listingApi, 'createListing');
+    const root = await render(<CreateListing navigation={nav()} route={{ params: { vehicle: garageVehicle } }} />);
+
+    expect(field(root, 'Asking price').props.value).toBe('11,50,000');
+    expect(field(root, 'Asking price').props.editable).toBe(false);
+    expect(hasText(root, 'The asking price is set from your Turag valuation and can’t be changed.')).toBe(true);
+    expect(hasText(root, 'This is guidance, not a limit.')).toBe(false);
+
+    await fillAndList(root);
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ askPrice: 1150000 }));
+  });
+
+  test('List this vehicle with no estimate: says it is set on submit, and can still be listed', async () => {
+    locked();
+    const create = jest.spyOn(listingApi, 'createListing');
+    const root = await render(
+      <CreateListing navigation={nav()} route={{ params: { vehicle: { ...garageVehicle, estimatedValue: null } } }} />,
+    );
+    expect(hasText(root, 'Your asking price will be set from your Turag valuation when you submit.')).toBe(true);
+    await fillAndList(root);
+    // The server replaces it with the valuation price.
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ askPrice: 1 }));
+  });
+
+  test('My listing: no "Change" for the price while it is locked, with the reason', async () => {
+    locked();
+    const draft = listingApi.createListing({ vehicleId: 'veh_9', valuationId: 'val_9', askPrice: 1150000, vehicle: garageVehicle });
+    await advance(900);
+    const listing = await draft;
+    const root = await render(<MyListing navigation={nav()} route={{ params: { listingId: listing.id } }} />);
+    await advance(600);
+    expect(button(root, 'Change')).toBeUndefined();
+    expect(hasText(root, 'The asking price is set from your Turag valuation and can’t be changed.')).toBe(true);
+    expect(button(root, 'Withdraw')).toBeDefined();
+  });
+
+  describe('real backend', () => {
+    const reply = (status, body) => ({
+      ok: status >= 200 && status < 300,
+      status,
+      headers: { get: () => null },
+      text: () => Promise.resolve(JSON.stringify(body)),
+    });
+
+    beforeAll(() => {
+      USE_REAL_API.listings = true;
+    });
+    afterAll(() => {
+      USE_REAL_API.listings = false;
+    });
+    beforeEach(async () => {
+      jest.useRealTimers();
+      global.fetch = jest.fn();
+      await startSession({ accessToken: 'access-1', expiresIn: 900, refreshToken: 'refresh-1', user: {} });
+    });
+    afterEach(async () => {
+      await endSession();
+    });
+
+    test('reads GET /feature-flags; off when the flag is missing or the call fails', async () => {
+      fetch.mockResolvedValueOnce(reply(200, { flags: { VALUATION_ASK_PRICE_LOCK: true } }));
+      expect(await featureFlagsApi.isAskPriceLocked()).toBe(true);
+      expect(fetch.mock.calls[0][0]).toMatch(/\/feature-flags$/);
+
+      fetch.mockResolvedValueOnce(reply(200, { flags: {} }));
+      expect(await featureFlagsApi.isAskPriceLocked()).toBe(false);
+
+      fetch.mockRejectedValueOnce(new TypeError('Network request failed'));
+      expect(await featureFlagsApi.isAskPriceLocked()).toBe(false);
+    });
+
+    test('a price change refused by the lock says why, in plain words', async () => {
+      fetch.mockResolvedValueOnce(
+        reply(409, {
+          error: { code: 'LISTING_ASK_PRICE_LOCKED', message: 'The asking price is set from the Turag valuation and cannot be changed.' },
+        }),
+      );
+      await expect(listingApi.updateListingPrice('lst_1', 1100000, 3)).rejects.toMatchObject({
+        code: 'LISTING_ASK_PRICE_LOCKED',
+        message: 'The asking price is set from your Turag valuation and can’t be changed.',
+      });
+    });
   });
 });

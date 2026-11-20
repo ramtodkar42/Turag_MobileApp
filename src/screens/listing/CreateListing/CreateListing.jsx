@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import {
   AppText,
@@ -19,6 +19,7 @@ import { formatINR, formatNumber } from '../../../utils/format';
 import { newIdempotencyKey } from '../../../api/client';
 import { createListing, submitListing } from '../../../api/services/sellerListing.api';
 import useMyOrganizations from '../../../hooks/useMyOrganizations';
+import useAskPriceLock from '../../../hooks/useAskPriceLock';
 import { loadGarage } from '../../../store/garageStore';
 import { ROUTES } from '../../../navigation/routes';
 import { useT } from '../../../i18n';
@@ -33,12 +34,21 @@ const MAX_NOTE = 2000; // backend limit
 // (starts at the estimate - guidance, not a limit), an optional note to
 // buyers, where the vehicle is (city + state required), and the ownership
 // attestation. Creates a DRAFT, then opens it so the seller can submit it for review.
+// While Turag's price lock is on (ADR-0102), the asking price is the estimate
+// and can't be changed (the server sets it from the valuation whatever is sent).
 // params: { vehicle } (Garage vehicle: vehicleId, valuationId, inspectionId?, estimatedValue)
 function CreateListing({ navigation, route }) {
   const t = useT();
   const { vehicle } = route.params;
   const estimate = vehicle.estimatedValue ?? null;
   const [price, setPriceDigits] = useState(estimate ? String(estimate) : '');
+  const priceLocked = useAskPriceLock();
+  // Locked: show exactly the price the server will use (the estimate, in whole rupees).
+  useEffect(() => {
+    if (priceLocked && estimate) {
+      setPriceDigits(String(estimate));
+    }
+  }, [priceLocked, estimate]);
   const [touched, setTouched] = useState(false);
   const [note, setNote] = useState('');
   const [attested, setAttested] = useState(false);
@@ -69,7 +79,7 @@ function CreateListing({ navigation, route }) {
   // submit a request the backend would reject.
   const eligible = !!vehicle.inspectionEligible;
   const priceValid = Number(price) > 0;
-  const canCreate = priceValid && attested && !!vehicle.valuationId && eligible;
+  const canCreate = (priceLocked || priceValid) && attested && !!vehicle.valuationId && eligible;
 
   const onCreate = async () => {
     if (creating) {
@@ -98,7 +108,9 @@ function CreateListing({ navigation, route }) {
         vehicleId: vehicle.vehicleId,
         valuationId: vehicle.valuationId,
         inspectionId: vehicle.inspectionId ?? null,
-        askPrice: Number(price),
+        // Locked: the server replaces it with the valuation price; ₹1 only
+        // satisfies the request in the rare case there's no estimate (as the web).
+        askPrice: priceValid ? Number(price) : 1,
         sellerNote: note,
         location: payload,
         sellerOrgId: dealerships.length > 1 ? sellerOrgId : undefined,
@@ -153,8 +165,9 @@ function CreateListing({ navigation, route }) {
           placeholder={t('selling.create.pricePlaceholder')}
           value={formatNumber(price)}
           onChangeText={setPrice}
-          valid={priceValid}
-          error={touched && price === '' ? t('selling.create.priceError') : ''}
+          editable={!priceLocked}
+          valid={!priceLocked && priceValid}
+          error={!priceLocked && touched && price === '' ? t('selling.create.priceError') : ''}
           left={
             <AppText variant="body" color={colors.heading}>
               ₹
@@ -163,7 +176,11 @@ function CreateListing({ navigation, route }) {
           keyboardType="number-pad"
           returnKeyType="done"
         />
-        {estimate != null ? (
+        {priceLocked ? (
+          <AppText variant="caption" style={styles.help}>
+            {t(estimate ? 'selling.create.priceLocked' : 'selling.create.priceLockedNoEstimate')}
+          </AppText>
+        ) : estimate != null ? (
           <AppText variant="caption" style={styles.help}>
             {t('selling.create.priceHelp', { amount: formatINR(estimate) })}
           </AppText>

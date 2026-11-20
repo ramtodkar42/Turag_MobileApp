@@ -71,6 +71,9 @@ export const ROUTES = {
   HANDOVER_SCAN: 'HandoverScan', // buyer: scan the seller's handover QR { orderId }
   HANDOVER_CONFIRM: 'HandoverConfirm', // buyer: confirm the handover { token } | { orderId, shortCode }
 
+  // Become a dealer: business details + KYC documents for Turag to verify (ADR-0101)
+  DEALER_APPLY: 'DealerApply',
+
   // Business accounts (Profile > Business accounts; only for organization members)
   BUSINESS_HOME: 'BusinessHome',
   DEALER_PORTAL: 'DealerPortal', // { org }

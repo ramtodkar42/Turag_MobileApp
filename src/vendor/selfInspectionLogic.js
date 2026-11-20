@@ -120,7 +120,7 @@ function isDocumentItem(item) {
 
 // src/app/inspect/[id]/self-inspection-steps.ts
 var STEP_ORDER = ["documents", "checklist", "photos", "review"];
-var DOCUMENT_DETAIL_CODES = ["P1", "O2"];
+var DOCUMENT_DETAIL_CODES = ["P1", "O2", "FINANCED_M1", "LOAN_OUTSTANDING_M1"];
 var PHOTO_DETAIL_CODES = ["O1", "A1"];
 var DETAIL_ITEM_CODES = [...DOCUMENT_DETAIL_CODES, ...PHOTO_DETAIL_CODES];
 function isEvidenceOnlyItem(item) {
@@ -238,7 +238,7 @@ function stepForItem(item, partition) {
 }
 function buildMissingList(input) {
   var _a, _b, _c;
-  const { items: items2, answers, evidenceCount, parseNumeric } = input;
+  const { items: items2, answers, evidenceCount, parseNumeric, skipVideo } = input;
   const partition = partitionItems(items2);
   const has = (code2) => items2.some((i) => i.item_code === code2);
   const saved = (code2) => {
@@ -269,6 +269,7 @@ function buildMissingList(input) {
   }
   for (const item of items2) {
     if (isEvidenceOnlyItem(item)) {
+      if (skipVideo && isVideoItem(item)) continue;
       const req2 = item.evidence_requirement;
       if (req2 && item.mandatory && ((_b = evidenceCount[item.item_code]) != null ? _b : 0) < req2.min_count) {
         push({
@@ -315,13 +316,14 @@ function buildMissingList(input) {
   }
   return out;
 }
-function buildProgress(items2, answers, uploadedShots) {
+function buildProgress(items2, answers, uploadedShots, skipVideo = false) {
   var _a, _b, _c;
   const partition = partitionItems(items2);
   let ptotal = 0;
   let pdone = 0;
   for (const it of items2) {
     if (!isPhotoGridItem(it) && !isVideoItem(it)) continue;
+    if (skipVideo && isVideoItem(it)) continue;
     const min = (_b = (_a = it.evidence_requirement) == null ? void 0 : _a.min_count) != null ? _b : 0;
     if (min <= 0) continue;
     const have = ((_c = uploadedShots[it.item_code]) != null ? _c : []).length;
@@ -413,7 +415,7 @@ function normalizeDamageResult(raw2) {
 // src/app/inspect/[id]/m1-prompts.ts
 var M1_DENT_PROMPT_VERSION = "m1-dent-v4";
 
-// C:/Users/RAMTOD~1/AppData/Local/Temp/claude/d--TuragAI/b51370cb-2bae-47ea-90aa-0acf1eb4230c/scratchpad/tools/node_modules/zod/v3/external.js
+// C:/Users/RAMTOD~1/AppData/Local/Temp/claude/d02c240ab400713e/b51370cb-2bae-47ea-90aa-0acf1eb4230c/scratchpad/buildtools/node_modules/zod/v3/external.js
 var external_exports = {};
 __export(external_exports, {
   BRAND: () => BRAND,
@@ -525,7 +527,7 @@ __export(external_exports, {
   void: () => voidType
 });
 
-// C:/Users/RAMTOD~1/AppData/Local/Temp/claude/d--TuragAI/b51370cb-2bae-47ea-90aa-0acf1eb4230c/scratchpad/tools/node_modules/zod/v3/helpers/util.js
+// C:/Users/RAMTOD~1/AppData/Local/Temp/claude/d02c240ab400713e/b51370cb-2bae-47ea-90aa-0acf1eb4230c/scratchpad/buildtools/node_modules/zod/v3/helpers/util.js
 var util;
 (function(util2) {
   util2.assertEqual = (_) => {
@@ -659,7 +661,7 @@ var getParsedType = (data) => {
   }
 };
 
-// C:/Users/RAMTOD~1/AppData/Local/Temp/claude/d--TuragAI/b51370cb-2bae-47ea-90aa-0acf1eb4230c/scratchpad/tools/node_modules/zod/v3/ZodError.js
+// C:/Users/RAMTOD~1/AppData/Local/Temp/claude/d02c240ab400713e/b51370cb-2bae-47ea-90aa-0acf1eb4230c/scratchpad/buildtools/node_modules/zod/v3/ZodError.js
 var ZodIssueCode = util.arrayToEnum([
   "invalid_type",
   "invalid_literal",
@@ -777,7 +779,7 @@ ZodError.create = (issues) => {
   return error;
 };
 
-// C:/Users/RAMTOD~1/AppData/Local/Temp/claude/d--TuragAI/b51370cb-2bae-47ea-90aa-0acf1eb4230c/scratchpad/tools/node_modules/zod/v3/locales/en.js
+// C:/Users/RAMTOD~1/AppData/Local/Temp/claude/d02c240ab400713e/b51370cb-2bae-47ea-90aa-0acf1eb4230c/scratchpad/buildtools/node_modules/zod/v3/locales/en.js
 var errorMap = (issue, _ctx) => {
   let message;
   switch (issue.code) {
@@ -880,7 +882,7 @@ var errorMap = (issue, _ctx) => {
 };
 var en_default = errorMap;
 
-// C:/Users/RAMTOD~1/AppData/Local/Temp/claude/d--TuragAI/b51370cb-2bae-47ea-90aa-0acf1eb4230c/scratchpad/tools/node_modules/zod/v3/errors.js
+// C:/Users/RAMTOD~1/AppData/Local/Temp/claude/d02c240ab400713e/b51370cb-2bae-47ea-90aa-0acf1eb4230c/scratchpad/buildtools/node_modules/zod/v3/errors.js
 var overrideErrorMap = en_default;
 function setErrorMap(map) {
   overrideErrorMap = map;
@@ -889,7 +891,7 @@ function getErrorMap() {
   return overrideErrorMap;
 }
 
-// C:/Users/RAMTOD~1/AppData/Local/Temp/claude/d--TuragAI/b51370cb-2bae-47ea-90aa-0acf1eb4230c/scratchpad/tools/node_modules/zod/v3/helpers/parseUtil.js
+// C:/Users/RAMTOD~1/AppData/Local/Temp/claude/d02c240ab400713e/b51370cb-2bae-47ea-90aa-0acf1eb4230c/scratchpad/buildtools/node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
   const { data, path, errorMaps, issueData } = params;
   const fullPath = [...path, ...issueData.path || []];
@@ -999,14 +1001,14 @@ var isDirty = (x) => x.status === "dirty";
 var isValid = (x) => x.status === "valid";
 var isAsync = (x) => typeof Promise !== "undefined" && x instanceof Promise;
 
-// C:/Users/RAMTOD~1/AppData/Local/Temp/claude/d--TuragAI/b51370cb-2bae-47ea-90aa-0acf1eb4230c/scratchpad/tools/node_modules/zod/v3/helpers/errorUtil.js
+// C:/Users/RAMTOD~1/AppData/Local/Temp/claude/d02c240ab400713e/b51370cb-2bae-47ea-90aa-0acf1eb4230c/scratchpad/buildtools/node_modules/zod/v3/helpers/errorUtil.js
 var errorUtil;
 (function(errorUtil2) {
   errorUtil2.errToObj = (message) => typeof message === "string" ? { message } : message || {};
   errorUtil2.toString = (message) => typeof message === "string" ? message : message == null ? void 0 : message.message;
 })(errorUtil || (errorUtil = {}));
 
-// C:/Users/RAMTOD~1/AppData/Local/Temp/claude/d--TuragAI/b51370cb-2bae-47ea-90aa-0acf1eb4230c/scratchpad/tools/node_modules/zod/v3/types.js
+// C:/Users/RAMTOD~1/AppData/Local/Temp/claude/d02c240ab400713e/b51370cb-2bae-47ea-90aa-0acf1eb4230c/scratchpad/buildtools/node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
   constructor(parent, value, path, key) {
     this._cachedPath = [];
@@ -4248,7 +4250,7 @@ ZodNaN.create = (params) => {
     ...processCreateParams(params)
   });
 };
-var BRAND = /* @__PURE__ */ Symbol("zod_brand");
+var BRAND = Symbol("zod_brand");
 var ZodBranded = class extends ZodType {
   _parse(input) {
     const { ctx } = this._processInputParams(input);
@@ -4723,6 +4725,19 @@ var inspectionTracking = external_exports.object({
   is_sample: external_exports.boolean()
 });
 
+// ../../packages/contracts/src/performer-attestation.ts
+var performerAttestationView = external_exports.object({
+  attestation_id: external_exports.string(),
+  performer_name: external_exports.string(),
+  created_at: external_exports.string(),
+  /** Ops/QC only: the account that recorded it. Null for the owner's own view. */
+  recorded_by: external_exports.string().nullable()
+});
+var performerAttestationResponse = external_exports.object({
+  attestation: performerAttestationView.nullable(),
+  request_id: external_exports.string()
+});
+
 // ../../packages/contracts/src/reports.ts
 var grade = external_exports.enum(["A_PLUS", "A", "B", "C", "D", "E"]);
 var severity = external_exports.enum(["OK", "MINOR", "MODERATE", "MAJOR", "CRITICAL", "NOT_ASSESSABLE"]);
@@ -4919,7 +4934,14 @@ var updateMeRequest = external_exports.object({
   name: external_exports.string().trim().min(1, "Enter your name.").max(80, "Name is too long.")
 });
 var deleteMeRequest = external_exports.object({ confirm: external_exports.literal("DELETE") });
-var businessInterestRequest = external_exports.object({ kind: external_exports.enum(["DEALER", "BANK"]) });
+var businessInterestRequest = external_exports.object({
+  kind: external_exports.enum(["DEALER", "BANK"]),
+  /**
+   * A dealer executive's referral code the dealer typed at sign-up (ADR-0089). It takes the place of the code a /join
+   * link remembered, since typing it is the dealer saying who brought them. Ignored for BANK.
+   */
+  referral_code: external_exports.string().trim().min(1).max(16).optional()
+});
 var businessInterestResponse = external_exports.object({
   whatsapp_queued: external_exports.boolean(),
   /** False when the sign-up record couldn't be saved. The account is fine; the client retries once so the lead isn't lost. */
@@ -5203,7 +5225,12 @@ var careerJobContent = external_exports.object({
   responsibilities: list(30, 300),
   requirements: list(30, 300),
   skills: list(25, 40),
-  nice_to_have: list(30, 300)
+  nice_to_have: list(30, 300),
+  /**
+   * A dealer executive role (ADR-0094): hires are handed over to the distribution module with their joining
+   * details. Left out means false, so an editor that does not know the setting never switches it on.
+   */
+  dealer_executive_role: external_exports.boolean().optional()
 });
 var createCareerJobRequest = careerJobContent.extend({ brand: careerBrand });
 var publicCareerJobView = careerJobContent.extend({
@@ -5360,6 +5387,11 @@ var submitCareerApplicationRequest = external_exports.object({
   profile: careerProfileInput,
   /** Explicit agreement to the careers privacy notice; `version` is the notice version shown. */
   consent: external_exports.object({ agreed: external_exports.boolean(), version: external_exports.string().max(40) }),
+  /**
+   * The separate, optional talent pool consent (ADR-0087): keep the profile for future roles for up to 12 months.
+   * Absent means no (older clients), so the field is backwards compatible.
+   */
+  talent_pool_opt_in: external_exports.boolean().optional().default(false),
   /** From POST /careers/resumes/confirm. */
   resume_token: external_exports.string().max(2e3).nullable(),
   /** A client generated idempotency key: the same key returns the first application. */
@@ -5373,6 +5405,521 @@ var submitCareerApplicationResponse = external_exports.object({
   /** True when this repeated an earlier submit (same interview or submit key): nothing new was stored. */
   already_submitted: external_exports.boolean(),
   request_id: external_exports.string()
+});
+var careerApplicationStatus = external_exports.enum(["NEW", "UNDER_REVIEW", "SHORTLISTED", "INTERVIEW", "ASSESSMENT", "SELECTED", "REJECTED", "TALENT_POOL"]);
+var careerInsightStatus = external_exports.enum(["OK", "NO_RESUME", "EXTRACTION_FAILED", "AI_UNAVAILABLE", "SKIPPED"]);
+var careerResumeExtracted = external_exports.object({
+  skills: external_exports.array(external_exports.string()),
+  years_experience: external_exports.number().nullable(),
+  roles: external_exports.array(external_exports.string()),
+  education: external_exports.array(external_exports.string()),
+  certifications: external_exports.array(external_exports.string()),
+  projects: external_exports.array(external_exports.string()),
+  languages: external_exports.array(external_exports.string())
+});
+var careerMatch = external_exports.object({
+  score: external_exports.number().int().min(0).max(100).nullable(),
+  deterministic_skill_overlap: external_exports.number().int().min(0).max(100).nullable(),
+  ai_score: external_exports.number().int().min(0).max(100).nullable(),
+  weights: external_exports.object({ deterministic: external_exports.number(), ai: external_exports.number() }),
+  matched_skills: external_exports.array(external_exports.string()),
+  missing_skills: external_exports.array(external_exports.string()),
+  strengths: external_exports.array(external_exports.string()),
+  gaps: external_exports.array(external_exports.string()),
+  summary: external_exports.string().nullable()
+});
+var careerCategorisation = external_exports.object({
+  departments: external_exports.array(external_exports.string()),
+  /** Only roles that were PUBLISHED when the analysis ran; the title comes from the role, not from the model. */
+  suggested_roles: external_exports.array(external_exports.object({ job_id: external_exports.string(), brand: careerBrand, title: external_exports.string(), reason: external_exports.string() }))
+});
+var careerInsightView = external_exports.object({
+  id: external_exports.string(),
+  version: external_exports.number().int(),
+  status: careerInsightStatus,
+  /** Why something was missing, for example ENCRYPTED, NO_TEXT, RESUME_MISSING, AI_TIMEOUT (comma separated). */
+  error_code: external_exports.string().nullable(),
+  resume_text_chars: external_exports.number().int(),
+  resume: careerResumeExtracted.nullable(),
+  match: careerMatch.nullable(),
+  categorisation: careerCategorisation.nullable(),
+  score: external_exports.number().int().nullable(),
+  ai_model: external_exports.string().nullable(),
+  prompt_version: external_exports.string(),
+  created_at: external_exports.string()
+});
+var careerApplicationInsightsResponse = external_exports.object({
+  application: external_exports.object({
+    id: external_exports.string(),
+    reference: external_exports.string(),
+    brand: careerBrand,
+    kind: careerApplicationKind,
+    job_id: external_exports.string().nullable(),
+    /** The pipeline status, set only by people; the analysis never changes it. */
+    status: careerApplicationStatus,
+    has_resume: external_exports.boolean()
+  }),
+  /** The newest analysis, or null before the first one is stored. */
+  current: careerInsightView.nullable(),
+  /** Newest first, at most 20 (includes `current`). */
+  history: external_exports.array(careerInsightView),
+  /** A newer analysis was requested and the worker has not stored it yet. */
+  pending: external_exports.boolean(),
+  /** Always true: the analysis is advice for a person, never a decision. */
+  advisory: external_exports.literal(true),
+  request_id: external_exports.string()
+});
+var careerReanalyseResponse = external_exports.object({
+  version: external_exports.number().int(),
+  /** True when a re-analysis was already waiting; nothing new was queued. */
+  already_pending: external_exports.boolean(),
+  request_id: external_exports.string()
+});
+var careerProfileSource = external_exports.enum(["AI_INTERVIEW", "FORM"]);
+var careerHiringSort = external_exports.enum(["NEWEST", "SCORE"]);
+var careerRejectionReason = external_exports.enum(["SKILLS_MISMATCH", "EXPERIENCE_MISMATCH", "ROLE_CLOSED", "NOT_RESPONSIVE", "WITHDRAWN", "DUPLICATE", "OTHER"]);
+var careerEventType = external_exports.enum([
+  "STATUS_CHANGED",
+  "NOTE_ADDED",
+  "RATED",
+  "RESUME_VIEWED",
+  "EMAIL_SENT",
+  "INTERVIEW_SCHEDULED",
+  "INTERVIEW_RESCHEDULED",
+  "INTERVIEW_CANCELLED",
+  "DOCUMENTS_REQUESTED",
+  "DOCUMENTS_SUBMITTED",
+  "DOCUMENT_APPROVED",
+  "DOCUMENT_REJECTED",
+  "DOCUMENT_VIEWED",
+  "ONBOARDING_SENT"
+]);
+var careerCandidateEmailTemplate = external_exports.enum([
+  "MOVING_FORWARD",
+  "NOT_MOVING_FORWARD",
+  "INTERVIEW_SCHEDULED",
+  "INTERVIEW_RESCHEDULED",
+  "INTERVIEW_CANCELLED",
+  "ASSESSMENT_NEXT",
+  "SELECTED",
+  "TALENT_POOL",
+  "DOCUMENTS_REQUESTED",
+  "DOCUMENTS_CHANGES",
+  "ONBOARDING"
+]);
+var careerHiringListQuery = external_exports.object({
+  brand: careerBrand.optional(),
+  job_id: external_exports.string().trim().min(1).max(64).optional(),
+  kind: careerApplicationKind.optional(),
+  status: careerApplicationStatus.optional(),
+  source: careerProfileSource.optional(),
+  /** Matches the candidate's name or the reference. */
+  q: external_exports.string().max(80).optional(),
+  sort: careerHiringSort.optional(),
+  cursor: external_exports.string().max(80).optional(),
+  limit: external_exports.coerce.number().int().min(1).max(100).optional()
+});
+var careerHiringListItem = external_exports.object({
+  id: external_exports.string(),
+  reference: external_exports.string(),
+  brand: careerBrand,
+  kind: careerApplicationKind,
+  job_id: external_exports.string().nullable(),
+  /** The role's current title; null for an open introduction. */
+  job_title: external_exports.string().nullable(),
+  status: careerApplicationStatus,
+  full_name: external_exports.string(),
+  profile_source: careerProfileSource,
+  has_resume: external_exports.boolean(),
+  talent_pool_opt_in: external_exports.boolean(),
+  /** The newest analysis's blended score (listed roles only). Advisory: it sorts, it never filters. */
+  score: external_exports.number().int().nullable(),
+  insight_status: careerInsightStatus.nullable(),
+  status_changed_at: external_exports.string().nullable(),
+  created_at: external_exports.string()
+});
+var careerHiringListResponse = external_exports.object({
+  items: external_exports.array(careerHiringListItem),
+  /** Pass it back with the same filters and sort for the next page; null on the last page. */
+  next_cursor: external_exports.string().nullable(),
+  request_id: external_exports.string()
+});
+var careerPipelineCountsQuery = external_exports.object({ brand: careerBrand.optional(), job_id: external_exports.string().trim().min(1).max(64).optional() });
+var careerPipelineCountsResponse = external_exports.object({
+  /** Every status is present, zero included. */
+  counts: external_exports.record(careerApplicationStatus, external_exports.number().int()),
+  total: external_exports.number().int(),
+  request_id: external_exports.string()
+});
+var careerInterviewMode = external_exports.enum(["VIDEO", "PHONE", "IN_PERSON"]);
+var careerScheduledInterview = external_exports.object({
+  id: external_exports.string(),
+  application_id: external_exports.string(),
+  status: external_exports.enum(["SCHEDULED", "CANCELLED"]),
+  /** An instant (UTC). The hiring site shows it in India time. */
+  starts_at: external_exports.string(),
+  duration_minutes: external_exports.number().int(),
+  mode: careerInterviewMode,
+  /** The meeting link (video), the address (in person), or an optional line for a phone call. */
+  location: external_exports.string().nullable(),
+  /** The hiring account, when the interviewer was picked from the list; null for a colleague typed by hand. */
+  interviewer_id: external_exports.string().nullable(),
+  /** Name and company email as they were when the interview was scheduled. */
+  interviewer_name: external_exports.string(),
+  interviewer_email: external_exports.string(),
+  /** Send this back with a reschedule or a cancellation; a mismatch means someone else changed the interview. */
+  sequence: external_exports.number().int(),
+  /** Whether the candidate has been sent the details. Once true, they are told about every later change. */
+  candidate_notified: external_exports.boolean(),
+  created_at: external_exports.string(),
+  cancelled_at: external_exports.string().nullable()
+});
+var interviewWhenAndHow = {
+  /** ISO 8601 with an offset, e.g. 2026-11-18T15:00:00+05:30. Must be in the future. */
+  starts_at: external_exports.string().datetime({ offset: true }),
+  duration_minutes: external_exports.number().int().min(15).max(240),
+  mode: careerInterviewMode,
+  /** Required for VIDEO (an https link) and IN_PERSON (the address); optional for PHONE. */
+  location: external_exports.string().max(300).nullable().optional()
+};
+var careerNewInterview = external_exports.object({
+  ...interviewWhenAndHow,
+  interviewer_id: external_exports.string().min(1).max(64).nullable().optional(),
+  interviewer_name: external_exports.string().max(120).nullable().optional(),
+  interviewer_email: external_exports.string().max(254).nullable().optional()
+});
+var scheduleCareerInterviewRequest = careerNewInterview.extend({
+  /** Send the candidate the invitation with the details and a calendar file. The interviewer is always told. */
+  email_candidate: external_exports.boolean().optional()
+});
+var rescheduleCareerInterviewRequest = external_exports.object({
+  ...interviewWhenAndHow,
+  sequence: external_exports.number().int().min(0),
+  /** Only matters while the candidate has not been told yet; once told, they hear about every change. */
+  email_candidate: external_exports.boolean().optional()
+});
+var cancelCareerInterviewRequest = external_exports.object({ sequence: external_exports.number().int().min(0) });
+var careerScheduledInterviewResponse = external_exports.object({ interview: careerScheduledInterview, request_id: external_exports.string() });
+var careerInterviewersResponse = external_exports.object({
+  interviewers: external_exports.array(external_exports.object({ id: external_exports.string(), name: external_exports.string().nullable() })),
+  /** The only email domain an interviewer may have, for the form's hint. */
+  email_domain: external_exports.string(),
+  request_id: external_exports.string()
+});
+var careerOnboardingStatus = external_exports.enum(["DOCUMENTS_REQUESTED", "UNDER_REVIEW", "CHANGES_REQUESTED", "APPROVED", "ONBOARDED"]);
+var careerOnboardingDocumentType = external_exports.enum(["GOVERNMENT_ID", "PAN", "EDUCATION", "EXPERIENCE_LETTER", "BANK_PROOF", "PHOTO"]);
+var careerOnboardingDocumentStatus = external_exports.enum(["REQUESTED", "UPLOADED", "APPROVED", "REJECTED"]);
+var careerOnboardingDocument = external_exports.object({
+  id: external_exports.string(),
+  type: careerOnboardingDocumentType,
+  status: careerOnboardingDocumentStatus,
+  content_type: external_exports.string().nullable(),
+  byte_size: external_exports.number().int().nullable(),
+  uploaded_at: external_exports.string().nullable(),
+  reviewed_at: external_exports.string().nullable(),
+  /** Why it was sent back. The candidate reads this. */
+  reject_reason: external_exports.string().nullable()
+});
+var careerOnboarding = external_exports.object({
+  id: external_exports.string(),
+  status: careerOnboardingStatus,
+  /** Send this back with a review step; a mismatch means someone else (or the candidate) changed it. */
+  version: external_exports.number().int(),
+  requested_at: external_exports.string(),
+  submitted_at: external_exports.string().nullable(),
+  approved_at: external_exports.string().nullable(),
+  /** When the candidate's current link stops working; null until its email has gone out. */
+  link_expires_at: external_exports.string().nullable(),
+  joining_date: external_exports.string().nullable(),
+  reporting_to: external_exports.string().nullable(),
+  work_location: external_exports.string().nullable(),
+  onboarded_at: external_exports.string().nullable(),
+  onboarding_email_sent_at: external_exports.string().nullable(),
+  documents: external_exports.array(careerOnboardingDocument),
+  /** The dealer executive made from this candidate (ADR-0094), for a dealer executive role once joining details are sent. */
+  dealer_executive: external_exports.object({ employee_code: external_exports.string() }).nullable()
+});
+var documentsToAsk = external_exports.array(careerOnboardingDocumentType).min(1).max(6);
+var requestCareerDocumentsRequest = external_exports.object({ documents: documentsToAsk });
+var reviewCareerDocumentRequest = external_exports.object({
+  decision: external_exports.enum(["APPROVE", "REJECT"]),
+  reason: external_exports.string().max(300).nullable().optional(),
+  version: external_exports.number().int().min(1)
+});
+var sendBackCareerDocumentsRequest = external_exports.object({ version: external_exports.number().int().min(1) });
+var completeCareerOnboardingRequest = external_exports.object({
+  /** YYYY-MM-DD, today or later (India date). */
+  joining_date: external_exports.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  reporting_to: external_exports.string().max(120).nullable().optional(),
+  work_location: external_exports.string().max(200).nullable().optional(),
+  /** Logins the new joiner needs. Sent as written, then removed from our records once the email has gone out. */
+  login_note: external_exports.string().max(2e3).nullable().optional(),
+  version: external_exports.number().int().min(1),
+  /**
+   * Required when the role is a dealer executive role (ADR-0094), refused otherwise (422 either way): the city they
+   * are placed in (from GET /admin/careers/dealer-executive-cities) and the mobile they will sign in with.
+   */
+  dealer_executive: external_exports.object({ city_id: external_exports.string().min(1).max(64), phone: external_exports.string().min(1).max(20) }).nullable().optional()
+});
+var careerDealerExecutiveCitiesResponse = external_exports.object({
+  cities: external_exports.array(external_exports.object({ id: external_exports.string(), name: external_exports.string(), state: external_exports.string() })),
+  request_id: external_exports.string()
+});
+var careerOnboardingResponse = external_exports.object({ onboarding: careerOnboarding, request_id: external_exports.string() });
+var careerDocumentLinkResponse = external_exports.object({
+  /** A signed link to the private file, valid for a few minutes. Open it straight away; do not store it. */
+  url: external_exports.string(),
+  expires_at: external_exports.string(),
+  content_type: external_exports.string(),
+  byte_size: external_exports.number().int(),
+  request_id: external_exports.string()
+});
+var careerOnboardingCodeResponse = external_exports.object({
+  /** A masked form of the address the code went to, e.g. "as****@example.com". */
+  sent_to: external_exports.string(),
+  expires_in: external_exports.number().int(),
+  request_id: external_exports.string()
+});
+var verifyCareerOnboardingCodeRequest = external_exports.object({ code: external_exports.string().min(1).max(12) });
+var careerOnboardingSessionResponse = external_exports.object({ session: external_exports.string(), expires_at: external_exports.string(), request_id: external_exports.string() });
+var careerCandidateOnboardingResponse = external_exports.object({
+  first_name: external_exports.string(),
+  brand: careerBrand,
+  role_title: external_exports.string().nullable(),
+  reference: external_exports.string(),
+  status: careerOnboardingStatus,
+  can_upload: external_exports.boolean(),
+  can_submit: external_exports.boolean(),
+  joining_date: external_exports.string().nullable(),
+  documents: external_exports.array(
+    external_exports.object({
+      type: careerOnboardingDocumentType,
+      status: careerOnboardingDocumentStatus,
+      reject_reason: external_exports.string().nullable(),
+      content_type: external_exports.string().nullable(),
+      byte_size: external_exports.number().int().nullable(),
+      uploaded_at: external_exports.string().nullable()
+    })
+  ),
+  limits: external_exports.object({ max_bytes: external_exports.number().int(), content_types: external_exports.array(external_exports.string()) }),
+  request_id: external_exports.string()
+});
+var careerOnboardingUploadRequest = external_exports.object({ content_type: external_exports.string().min(1).max(100), byte_size: external_exports.number().int().positive() });
+var careerOnboardingUploadResponse = external_exports.object({
+  upload: external_exports.object({ url: external_exports.string(), method: external_exports.literal("PUT"), headers: external_exports.record(external_exports.string()), expires_at: external_exports.string() }),
+  request_id: external_exports.string()
+});
+var careerHiringEvent = external_exports.object({
+  id: external_exports.string(),
+  type: careerEventType,
+  from_status: careerApplicationStatus.nullable(),
+  to_status: careerApplicationStatus.nullable(),
+  reason_code: careerRejectionReason.nullable(),
+  note: external_exports.string().nullable(),
+  rating: external_exports.number().int().nullable(),
+  email_template: careerCandidateEmailTemplate.nullable(),
+  actor_id: external_exports.string(),
+  /** The reviewer's display name, when the account still has one. */
+  actor_name: external_exports.string().nullable(),
+  created_at: external_exports.string()
+});
+var careerCandidateProfile = external_exports.object({
+  primary_expertise: external_exports.string().nullable(),
+  skills: external_exports.array(external_exports.string()),
+  secondary_skills: external_exports.array(external_exports.string()),
+  years_experience: external_exports.number().nullable(),
+  preferred_role: external_exports.string().nullable(),
+  previous_projects: external_exports.array(external_exports.string()),
+  problems_enjoyed: external_exports.string().nullable(),
+  proposed_contribution: external_exports.string().nullable(),
+  availability: external_exports.string().nullable(),
+  notice_period: external_exports.string().nullable(),
+  expected_compensation: external_exports.string().nullable(),
+  work_arrangement: careerWorkArrangement.nullable(),
+  potential_departments: external_exports.array(external_exports.string()),
+  cover_note: external_exports.string().nullable(),
+  /** Written by the AI and labelled as such on screen. */
+  ai_summary: external_exports.string().nullable(),
+  /** Wire names of the fields still exactly as the AI wrote them, and of those the candidate then changed. */
+  ai_generated_fields: external_exports.array(external_exports.string()),
+  ai_edited_fields: external_exports.array(external_exports.string())
+});
+var careerHiringApplication = external_exports.object({
+  id: external_exports.string(),
+  reference: external_exports.string(),
+  brand: careerBrand,
+  kind: careerApplicationKind,
+  status: careerApplicationStatus,
+  /** Send it back with a status change; a mismatch means someone else changed the application. */
+  version: external_exports.number().int(),
+  /** The moves the pipeline allows from here. Empty for a terminal status. */
+  allowed_next: external_exports.array(careerApplicationStatus),
+  full_name: external_exports.string(),
+  email: external_exports.string(),
+  phone: external_exports.string().nullable(),
+  location: external_exports.string().nullable(),
+  links: external_exports.object({ portfolio: external_exports.string().nullable(), github: external_exports.string().nullable(), linkedin: external_exports.string().nullable(), other: external_exports.array(external_exports.string()) }),
+  profile: careerCandidateProfile,
+  profile_source: careerProfileSource,
+  /** The resume's type and size; the file itself is only reachable through a short lived link. */
+  resume: external_exports.object({ content_type: external_exports.string(), byte_size: external_exports.number().int() }).nullable(),
+  has_transcript: external_exports.boolean(),
+  talent_pool_opt_in: external_exports.boolean(),
+  consent_version: external_exports.string(),
+  consented_at: external_exports.string(),
+  /** YYYY-MM-DD: after this date the application is anonymised. */
+  retention_until: external_exports.string(),
+  status_changed_at: external_exports.string().nullable(),
+  rejected_at: external_exports.string().nullable(),
+  created_at: external_exports.string()
+});
+var careerHiringApplicationResponse = external_exports.object({
+  application: careerHiringApplication,
+  job: external_exports.object({
+    id: external_exports.string(),
+    brand: careerBrand,
+    slug: external_exports.string(),
+    title: external_exports.string(),
+    department: external_exports.string(),
+    location: external_exports.string(),
+    status: careerJobStatus,
+    skills: external_exports.array(external_exports.string()),
+    /** True for a dealer executive role: joining details then also create the executive (ADR-0094). */
+    dealer_executive_role: external_exports.boolean()
+  }).nullable(),
+  /** The newest advisory analysis, or null before the first one. */
+  insight: careerInsightView.nullable(),
+  /** Newest first, at most 100. */
+  events: external_exports.array(careerHiringEvent),
+  /** Interviews arranged with the candidate (ADR-0091), soonest first, cancelled ones included. */
+  interviews: external_exports.array(careerScheduledInterview),
+  /** The documents asked of a selected candidate and where that stands (ADR-0092); null when none were asked for. */
+  onboarding: careerOnboarding.nullable(),
+  /** Always true: the analysis is advice for a person, never a decision. */
+  advisory: external_exports.literal(true),
+  request_id: external_exports.string()
+});
+var careerTranscriptResponse = external_exports.object({
+  /** Null for an application made through the form, or once the interview was wiped by retention. */
+  transcript: external_exports.object({
+    messages: external_exports.array(external_exports.object({ role: external_exports.enum(["assistant", "candidate"]), text: external_exports.string(), at: external_exports.string() })),
+    locale: careerLocale,
+    model: external_exports.string(),
+    prompt_version: external_exports.string(),
+    turn_count: external_exports.number().int(),
+    started_at: external_exports.string()
+  }).nullable(),
+  request_id: external_exports.string()
+});
+var changeCareerApplicationStatusRequest = external_exports.object({
+  status: careerApplicationStatus,
+  /** The version shown on the candidate page when the reviewer decided. */
+  version: external_exports.number().int().min(1),
+  /** Required for REJECTED, refused otherwise. */
+  reason_code: careerRejectionReason.nullable().optional(),
+  note: external_exports.string().max(2e3).nullable().optional(),
+  /**
+   * Email the candidate about this move. SHORTLISTED, ASSESSMENT, SELECTED, TALENT_POOL and REJECTED each have one
+   * fixed email. INTERVIEW emails the invitation, so it needs `interview`. True on a move with no email is a 422.
+   * Left out or false: nothing is sent.
+   */
+  email_candidate: external_exports.boolean().optional(),
+  /** Only with status INTERVIEW: schedule the interview in the same step as the move (ADR-0091). */
+  interview: careerNewInterview.nullable().optional(),
+  /**
+   * Only with status SELECTED: ask the candidate for these documents in the same step (ADR-0092). The email that
+   * asks for them also carries the news, so `email_candidate` is not needed with it.
+   */
+  onboarding: external_exports.object({ documents: documentsToAsk }).nullable().optional()
+});
+var careerStatusChangeResponse = external_exports.object({
+  id: external_exports.string(),
+  status: careerApplicationStatus,
+  previous_status: careerApplicationStatus,
+  version: external_exports.number().int(),
+  status_changed_at: external_exports.string(),
+  retention_until: external_exports.string(),
+  allowed_next: external_exports.array(careerApplicationStatus),
+  event: careerHiringEvent,
+  /** The candidate email queued with this move, or null. It is sent shortly after and then appears in the history. */
+  candidate_email: careerCandidateEmailTemplate.nullable(),
+  /** The interview scheduled with this move, or null. */
+  interview: careerScheduledInterview.nullable(),
+  /** Upcoming interviews this move called off (a rejection or a move to the talent pool). */
+  cancelled_interviews: external_exports.number().int(),
+  /** True when this move also asked the candidate for documents. */
+  documents_requested: external_exports.boolean(),
+  request_id: external_exports.string()
+});
+var addCareerNoteRequest = external_exports.object({ note: external_exports.string().min(1).max(2e3) });
+var rateCareerApplicationRequest = external_exports.object({ rating: external_exports.number().int().min(1).max(5), note: external_exports.string().max(2e3).nullable().optional() });
+var careerEventResponse = external_exports.object({ event: careerHiringEvent, request_id: external_exports.string() });
+var careerResumeLinkResponse = external_exports.object({
+  /** A signed link to the private file, valid for a few minutes. Open it straight away; do not store it. */
+  url: external_exports.string(),
+  expires_at: external_exports.string(),
+  content_type: external_exports.string(),
+  byte_size: external_exports.number().int(),
+  request_id: external_exports.string()
+});
+
+// ../../packages/contracts/src/distribution.ts
+var FIELD_EXEC_END_REASONS = ["TARGET_NOT_MET", "OFFER_WITHDRAWN", "RESIGNED", "MISCONDUCT", "OTHER"];
+var FIELD_EXEC_ACTIONS = ["SUSPEND", "RESUME", "END", "REINSTATE"];
+var REFERRAL_COOKIE_MAX_AGE_S = 30 * 24 * 3600;
+var createFieldExecutiveRequest = external_exports.object({
+  name: external_exports.string().trim().min(1).max(120),
+  phone_e164: external_exports.string().min(1).max(32),
+  email: external_exports.string().trim().max(254).nullable().optional(),
+  city_id: external_exports.string().min(1).max(64),
+  joining_date: external_exports.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+});
+var importFieldExecutivesRequest = external_exports.object({
+  csv: external_exports.string().min(1).max(512 * 1024),
+  commit: external_exports.boolean()
+});
+var changeFieldExecutiveStatusRequest = external_exports.object({
+  expected_version: external_exports.number().int().min(1),
+  action: external_exports.enum(FIELD_EXEC_ACTIONS),
+  end_reason: external_exports.enum(FIELD_EXEC_END_REASONS).nullable().optional(),
+  note: external_exports.string().max(2e3).nullable().optional(),
+  /** REINSTATE of someone not yet confirmed: the new deadline, in days from now. */
+  new_deadline_days: external_exports.number().int().min(1).max(30).nullable().optional()
+});
+var extendFieldExecutiveRequest = external_exports.object({
+  expected_version: external_exports.number().int().min(1),
+  days: external_exports.number().int().min(1).max(30),
+  note: external_exports.string().min(1).max(2e3)
+});
+var fieldExecutiveNoteRequest = external_exports.object({ note: external_exports.string().min(1).max(2e3) });
+var saveDistributionCityRequest = external_exports.object({
+  name: external_exports.string().trim().min(1).max(80),
+  state: external_exports.string().trim().min(1).max(80),
+  tier: external_exports.number().int().min(1).max(3),
+  active: external_exports.boolean()
+});
+var setDistributionPolicyRequest = external_exports.object({
+  tier: external_exports.number().int().min(1).max(3),
+  target_count: external_exports.number().int().min(1).max(100),
+  window_days: external_exports.number().int().min(1).max(90)
+});
+var createLeadRequest = external_exports.object({
+  shop_name: external_exports.string().max(200),
+  contact_name: external_exports.string().max(200).nullable(),
+  phone: external_exports.string().max(20).nullable(),
+  area: external_exports.string().max(200).nullable(),
+  next_follow_up_on: external_exports.string().max(10).nullable(),
+  note: external_exports.string().max(2e3).nullable()
+});
+var updateLeadRequest = external_exports.object({
+  expected_version: external_exports.number().int().min(1),
+  status: external_exports.string().max(20),
+  next_follow_up_on: external_exports.string().max(10).nullable(),
+  note: external_exports.string().max(2e3).nullable()
+});
+var reassignReferralRequest = external_exports.object({
+  to_executive_id: external_exports.string().min(1).max(64),
+  note: external_exports.string().min(1).max(2e3)
 });
 
 // ../../packages/contracts/src/notifications.ts
@@ -5502,7 +6049,7 @@ var gradeCapReason = external_exports.enum([
   "AIRBAG_MISSING"
 ]);
 var evidenceKind = external_exports.enum(["PHOTO", "VIDEO", "AUDIO", "DOCUMENT", "MEASUREMENT"]);
-var answerType = external_exports.enum(["STATE", "NUMERIC", "BOOL", "CHOICE", "DATE"]);
+var answerType = external_exports.enum(["STATE", "NUMERIC", "BOOL", "CHOICE", "DATE", "MONEY"]);
 var shotCategory = external_exports.enum([
   "EXTERIOR",
   "INTERIOR",
@@ -5746,6 +6293,8 @@ var recordResponseRequest = external_exports.object({
   numeric_value: external_exports.number().optional(),
   /** CHOICE/DATE items: the chosen value or YYYY-MM-DD date (validated against the pinned checklist). */
   value_text: external_exports.string().trim().min(1).max(64).optional(),
+  /** MONEY items: a positive INR amount in paise (validated against the pinned checklist, ADR-0107). */
+  value_money_minor: external_exports.number().int().positive().optional(),
   unit: external_exports.string().optional(),
   text_note: external_exports.string().optional(),
   na_reason: naReason.optional(),
@@ -5781,6 +6330,8 @@ var inspectionItemView = external_exports.object({
   numeric_value: external_exports.number().nullable(),
   /** CHOICE/DATE answer. Optional so older views/fixtures stay valid. */
   value_text: external_exports.string().nullable().optional(),
+  /** MONEY answer in paise (e.g. loan amount remaining). Owner, inspector/ops and QC views only; never on the buyer report. */
+  value_money_minor: external_exports.number().nullable().optional(),
   unit: external_exports.string().nullable(),
   text_note: external_exports.string().nullable(),
   na_reason: naReason.nullable(),
@@ -6108,6 +6659,21 @@ var qcAnswerRequest = external_exports.object({
   item_code: external_exports.string().min(1),
   severity: external_exports.enum(["OK", "MINOR", "MODERATE", "MAJOR", "CRITICAL", "NOT_ASSESSABLE"]),
   note: external_exports.string().trim().max(500).nullable().optional()
+});
+var qcCorrectionRow = external_exports.object({
+  item_code: external_exports.string(),
+  answer_type: external_exports.enum(["STATE", "BOOL"]),
+  owner_severity: external_exports.string(),
+  qc_severity: external_exports.string().nullable(),
+  note: external_exports.string().nullable(),
+  corrected: external_exports.boolean()
+});
+var qcCorrectionsResponse = external_exports.object({ rows: external_exports.array(qcCorrectionRow), corrected_count: external_exports.number().int().nonnegative(), request_id: external_exports.string() });
+var qcCorrectionRequest = external_exports.object({
+  item_code: external_exports.string().min(1),
+  // Yes/no items accept only OK or MAJOR; the server enforces that per item.
+  severity: external_exports.enum(["OK", "MINOR", "MODERATE", "MAJOR", "CRITICAL"]),
+  note: external_exports.string().trim().min(1).max(500)
 });
 
 // ../../packages/contracts/src/media.ts
@@ -6574,11 +7140,27 @@ var createListingRequest = external_exports.object({
   /** The dealership to list for — only needed when the seller belongs to more than one (else automatic). */
   seller_org_id: external_exports.string().min(1).nullable().optional()
 });
+var listingWithdrawalReason = external_exports.enum([
+  "SOLD_OUTSIDE_TURAG",
+  "KEEPING_VEHICLE",
+  "UNHAPPY_WITH_OFFERS",
+  "CHANGING_DETAILS",
+  "VEHICLE_PROBLEM",
+  "LOW_INTEREST",
+  "PERSONAL",
+  "OTHER"
+]);
 var updateListingRequest = external_exports.object({
   ask_price: money.optional(),
   reserve_price: money.nullable().optional(),
   status: external_exports.literal("WITHDRAWN").optional(),
+  withdrawal_reason: listingWithdrawalReason.optional(),
+  withdrawal_note: external_exports.string().trim().max(500).nullable().optional(),
   version: external_exports.number().int().positive()
+});
+var withdrawListingRequest = external_exports.object({
+  withdrawal_reason: listingWithdrawalReason,
+  withdrawal_note: external_exports.string().trim().max(500).nullable().optional()
 });
 var moderateListingRequest = external_exports.object({
   decision: external_exports.enum(["APPROVE", "REQUEST_CHANGES", "REJECT"]),
@@ -6603,6 +7185,8 @@ var listingView = external_exports.object({
   /** Present when an inspection is pinned — lets the preview screen fetch the full report. */
   inspection_id: external_exports.string().nullable(),
   moderation: external_exports.object({ reason: external_exports.string().nullable() }),
+  /** Why it was withdrawn (ADR-0105). Null unless WITHDRAWN; reason may also be ACCOUNT_DELETED (system). */
+  withdrawal: external_exports.object({ reason: external_exports.string().nullable(), note: external_exports.string().nullable() }),
   published_at: external_exports.string().nullable(),
   expires_at: external_exports.string().nullable(),
   view_count: external_exports.number().int(),
@@ -7020,6 +7604,48 @@ var updateTransferItemRequest = external_exports.object({
   status: transferItemStatus,
   reason: external_exports.string().trim().min(1).max(500).optional()
 });
+var orderMessage = external_exports.object({
+  message_id: external_exports.string(),
+  body: external_exports.string(),
+  sender_is_me: external_exports.boolean(),
+  created_at: external_exports.string()
+});
+var orderChatAccess = external_exports.enum(["NOT_OPEN", "OPEN", "READ_ONLY"]);
+var sendOrderMessageRequest = external_exports.object({ body: external_exports.string().trim().min(1).max(2e3) });
+var orderMessageResponse = external_exports.object({ message: orderMessage, request_id: external_exports.string() });
+var orderMessageListResponse = external_exports.object({
+  messages: external_exports.array(orderMessage),
+  chat: orderChatAccess,
+  request_id: external_exports.string()
+});
+var startHandoverResponse = external_exports.object({
+  handover: external_exports.object({ token: external_exports.string(), short_code: external_exports.string(), expires_at: external_exports.string() }),
+  request_id: external_exports.string()
+});
+var handoverKeyFields = {
+  token: external_exports.string().min(20).max(100).optional(),
+  order_id: external_exports.string().min(1).max(64).optional(),
+  short_code: external_exports.string().min(4).max(12).optional()
+};
+var oneHandoverKey = (v) => v.token ? !v.order_id && !v.short_code : Boolean(v.order_id && v.short_code);
+var ONE_KEY = { message: "send either token, or order_id with short_code" };
+var handoverPreviewRequest = external_exports.object(handoverKeyFields).refine(oneHandoverKey, ONE_KEY);
+var handoverPreviewResponse = external_exports.object({
+  preview: external_exports.object({
+    order_id: external_exports.string(),
+    vehicle: external_exports.object({ make: external_exports.string(), model: external_exports.string(), mfg_year: external_exports.number().int() }).nullable(),
+    agreed_price: money,
+    expires_at: external_exports.string()
+  }),
+  request_id: external_exports.string()
+});
+var confirmHandoverRequest = external_exports.object({
+  ...handoverKeyFields,
+  checklist: external_exports.object({ vehicle: external_exports.boolean(), keys: external_exports.boolean(), documents: external_exports.boolean() })
+}).refine(oneHandoverKey, ONE_KEY);
+var refuseHandoverRequest = external_exports.object({ ...handoverKeyFields, reason: external_exports.string().trim().min(1).max(1e3) }).refine(oneHandoverKey, ONE_KEY);
+var refuseHandoverResponse = external_exports.object({ reported: external_exports.literal(true), request_id: external_exports.string() });
+var opsHandoverRequest = external_exports.object({ reason: external_exports.string().trim().min(5).max(500) });
 
 // ../../packages/contracts/src/saved-listings.ts
 var saveListingRequest = external_exports.object({ listing_id: external_exports.string() });
@@ -7206,6 +7832,20 @@ var selfInspectionPaymentInitResponse = external_exports.object({
   payment: selfInspectionPaymentInitView,
   request_id: external_exports.string()
 });
+var googlePlayPaymentRequest = external_exports.object({
+  /** The managed-product id bought. Must equal the server's configured product (validated, never trusted). */
+  product_id: external_exports.string().min(1).max(200),
+  /** The Google Play purchase token to verify. */
+  purchase_token: external_exports.string().min(1).max(4096)
+});
+var googlePlayPaymentResponse = external_exports.object({ payment: paymentView, request_id: external_exports.string() });
+var appleIapPaymentRequest = external_exports.object({
+  /** The consumable product id bought. Must equal the server's configured product (validated, never trusted). */
+  product_id: external_exports.string().min(1).max(200),
+  /** The StoreKit transaction id to verify. */
+  transaction_id: external_exports.string().min(1).max(256)
+});
+var appleIapPaymentResponse = external_exports.object({ payment: paymentView, request_id: external_exports.string() });
 var refundRequest = external_exports.object({ amount: money.optional(), reason: external_exports.string().max(500).nullable().optional() });
 
 // ../../packages/contracts/src/settlements.ts
@@ -8469,6 +9109,40 @@ var setCertificateConfigRequest = external_exports.object({
   note: external_exports.string().trim().max(500).optional()
 });
 
+// ../../packages/contracts/src/feature-flags.ts
+var flagKey = external_exports.string().regex(/^[A-Z][A-Z0-9_]{2,63}$/);
+var featureFlagChangeView = external_exports.object({
+  id: external_exports.string(),
+  flag_key: external_exports.string(),
+  enabled: external_exports.boolean(),
+  note: external_exports.string().nullable(),
+  created_by: external_exports.string(),
+  created_at: external_exports.string()
+});
+var featureFlagView = external_exports.object({
+  key: external_exports.string(),
+  enabled: external_exports.boolean(),
+  default_enabled: external_exports.boolean(),
+  /** The change in force, or null while the flag is at its default. */
+  current: featureFlagChangeView.nullable()
+});
+var featureFlagsResponse = external_exports.object({
+  flags: external_exports.array(featureFlagView),
+  history: external_exports.array(featureFlagChangeView),
+  request_id: external_exports.string()
+});
+var setFeatureFlagRequest = external_exports.object({
+  flag_key: flagKey,
+  enabled: external_exports.boolean(),
+  note: external_exports.string().trim().max(500).optional(),
+  /** The Ops settings PIN (OPS_SETTINGS_CODE), same as commission and token slabs. Never logged or echoed. */
+  confirmation_code: external_exports.string().min(1).max(200)
+});
+var clientFeatureFlagsResponse = external_exports.object({
+  flags: external_exports.record(external_exports.string(), external_exports.boolean()),
+  request_id: external_exports.string()
+});
+
 // ../../packages/contracts/src/inspectors.ts
 var grantInspectorRequest = external_exports.object({
   /** The E.164 phone of the user to make an inspector (e.g. "+919876543210"). Normalised server-side. */
@@ -8486,6 +9160,7 @@ var listInspectorsResponse = external_exports.object({ inspectors: external_expo
 var OPS_MODULES = [
   "dealer_onboarding",
   "add_dealer",
+  "dealer_kyc",
   "certificates",
   "qc",
   "identity",
@@ -8493,7 +9168,11 @@ var OPS_MODULES = [
   "booking",
   "moderation",
   "bank_verification",
-  "payments"
+  "payments",
+  // Hiring (ADR-0088): the job editor and candidate data on the careers site.
+  "careers",
+  // Distribution (ADR-0089): the dealer executives, their referrals and their targets.
+  "distribution"
 ];
 var opsModule = external_exports.enum(OPS_MODULES);
 var opsStaffBlockedReason = external_exports.enum(["FULL_ACCESS", "CONFLICTING_ROLE"]);
@@ -8530,6 +9209,24 @@ var opsStaffModulesResponse = external_exports.object({
   modules: external_exports.array(opsModule),
   request_id: external_exports.string()
 });
+var createStaffAccountRequest = external_exports.object({
+  name: external_exports.string().trim().min(1).max(120),
+  email: external_exports.string().trim().min(3).max(254),
+  phone_e164: external_exports.string().min(1).max(32),
+  password: external_exports.string().min(8).max(128),
+  modules: external_exports.array(opsModule).min(1).max(OPS_MODULES.length),
+  /** The Ops settings PIN (OPS_SETTINGS_CODE). Never logged or echoed. */
+  confirmation_code: external_exports.string().min(1).max(200)
+});
+var createStaffAccountResponse = external_exports.object({
+  user_id: external_exports.string(),
+  name: external_exports.string(),
+  /** The login email, as stored (lower case). */
+  email: external_exports.string(),
+  phone_masked: external_exports.string(),
+  modules: external_exports.array(opsModule),
+  request_id: external_exports.string()
+});
 
 // ../../packages/contracts/src/dealer-signups.ts
 var DEALER_SIGNUP_STATUSES = ["NEW", "NOT_REACHABLE", "CALL_BACK", "VERIFIED", "REJECTED"];
@@ -8541,7 +9238,9 @@ var dealerSignupQuery = external_exports.object({
   from: external_exports.string().datetime({ offset: true }).optional(),
   to: external_exports.string().datetime({ offset: true }).optional(),
   staff: external_exports.string().min(1).max(64).optional(),
-  q: external_exports.string().trim().min(1).max(120).optional()
+  q: external_exports.string().trim().min(1).max(120).optional(),
+  /** `executive_deadline`: leads a dealer executive brought first, soonest executive deadline first (ADR-0089). */
+  sort: external_exports.enum(["newest", "executive_deadline"]).default("newest")
 });
 var dealerSignupView = external_exports.object({
   id: external_exports.string(),
@@ -8557,7 +9256,16 @@ var dealerSignupView = external_exports.object({
   signed_up_at: external_exports.string(),
   last_status_at: external_exports.string().nullable(),
   last_status_by: external_exports.string().nullable(),
-  last_note: external_exports.string().nullable()
+  last_note: external_exports.string().nullable(),
+  /** The dealer executive who brought this lead, or null (ADR-0089). Their job may depend on this call. */
+  referral: external_exports.object({
+    executive_name: external_exports.string(),
+    employee_code: external_exports.string(),
+    executive_status: external_exports.string(),
+    deadline: external_exports.string(),
+    referral_status: external_exports.string(),
+    risk_flags: external_exports.array(external_exports.enum(["OWN_DEVICE", "SHARED_DEVICE"]))
+  }).nullable()
 });
 var dealerSignupListResponse = external_exports.object({
   items: external_exports.array(dealerSignupView),
@@ -8624,6 +9332,260 @@ var dealerSignupRevealResponse = external_exports.object({
   phone: external_exports.string().nullable(),
   email: external_exports.string().nullable(),
   request_id: external_exports.string()
+});
+
+// ../../packages/contracts/src/crm-dealers.ts
+var CRM_DEALER_STATUSES = [
+  "AWAITING_DOCS",
+  "PENDING_REVIEW",
+  "CHANGES_NEEDED",
+  "VERIFIED",
+  "REJECTED",
+  "ONBOARDED"
+];
+var crmDealerStatus = external_exports.enum(CRM_DEALER_STATUSES);
+var crmChangeReason = external_exports.enum([
+  "NEW_CRM_DOCUMENT",
+  "DELETED_IN_CRM",
+  "REMOVED_FROM_EXPORT"
+]);
+var crmDocumentDecision = external_exports.enum(["VERIFIED", "REJECTED"]);
+var CRM_DOCUMENT_REJECT_REASONS = [
+  "BLURRY",
+  "WRONG_DOCUMENT",
+  "NAME_MISMATCH",
+  "EXPIRED_OR_INCOMPLETE",
+  "OTHER"
+];
+var crmDocumentRejectReason = external_exports.enum(CRM_DOCUMENT_REJECT_REASONS);
+var CRM_DEALER_REJECT_REASONS = [
+  "NOT_A_DEALER",
+  "DUPLICATE",
+  "DOCUMENTS_INVALID",
+  "NOT_INTERESTED",
+  "TEST_ENTRY",
+  "OTHER"
+];
+var crmDealerRejectReason = external_exports.enum(CRM_DEALER_REJECT_REASONS);
+var CRM_BUSINESS_TYPES = ["Used Car", "Used Bike", "Commercial Vehicle"];
+var CRM_ENTITY_TYPES = ["Individual", "Company", "Partnership"];
+var CRM_DOC_TYPES = [
+  "PAN",
+  "Aadhaar",
+  "ShopActLicense",
+  "Photo",
+  "Passbook",
+  "GST"
+];
+var crmDealerQuery = external_exports.object({
+  status: crmDealerStatus.optional(),
+  q: external_exports.string().trim().min(1).max(120).optional(),
+  business_type: external_exports.enum(CRM_BUSINESS_TYPES).optional(),
+  entity_type: external_exports.enum(CRM_ENTITY_TYPES).optional(),
+  added_by: external_exports.string().trim().min(1).max(80).optional(),
+  missing_doc: external_exports.enum(CRM_DOC_TYPES).optional(),
+  crm_verified: external_exports.enum(["FULL", "PARTIAL", "NONE"]).optional(),
+  flagged: external_exports.enum(["true"]).optional(),
+  from: external_exports.string().datetime({ offset: true }).optional(),
+  to: external_exports.string().datetime({ offset: true }).optional()
+});
+var crmDocumentChipView = external_exports.object({
+  doc_id: external_exports.number().int(),
+  doc_type: external_exports.string(),
+  decision: crmDocumentDecision.nullable(),
+  storage_status: external_exports.string(),
+  crm_verified: external_exports.boolean()
+});
+var crmDealerListItemView = external_exports.object({
+  id: external_exports.number().int(),
+  name: external_exports.string(),
+  mobile_masked: external_exports.string().nullable(),
+  entity_type: external_exports.string().nullable(),
+  business_type: external_exports.string().nullable(),
+  added_by: external_exports.string().nullable(),
+  added_on: external_exports.string().nullable(),
+  status: crmDealerStatus,
+  version: external_exports.number().int(),
+  crm_change_reason: crmChangeReason.nullable(),
+  documents: external_exports.array(crmDocumentChipView)
+});
+var crmDealerListResponse = external_exports.object({
+  items: external_exports.array(crmDealerListItemView),
+  next_cursor: external_exports.string().nullable(),
+  request_id: external_exports.string()
+});
+var crmDealerCountsView = external_exports.object({
+  total: external_exports.number().int(),
+  AWAITING_DOCS: external_exports.number().int(),
+  PENDING_REVIEW: external_exports.number().int(),
+  CHANGES_NEEDED: external_exports.number().int(),
+  VERIFIED: external_exports.number().int(),
+  REJECTED: external_exports.number().int(),
+  ONBOARDED: external_exports.number().int(),
+  flagged: external_exports.number().int()
+});
+var crmDealerSummaryResponse = external_exports.object({
+  counts: crmDealerCountsView,
+  last_import_at: external_exports.string().nullable(),
+  request_id: external_exports.string()
+});
+var crmDocumentView = external_exports.object({
+  doc_id: external_exports.number().int(),
+  doc_type: external_exports.string(),
+  original_file_name: external_exports.string().nullable(),
+  file_size: external_exports.number().int().nullable(),
+  file_type: external_exports.string().nullable(),
+  uploaded_on: external_exports.string(),
+  /** The CRM's own marks: a label for reference, never Turag's decision. */
+  crm_verified: external_exports.boolean(),
+  crm_verified_by: external_exports.string().nullable(),
+  crm_reviewed_on: external_exports.string().nullable(),
+  storage_status: external_exports.string(),
+  decision: crmDocumentDecision.nullable(),
+  decision_reason: external_exports.string().nullable(),
+  decision_note: external_exports.string().nullable(),
+  decided_by: external_exports.string().nullable(),
+  decided_at: external_exports.string().nullable(),
+  /** Reviewer hints: FILE_MISSING, SIZE_MISMATCH, SMALL_PHOTO, SAME_FILE_AS_ANOTHER_TYPE. */
+  warnings: external_exports.array(external_exports.string())
+});
+var crmReviewEventView = external_exports.object({
+  id: external_exports.string(),
+  doc_id: external_exports.number().int().nullable(),
+  doc_type: external_exports.string().nullable(),
+  doc_decision: crmDocumentDecision.nullable(),
+  from_status: crmDealerStatus.nullable(),
+  to_status: crmDealerStatus.nullable(),
+  reason_code: external_exports.string().nullable(),
+  note: external_exports.string().nullable(),
+  actor_name: external_exports.string().nullable(),
+  by_system: external_exports.boolean(),
+  created_at: external_exports.string()
+});
+var crmDealerDetailView = external_exports.object({
+  id: external_exports.number().int(),
+  name: external_exports.string(),
+  mobile: external_exports.string().nullable(),
+  email: external_exports.string().nullable(),
+  entity_type: external_exports.string().nullable(),
+  business_type: external_exports.string().nullable(),
+  added_by: external_exports.string().nullable(),
+  added_on: external_exports.string().nullable(),
+  deleted_in_crm: external_exports.boolean(),
+  removed_from_crm_at: external_exports.string().nullable(),
+  imported_at: external_exports.string(),
+  status: crmDealerStatus,
+  version: external_exports.number().int(),
+  status_reason: external_exports.string().nullable(),
+  crm_change_reason: crmChangeReason.nullable(),
+  crm_changed_at: external_exports.string().nullable(),
+  org_id: external_exports.string().nullable(),
+  org_status: external_exports.string().nullable(),
+  updated_at: external_exports.string(),
+  updated_by: external_exports.string().nullable()
+});
+var crmDealerDetailResponse = external_exports.object({
+  dealer: crmDealerDetailView,
+  /** The CRM no longer lists this dealer as active: read-only, apart from rejecting or clearing the flag. */
+  locked: external_exports.boolean(),
+  storage_configured: external_exports.boolean(),
+  /** Required document types not yet verified, in display order. Empty when the dealer can be verified. */
+  blocking: external_exports.array(external_exports.string()),
+  current: external_exports.array(crmDocumentView),
+  older: external_exports.array(crmDocumentView),
+  events: external_exports.array(crmReviewEventView),
+  turag_match: external_exports.object({ account_exists: external_exports.boolean(), is_dealer: external_exports.boolean() }),
+  request_id: external_exports.string()
+});
+var crmDocumentDecisionRequest = external_exports.object({
+  expected_version: external_exports.number().int().positive(),
+  decision: crmDocumentDecision,
+  reason: crmDocumentRejectReason.nullish(),
+  note: external_exports.string().trim().max(1e3).nullish()
+}).refine((v) => v.decision !== "REJECTED" || Boolean(v.reason), { path: ["reason"] });
+var crmDealerDecisionRequest = external_exports.discriminatedUnion("action", [
+  external_exports.object({ action: external_exports.literal("VERIFY"), expected_version: external_exports.number().int().positive() }),
+  external_exports.object({
+    action: external_exports.literal("REJECT"),
+    expected_version: external_exports.number().int().positive(),
+    reason: crmDealerRejectReason,
+    note: external_exports.string().trim().max(1e3).nullish()
+  }),
+  external_exports.object({
+    action: external_exports.literal("REOPEN"),
+    expected_version: external_exports.number().int().positive(),
+    note: external_exports.string().trim().min(1).max(1e3)
+  }),
+  external_exports.object({
+    action: external_exports.literal("ACKNOWLEDGE_CRM_CHANGE"),
+    expected_version: external_exports.number().int().positive()
+  })
+]);
+var crmDecisionResponse = external_exports.object({
+  status: crmDealerStatus,
+  version: external_exports.number().int(),
+  request_id: external_exports.string()
+});
+var crmOnboardRequest = external_exports.object({
+  expected_version: external_exports.number().int().positive(),
+  business_name: external_exports.string().trim().min(1).max(200),
+  owner_name: external_exports.string().trim().min(1).max(200),
+  email: external_exports.string().trim().min(3).max(254),
+  mobile: external_exports.string().trim().min(8).max(20),
+  address_line: external_exports.string().trim().max(300).nullish(),
+  city: external_exports.string().trim().min(1).max(100),
+  state: external_exports.string().trim().min(1).max(100),
+  pin_code: external_exports.string().trim().min(6).max(6),
+  pan: external_exports.string().trim().min(1).max(12),
+  gstin: external_exports.string().trim().max(20).nullish(),
+  aadhaar_number: external_exports.string().trim().min(1).max(20),
+  registration_type: external_exports.enum(["SHOP_ACT", "UDYAM"]),
+  registration_number: external_exports.string().trim().min(1).max(60)
+});
+var crmOnboardResponse = external_exports.object({
+  org_id: external_exports.string(),
+  status: crmDealerStatus,
+  version: external_exports.number().int(),
+  created_now: external_exports.boolean(),
+  /** An existing Turag account was matched: the org stays pending until its owner signs in and confirms. */
+  awaiting_confirmation: external_exports.boolean(),
+  email_status: external_exports.string().nullable(),
+  /** Shown once for copying, as in Add dealer. Null when an existing dealer was linked or a password was kept. */
+  password: external_exports.string().nullable(),
+  request_id: external_exports.string()
+});
+
+// ../../packages/contracts/src/dealer-applications.ts
+var trimmed = (max) => external_exports.string().trim().min(1).max(max);
+var dealerApplicationDetailsRequest = external_exports.object({
+  business_name: trimmed(120),
+  owner_name: trimmed(120),
+  email: external_exports.string().trim().email("Enter a valid email").max(254),
+  address_line: external_exports.string().trim().max(200).nullable().optional(),
+  city: trimmed(80),
+  state: trimmed(80),
+  pin_code: external_exports.string().trim().regex(/^[0-9]{6}$/, "Enter a 6-digit PIN code"),
+  pan: trimmed(10),
+  gstin: external_exports.string().trim().max(15).nullable().optional(),
+  registration_type: external_exports.enum(["SHOP_ACT", "UDYAM"]),
+  registration_number: trimmed(60),
+  aadhaar_number: external_exports.string().trim().min(12).max(14)
+});
+var dealerApplicationDocumentDecisionRequest = external_exports.object({
+  decision: external_exports.enum(["VERIFIED", "REJECTED"]),
+  reason: external_exports.string().trim().max(500).nullable().optional(),
+  expected_version: external_exports.number().int().nonnegative()
+});
+var dealerApplicationDealerActionRequest = external_exports.discriminatedUnion("action", [
+  external_exports.object({ action: external_exports.literal("VERIFY"), expected_version: external_exports.number().int().nonnegative() }),
+  external_exports.object({ action: external_exports.literal("REJECT"), reason: trimmed(500), expected_version: external_exports.number().int().nonnegative() }),
+  external_exports.object({ action: external_exports.literal("REOPEN"), note: trimmed(500), expected_version: external_exports.number().int().nonnegative() })
+]);
+var dealerApplicationOnboardRequest = external_exports.object({ expected_version: external_exports.number().int().nonnegative() });
+var dealerApplicationListQuery = external_exports.object({
+  status: external_exports.enum(["DRAFT", "PENDING_REVIEW", "CHANGES_NEEDED", "VERIFIED", "REJECTED", "ONBOARDED"]).optional(),
+  cursor: external_exports.string().optional(),
+  limit: external_exports.coerce.number().int().positive().max(100).optional()
 });
 
 // ../../packages/contracts/src/institutional.ts
@@ -10070,9 +11032,9 @@ function median(values) {
 }
 var RulesPricingEngine = class {
   constructor(comparables = new EmptyComparableSales(), market = DEFAULT_MARKET_FACTORS, partsCatalog) {
-    __publicField(this, "comparables", comparables);
-    __publicField(this, "market", market);
-    __publicField(this, "partsCatalog", partsCatalog);
+    this.comparables = comparables;
+    this.market = market;
+    this.partsCatalog = partsCatalog;
   }
   estimate(features, asOfYear) {
     var _a, _b, _c, _d, _e;
@@ -10317,8 +11279,8 @@ function selectPricedParts(refs, isKnownPanel) {
 // ../../packages/core/src/modules/valuation/domain/market-parts-catalog.ts
 var MarketAwarePartsCatalog = class {
   constructor(base, referencePricesMinor) {
-    __publicField(this, "base", base);
-    __publicField(this, "referencePricesMinor", referencePricesMinor);
+    this.base = base;
+    this.referencePricesMinor = referencePricesMinor;
   }
   partPriceMinor(model, panel) {
     const approved = this.base.partPriceMinor(model, panel);

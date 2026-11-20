@@ -33,6 +33,7 @@ import StepTabs from './components/StepTabs';
 import RetakeBanner from './components/RetakeBanner';
 import { InspectorModeContext } from './inspectorMode';
 import IdentityMismatchBanner from './components/IdentityMismatchBanner';
+import PerformerCard from './components/PerformerCard';
 import PhotosStep from './steps/PhotosStep';
 import DocumentsStep from './steps/DocumentsStep';
 import ChecklistStep from './steps/ChecklistStep';
@@ -431,6 +432,10 @@ function SelfInspection({ navigation, route }) {
         style={styles.summary}
       />
 
+      {/* Before you start: who is doing it - a selfie + name (the owner's own
+          inspection only; needed before submit). One line once added. */}
+      <PerformerCard performer={si.performer} style={styles.performer} />
+
       <RetakeBanner shots={si.retakeShots} items={si.allItems} style={styles.retake} />
       <IdentityMismatchBanner
         fields={si.identityMismatch}
@@ -492,6 +497,9 @@ const styles = StyleSheet.create({
   body: {
     paddingTop: spacing.lg,
     paddingBottom: spacing.lg,
+  },
+  performer: {
+    marginTop: spacing.md,
   },
   retake: {
     marginTop: spacing.md,

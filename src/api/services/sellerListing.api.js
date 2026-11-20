@@ -172,27 +172,57 @@ export const updateListingPrice = async (listingId, askPrice, version) => {
     touch(raw);
     return mapMyListing(raw);
   }
-  const data = await request(ENDPOINTS.myListing(listingId), {
-    method: 'PATCH',
-    body: { ask_price: toMoney(askPrice), version },
-  });
-  return mapMyListing(data.listing);
+  try {
+    const data = await request(ENDPOINTS.myListing(listingId), {
+      method: 'PATCH',
+      body: { ask_price: toMoney(askPrice), version },
+    });
+    return mapMyListing(data.listing);
+  } catch (e) {
+    // The ops price lock is on (ADR-0102): the price follows the Turag valuation.
+    if (e instanceof ApiError && e.code === 'LISTING_ASK_PRICE_LOCKED') {
+      throw new ApiError({ status: 409, code: e.code, message: tNow('selling.create.priceLocked') });
+    }
+    throw e;
+  }
+};
+
+// The server refused the withdrawal's reason / note (ADR-0105): the same words
+// as the sheet's own checks. Anything else is passed on as it is.
+export const withdrawalError = e => {
+  if (e instanceof ApiError && e.code === 'LISTING_WITHDRAWAL_REASON_INVALID') {
+    const noteProblem = e.details?.field === 'withdrawal_note';
+    return new ApiError({
+      status: e.status,
+      code: e.code,
+      details: e.details,
+      message: tNow(noteProblem ? 'selling.withdraw.needNote' : 'selling.withdraw.needReason'),
+    });
+  }
+  return e;
 };
 
 // Withdraws the listing (from DRAFT / PENDING_REVIEW / CHANGES_REQUESTED / LIVE). Final.
-export const withdrawListing = async (listingId, version) => {
+// { reason, note }: why (ADR-0105) - one of WITHDRAWAL_REASONS, and a note
+// (required for OTHER). The server closes its open offers and tells those buyers.
+export const withdrawListing = async (listingId, version, { reason, note = null }) => {
   if (!real()) {
     await wait(500);
     const raw = findMock(listingId);
     raw.status = 'WITHDRAWN';
+    raw.withdrawal = { reason, note };
     touch(raw);
     return mapMyListing(raw);
   }
-  const data = await request(ENDPOINTS.myListing(listingId), {
-    method: 'PATCH',
-    body: { status: 'WITHDRAWN', version },
-  });
-  return mapMyListing(data.listing);
+  try {
+    const data = await request(ENDPOINTS.myListing(listingId), {
+      method: 'PATCH',
+      body: { status: 'WITHDRAWN', version, withdrawal_reason: reason, withdrawal_note: note },
+    });
+    return mapMyListing(data.listing);
+  } catch (e) {
+    throw withdrawalError(e);
+  }
 };
 
 // Tests only.

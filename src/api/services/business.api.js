@@ -28,6 +28,7 @@ import {
   mapPortfolioItem,
 } from '../mappers/business';
 import { tNow } from '../../i18n';
+import { withdrawalError } from './sellerListing.api';
 
 const enc = encodeURIComponent;
 
@@ -97,10 +98,19 @@ export const createDealerListing = (orgId, { category, make, model, year, fuel, 
   });
 
 // Takes a listing back (while draft / in review / live). Returns it.
-export const withdrawDealerListing = (orgId, listingId) =>
+// { reason, note }: why (ADR-0105) - one of WITHDRAWAL_REASONS, and a note
+// (required for OTHER). The server closes its open offers and tells those buyers.
+export const withdrawDealerListing = (orgId, listingId, { reason, note = null }) =>
   orgCall(async () => {
-    const data = await request(ENDPOINTS.dealerListingWithdraw(orgId, listingId), { method: 'POST' });
-    return mapDealerListing(data.listing);
+    try {
+      const data = await request(ENDPOINTS.dealerListingWithdraw(orgId, listingId), {
+        method: 'POST',
+        body: { withdrawal_reason: reason, withdrawal_note: note },
+      });
+      return mapDealerListing(data.listing);
+    } catch (e) {
+      throw withdrawalError(e);
+    }
   });
 
 // Other dealers' live stock. filters: { category, fuel, priceMax (rupees) }.

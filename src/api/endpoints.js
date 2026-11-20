@@ -12,6 +12,12 @@ export const ENDPOINTS = {
   REFRESH: '/auth/refresh',
   LOGOUT: '/auth/logout',
   ME: '/me',
+  // A user's own application to become a dealer (ADR-0101): details, KYC documents, submit.
+  MY_DEALER_APPLICATION: '/me/dealer-application',
+  MY_DEALER_APPLICATION_SUBMIT: '/me/dealer-application/submit',
+  myDealerApplicationDocument: docType => `/me/dealer-application/documents/${encodeURIComponent(docType)}`,
+  // Ops on/off product rules the app adapts to (ADR-0102), e.g. VALUATION_ASK_PRICE_LOCK.
+  FEATURE_FLAGS: '/feature-flags',
   PHONE_VERIFY_START: '/me/phone-verification', // a code to the account's own mobile
   PHONE_VERIFY_CONFIRM: '/me/phone-verification/confirm',
   EMAIL_START: '/me/email/start',
@@ -31,6 +37,8 @@ export const ENDPOINTS = {
   inspectionItem: (id, itemCode) =>
     `/inspections/${encodeURIComponent(id)}/items/${encodeURIComponent(itemCode)}`,
   inspectionSubmit: id => `/inspections/${encodeURIComponent(id)}/submit`,
+  // Who is doing a self-inspection: selfie + name, required before submit (ADR-0104).
+  inspectionPerformer: id => `/inspections/${encodeURIComponent(id)}/performer`,
   inspectionPay: id => `/inspections/${encodeURIComponent(id)}/pay`, // the self-inspection fee
   inspectionPaySimulate: id => `/inspections/${encodeURIComponent(id)}/pay/simulate`, // dev/stub only
   // Android: the fee bought with Google Play Billing; the server checks the purchase with Google.

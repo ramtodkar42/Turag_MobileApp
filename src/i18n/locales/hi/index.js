@@ -24,6 +24,7 @@ import business from './business';
 import guest from './guest';
 import insights from './insights';
 import handover from './handover';
+import dealerApply from './dealerApply';
 
 export default {
   ...common,
@@ -51,4 +52,5 @@ export default {
   ...guest,
   ...insights,
   ...handover,
+  ...dealerApply,
 };

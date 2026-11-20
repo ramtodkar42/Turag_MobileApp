@@ -34,6 +34,13 @@ export const PROFILE_MENU = [
         orgsOnly: true,
       },
       {
+        // Becoming a dealer (ADR-0101): for someone who signed up as a dealer or
+        // has started an application, until they are one. Shows where it stands.
+        labelKey: 'profile.item.dealerApplication',
+        route: ROUTES.DEALER_APPLY,
+        dealerApplyOnly: true,
+      },
+      {
         labelKey: 'profile.item.language',
         route: ROUTES.LANGUAGE,
         showsLanguage: true,

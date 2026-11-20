@@ -63,6 +63,10 @@ jest.mock('../src/api/services/selfInspection.api', () => ({
   submitSelfInspection: jest.fn(async () => ({ status: 'SUBMITTED' })),
   reopenSelfInspection: jest.fn(async () => {}),
   estimateFinalValue: jest.fn(async () => ({ card: { valueMinor: 45000000, confidenceLevel: 'MEDIUM' }, valuation: null, reason: null })),
+  // The selfie + name (ADR-0104): already added, unless a test says otherwise.
+  PERFORMER_REQUIRED: 'PERFORMER_ATTESTATION_REQUIRED',
+  getPerformer: jest.fn(async () => ({ name: 'Ravi Kumar', addedAt: '2026-11-20T10:00:00Z' })),
+  savePerformer: jest.fn(async (id, { name }) => ({ name, addedAt: '2026-11-20T10:05:00Z' })),
 }));
 
 jest.mock('../src/api/services/aiScan.api', () => ({
@@ -91,14 +95,14 @@ jest.mock('../src/utils/engineClip', () => ({
   extractEngineFrames: jest.fn(async () => ['data:image/jpeg;base64,AAAA']),
   measureEngineSound: jest.fn(async () => ({ durationSec: 10, loudnessDbfs: -22, stabilityCv: 0.1, transientsPerSec: 0.3 })),
 }));
-jest.mock('../src/utils/pickImage', () => ({ pickImageFromGallery: jest.fn(async () => null) }));
+jest.mock('../src/utils/pickImage', () => ({ pickImageFromGallery: jest.fn(async () => null), takePhoto: jest.fn(async () => null) }));
 
 const api = require('../src/api/services/selfInspection.api');
 const vision = require('../src/api/services/aiScan.api');
 const { photoDhash } = require('../src/utils/photoDhash');
 const { photoQualityWarnings } = require('../src/utils/photoQuality');
 const engineClip = require('../src/utils/engineClip');
-const { pickImageFromGallery } = require('../src/utils/pickImage');
+const { pickImageFromGallery, takePhoto } = require('../src/utils/pickImage');
 // The jest location mock: Baner, Pune.
 const BANER = { lat: 18.559, lng: 73.7868, accuracyM: 10 };
 const SelfInspection = require('../src/screens/selfInspection/SelfInspection/SelfInspection').default;
@@ -197,6 +201,7 @@ beforeEach(() => {
   api.getSelfInspection.mockResolvedValue({ inspection, sections: m1Sections, media: [] });
   api.analyzeMedia.mockImplementation(async id => ({ id, ai_finding: buildAiFinding(serverFinding) }));
   api.listSelfInspectionMedia.mockResolvedValue([]);
+  api.getPerformer.mockResolvedValue({ name: 'Ravi Kumar', addedAt: '2026-11-20T10:00:00Z' });
 });
 
 afterEach(() => {
@@ -763,16 +768,83 @@ describe('Self-inspection screen', () => {
     expect(submit.props.disabled).toBe(true);
   });
 
-  test('submitted: shows the final value from the backend', async () => {
+  test('before you start: no selfie yet - asked first, listed as left; Save adds it and it shrinks to one line', async () => {
+    api.getPerformer.mockResolvedValue(null);
+    takePhoto.mockResolvedValueOnce({ uri: 'file:///me.jpg', type: 'image/jpeg', fileSize: 120000 });
+    const root = await render();
+    expect(api.getPerformer).toHaveBeenCalledWith('insp_1');
+    expect(hasText(root, 'Before you start: who is doing this inspection?')).toBe(true);
+
+    // Listed first in what's left; Submit stays off.
+    await act(async () => tab(root, 'Estimate').props.onPress());
+    expect(hasText(root, 'Selfie and your name')).toBe(true);
+    const save = () => root.findAll(n => n.props.title === 'Save' && n.props.onPress)[0];
+
+    // Name without a selfie: says both are needed, nothing sent.
+    const field = () => root.findAll(n => n.props.label === 'Your name' && n.props.onChangeText)[0];
+    await act(async () => field().props.onChangeText('  Ravi   Kumar '));
+    await act(async () => save().props.onPress());
+    expect(api.savePerformer).not.toHaveBeenCalled();
+    expect(hasText(root, 'Take a selfie and enter your name.')).toBe(true);
+
+    // The front camera, then Save.
+    await act(async () => root.findAll(n => n.props.title === 'Take selfie' && n.props.onPress)[0].props.onPress());
+    expect(takePhoto).toHaveBeenCalledWith({ front: true });
+    await act(async () => save().props.onPress());
+    expect(api.savePerformer).toHaveBeenCalledWith('insp_1', {
+      name: 'Ravi Kumar',
+      file: { uri: 'file:///me.jpg', type: 'image/jpeg', fileSize: 120000 },
+    });
+    expect(hasText(root, 'Selfie added for Ravi Kumar')).toBe(true);
+    expect(hasText(root, 'Before you start: who is doing this inspection?')).toBe(false);
+    expect(hasText(root, 'Selfie and your name')).toBe(false);
+
+    // "Change" opens it again with the name filled in; Cancel closes it.
+    await act(async () => pressable(root, 'Change the selfie and name').props.onPress());
+    expect(field().props.value).toBe('Ravi Kumar');
+    await act(async () => root.findAll(n => n.props.title === 'Cancel' && n.props.onPress)[0].props.onPress());
+    expect(hasText(root, 'Selfie added for Ravi Kumar')).toBe(true);
+  });
+
+  test('before you start: already added shows one line; an inspector never sees it', async () => {
+    let root = await render();
+    expect(hasText(root, 'Selfie added for Ravi Kumar')).toBe(true);
+    expect(hasText(root, 'Selfie and your name')).toBe(false);
+    act(() => tree.unmount());
+
+    api.getPerformer.mockClear();
+    api.getSelfInspection.mockResolvedValue({ inspection: { ...inspection, mode: 'M2' }, sections: sectionsFor(fixture, 'M2'), media: [] });
+    root = await render({ bookingId: 'bk_1' });
+    expect(api.getPerformer).not.toHaveBeenCalled();
+    expect(hasText(root, 'Selfie added for')).toBe(false);
+    expect(hasText(root, 'Before you start: who is doing this inspection?')).toBe(false);
+  });
+
+  test('before you start: a server without this step yet (404) does not ask for it', async () => {
+    api.getPerformer.mockRejectedValue(Object.assign(new Error('Not found'), { status: 404 }));
+    const root = await render();
+    expect(hasText(root, 'Before you start: who is doing this inspection?')).toBe(false);
+    await act(async () => tab(root, 'Estimate').props.onPress());
+    expect(hasText(root, 'Selfie and your name')).toBe(false);
+  });
+
+  test('before you start: if it could not be checked, it is asked for (the server decides at submit)', async () => {
+    api.getPerformer.mockRejectedValue(Object.assign(new Error('offline'), { status: 0 }));
+    const root = await render();
+    expect(hasText(root, 'Before you start: who is doing this inspection?')).toBe(true);
+    expect(hasText(root, 'We couldn’t check whether you already added one. Add it now.')).toBe(true);
+  });
+
+  test('submitted, still with QC: no value yet and no estimate asked for (ADR-0106)', async () => {
     api.getSelfInspection.mockResolvedValue({ inspection: { ...inspection, status: 'SUBMITTED' }, sections: m1Sections, media: [] });
     const root = await render();
     await act(async () => {});
     expect(hasText(root, 'AI Self Inspection submitted')).toBe(true);
-    expect(api.estimateFinalValue).toHaveBeenCalledWith({ vehicle_id: 'veh_1', stage: 'DECLARED', inspection_id: 'insp_1' });
-    // Owner rule (5 Nov 2026): one value, no dealer label and no confidence.
+    // QC may still correct answers, so an earlier number could differ from the approved one.
+    expect(api.estimateFinalValue).not.toHaveBeenCalled();
+    expect(hasText(root, '₹4,50,000')).toBe(false);
+    expect(hasText(root, 'Your final value is being prepared')).toBe(false);
     expect(hasText(root, 'Dealer will pay about')).toBe(false);
-    expect(hasText(root, 'confidence')).toBe(false);
-    expect(hasText(root, '₹4,50,000')).toBe(true);
   });
 });
 
@@ -845,7 +917,7 @@ describe('a self-inspection follows the new server rules', () => {
     test('the same photo confirmed again is only read again', async () => {
       const root = await openVin();
       await scanVin(root);
-      await act(async () => root.findAll(n => n.props.accessibilityRole === 'button' && n.props.onPress && n.findAll(c => c.props.children === 'Change').length)[0].props.onPress());
+      await act(async () => root.findAll(n => n.props.accessibilityRole === 'button' && n.props.onPress && n.props.accessibilityLabel !== 'Change the selfie and name' && n.findAll(c => c.props.children === 'Change').length)[0].props.onPress());
       await act(async () => button(root, 'Confirm & save').props.onPress());
       await settle();
       expect(api.uploadSelfEvidence).toHaveBeenCalledTimes(1);
@@ -1115,6 +1187,8 @@ describe('a self-inspection follows the new server rules', () => {
       expect(api.estimateFinalValue).not.toHaveBeenCalled();
       expect(hasText(root, '₹4,10,000')).toBe(true);
       expect(hasText(root, 'This value was updated after our team reviewed your photos')).toBe(true);
+      // QC may also have corrected the owner's answers (ADR-0106).
+      expect(hasText(root, 'or corrected some of your answers')).toBe(true);
     });
 
     test('not changed: the usual footnote', async () => {
@@ -1134,10 +1208,10 @@ describe('a self-inspection follows the new server rules', () => {
       expect(hasText(root, 'Could not load the report')).toBe(true);
     });
 
-    test('still with QC: the estimate as before', async () => {
+    test('still with QC: no value and no estimate until it is approved (ADR-0106)', async () => {
       await open('PENDING_QC');
       expect(report).not.toHaveBeenCalled();
-      expect(api.estimateFinalValue).toHaveBeenCalledTimes(1);
+      expect(api.estimateFinalValue).not.toHaveBeenCalled();
     });
 
     test('an inspector inspection keeps the estimate', async () => {
@@ -1552,5 +1626,122 @@ describe('a video upload says where it is', () => {
     );
     expect(hasText(root, 'Video not uploaded')).toBe(false);
     expect(hasText(root, 'Video saved')).toBe(true);
+  });
+});
+
+// Checklist v5 (ADR-0107): the Documents step asks about an active loan, and after
+// "Yes" how much is left - a MONEY answer, typed in whole rupees, saved as paise.
+describe('the vehicle loan', () => {
+  const loanItems = [
+    {
+      item_code: 'FINANCED_M1',
+      label: 'Is there an active loan on this vehicle?',
+      group_code: 'P',
+      answer_type: 'CHOICE',
+      applicable_modes: ['M1'],
+      gate: true,
+      scored: false,
+      mandatory: true,
+      choices: [
+        { value: 'YES', label: 'Yes' },
+        { value: 'NO', label: 'No' },
+      ],
+    },
+    {
+      item_code: 'LOAN_OUTSTANDING_M1',
+      label: 'Loan amount remaining (₹)',
+      group_code: 'P',
+      answer_type: 'MONEY',
+      applicable_modes: ['M1'],
+      gate: true,
+      scored: false,
+      mandatory: true,
+      show_if: { item_code: 'FINANCED_M1', equals: 'YES' },
+    },
+  ];
+  const v5Sections = m1Sections.map(s => (s.group_code === 'P' ? { ...s, items: [...s.items, ...loanItems] } : s));
+  const v5 = { ...inspection, checklist_version: 5 };
+  const amountField = root => root.findAll(n => n.props.label === 'Amount in rupees' && n.props.onChangeText)[0];
+  const choice = (root, label) => root.findAll(n => n.props.label === label && n.props.onPress)[0];
+  const saveButton = root => root.findAll(n => n.props.title === 'Save answer' && n.props.onPress)[0];
+  const wait = ms => act(async () => { await new Promise(resolve => setTimeout(resolve, ms)); });
+
+  test('"Yes" opens the amount; it is grouped as typed and saved as paise', async () => {
+    api.getSelfInspection.mockResolvedValue({ inspection: v5, sections: v5Sections, media: [] });
+    const root = await render();
+    await openPill(root, 'Loan');
+    expect(hasText(root, 'Vehicle loan')).toBe(true);
+    expect(hasText(root, 'The answer affects how the sale money is paid out, not the price.')).toBe(true);
+    expect(amountField(root)).toBeUndefined();
+
+    await act(async () => choice(root, 'Yes').props.onPress());
+    expect(api.recordSelfAnswer).toHaveBeenCalledWith('insp_1', 'FINANCED_M1', { severity: 'OK', value_text: 'YES' });
+    // The amount joins the step and opens next by itself.
+    await wait(900);
+    expect(hasText(root, 'Loan amount remaining')).toBe(true);
+    expect(hasText(root, 'Only you and Turag’s review team see this amount.')).toBe(true);
+
+    // Still left to do until the amount is saved.
+    await act(async () => tab(root, 'Estimate').props.onPress());
+    expect(hasText(root, 'Loan amount remaining (₹)')).toBe(true);
+    await act(async () => tab(root, 'Documents').props.onPress());
+    await openPill(root, 'Loan amount');
+
+    await act(async () => amountField(root).props.onChangeText('₹2,50,000'));
+    expect(amountField(root).props.value).toBe('2,50,000');
+    await act(async () => saveButton(root).props.onPress());
+    expect(api.recordSelfAnswer).toHaveBeenLastCalledWith('insp_1', 'LOAN_OUTSTANDING_M1', { severity: 'OK', value_money_minor: 25000000 });
+    expect(root.findAll(n => n.props.title === 'Saved, tap to update').length).toBeGreaterThan(0);
+
+    await act(async () => tab(root, 'Estimate').props.onPress());
+    expect(hasText(root, 'Loan amount remaining (₹)')).toBe(false);
+  });
+
+  test('"No": no amount is asked for', async () => {
+    api.getSelfInspection.mockResolvedValue({ inspection: v5, sections: v5Sections, media: [] });
+    const root = await render();
+    await openPill(root, 'Loan');
+    await act(async () => choice(root, 'No').props.onPress());
+    expect(api.recordSelfAnswer).toHaveBeenCalledWith('insp_1', 'FINANCED_M1', { severity: 'OK', value_text: 'NO' });
+    await wait(900);
+    expect(pill(root, 'Loan amount')).toBeUndefined();
+    await act(async () => tab(root, 'Estimate').props.onPress());
+    expect(hasText(root, 'Loan amount remaining (₹)')).toBe(false);
+  });
+
+  test('an amount of zero or over ₹10 crore is never sent', async () => {
+    api.getSelfInspection.mockResolvedValue({
+      inspection: { ...v5, items: [{ item_code: 'FINANCED_M1', severity: 'OK', value_text: 'YES' }] },
+      sections: v5Sections,
+      media: [],
+    });
+    const root = await render();
+    await openPill(root, 'Loan amount');
+    for (const typed of ['0', '200000000']) {
+      await act(async () => amountField(root).props.onChangeText(typed));
+      if (saveButton(root).props.disabled) continue; // nothing typed (a lone 0 is dropped)
+      await act(async () => saveButton(root).props.onPress());
+      expect(hasText(root, 'Please enter an amount in whole rupees, more than zero and up to ₹10 crore.')).toBe(true);
+    }
+    expect(api.recordSelfAnswer).not.toHaveBeenCalledWith('insp_1', 'LOAN_OUTSTANDING_M1', expect.anything());
+  });
+
+  test('a saved amount comes back in rupees', async () => {
+    api.getSelfInspection.mockResolvedValue({
+      inspection: {
+        ...v5,
+        items: [
+          { item_code: 'FINANCED_M1', severity: 'OK', value_text: 'YES' },
+          { item_code: 'LOAN_OUTSTANDING_M1', severity: 'OK', value_money_minor: 25000000 },
+        ],
+      },
+      sections: v5Sections,
+      media: [],
+    });
+    const root = await render();
+    await openPill(root, 'Loan amount');
+    expect(amountField(root).props.value).toBe('2,50,000');
+    await act(async () => tab(root, 'Estimate').props.onPress());
+    expect(hasText(root, 'Loan amount remaining (₹)')).toBe(false);
   });
 });

@@ -113,6 +113,9 @@ function OfferDetails({ navigation, route }) {
   // ("paid" but the order not moved on yet is the same wait.)
   const awaiting = pay?.phase === 'awaiting' || (pay?.phase === 'paid' && tokenStep);
   const canPay = !pay || pay.phase === 'failed' || awaiting || payBusy;
+  // The token to pay, as soon as it's known (as the web): the live amount once
+  // paying has started, else the server's quote on the new order.
+  const tokenAmount = pay?.amount ?? order?.token?.amount ?? null;
   const chips = listing
     ? [
         listing.fuelCode ? codeLabel(t, 'marketplace.fuel', listing.fuelCode, listing.fuel) : null,
@@ -303,10 +306,10 @@ function OfferDetails({ navigation, route }) {
           <TitledCard title={t('offers.token.title')} style={styles.card}>
             <View style={styles.tokenBody}>
               <AmountRow label={t('offers.pay.acceptedAmount')} amount={acceptedAmount} strong />
-              {pay?.amount != null ? (
+              {tokenAmount != null ? (
                 <>
-                  <AmountRow label={t('offers.pay.tokenHeld')} amount={pay.amount} />
-                  <AmountRow label={t('offers.pay.balance')} amount={Math.max(acceptedAmount - pay.amount, 0)} />
+                  <AmountRow label={t('offers.pay.tokenHeld')} amount={tokenAmount} strong />
+                  <AmountRow label={t('offers.pay.balance')} amount={Math.max(acceptedAmount - tokenAmount, 0)} />
                 </>
               ) : (
                 <AppText variant="caption">{t('offers.pay.tokenNote')}</AppText>

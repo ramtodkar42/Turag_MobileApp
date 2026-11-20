@@ -7,7 +7,6 @@ import React from 'react';
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Badge, Button, ChipTabs, TextField } from '../src/components';
-import ConfirmDialog from '../src/components/feedback/ConfirmDialog';
 import * as api from '../src/api/services/business.api';
 import { endSession, startSession } from '../src/api/session';
 import { clearUser, setUser } from '../src/store/userStore';
@@ -22,6 +21,7 @@ import BulkImport from '../src/screens/business/BulkImport/BulkImport';
 import ImportJob from '../src/screens/business/ImportJob/ImportJob';
 import FilterChips from '../src/screens/business/components/FilterChips';
 import RowCard from '../src/screens/business/components/RowCard';
+import WithdrawListingSheet from '../src/screens/selling/components/WithdrawListingSheet';
 import MetricTile from '../src/screens/business/ImportJob/components/MetricTile';
 import { BUSINESS_ROUTES } from '../src/screens/business/routes';
 import { ROUTES } from '../src/navigation/routes';
@@ -262,7 +262,8 @@ describe('business API', () => {
     });
     expect(created.id).toBe('lst_new');
 
-    const withdrawn = await api.withdrawDealerListing('org_dealer', 'lst_new');
+    const withdrawn = await api.withdrawDealerListing('org_dealer', 'lst_new', { reason: 'LOW_INTEREST' });
+    expect(JSON.parse(calls('POST', '/withdraw')[0][1].body)).toEqual({ withdrawal_reason: 'LOW_INTEREST', withdrawal_note: null });
     expect(withdrawn).toEqual(expect.objectContaining({ status: 'WITHDRAWN', canWithdraw: false }));
 
     const found = await api.browseDealerStock({ category: 'PASSENGER', fuel: '', priceMax: 800000 });
@@ -405,7 +406,7 @@ describe('Business home', () => {
 });
 
 describe('Dealer portal', () => {
-  test('my listings with status; withdraw asks first, then shows it withdrawn', async () => {
+  test('my listings with status; withdraw asks why first, then shows it withdrawn', async () => {
     serve({
       'GET /dealer/orgs/org_dealer/listings': { listings: [dealerListing(), dealerListing({ id: 'lst_sold', status: 'SOLD' })], request_id: 'r' },
       'POST /dealer/orgs/org_dealer/listings/lst_dealer_000001/withdraw': { listing: dealerListing({ status: 'WITHDRAWN' }), request_id: 'r' },
@@ -420,11 +421,13 @@ describe('Dealer portal', () => {
     expect(root.findAllByType(Button).filter(b => b.props.title === 'Withdraw')).toHaveLength(1);
 
     await press(button(root, 'Withdraw').props.onPress);
-    const dialog = root.findAllByType(ConfirmDialog).find(d => d.props.visible);
-    expect(dialog.props.title).toBe('Withdraw this listing?');
+    const sheet = root.findByType(WithdrawListingSheet);
+    expect(sheet.props.visible).toBe(true);
     expect(calls('POST', '/withdraw')).toHaveLength(0);
-    await press(dialog.props.onConfirm);
+    await press(sheet.props.onConfirm, 'CHANGING_DETAILS', null);
     expect(calls('POST', '/withdraw')).toHaveLength(1);
+    expect(JSON.parse(calls('POST', '/withdraw')[0][1].body)).toEqual({ withdrawal_reason: 'CHANGING_DETAILS', withdrawal_note: null });
+    expect(root.findByType(WithdrawListingSheet).props.visible).toBe(false);
     expect(badges(root)).toEqual(expect.arrayContaining(['Withdrawn', 'Sold']));
     expect(button(root, 'Withdraw')).toBeUndefined();
 

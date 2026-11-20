@@ -10,8 +10,9 @@ import { fs } from '../../../utils/responsive';
 import { ROUTES } from '../../../navigation/routes';
 import { LANGUAGES, useLanguage, useT } from '../../../i18n';
 import useConfirmDialog from '../../../hooks/useConfirmDialog';
-import { useSignedIn } from '../../../store/userStore';
+import { useSignedIn, useUser } from '../../../store/userStore';
 import useMyOrganizations from '../../../hooks/useMyOrganizations';
+import useMyDealerApplication from '../../../hooks/useMyDealerApplication';
 import { PROFILE_MENU } from './menu';
 import useAccountActions from './useAccountActions';
 import useDeleteAccount from './useDeleteAccount';
@@ -31,9 +32,22 @@ function Profile({ navigation }) {
   // Only dealerships (no lender / yard): "Dealer business account".
   const dealerOnly = hasOrgs && orgs.every(org => org.portal === 'DEALER');
   const labelOf = item => t(dealerOnly && item.dealerLabelKey ? item.dealerLabelKey : item.labelKey);
+  // "Dealer application": signed up as a dealer, or started one - until the
+  // dealership shows up on the account (after approval and a fresh sign-in).
+  const user = useUser();
+  const isDealer = orgs.some(org => org.portal === 'DEALER');
+  const dealerApplication = useMyDealerApplication(signedIn && !isDealer);
+  const showDealerApply = signedIn && !isDealer && (user?.purpose === 'dealer' || !!dealerApplication);
+  const valueOf = item => {
+    if (item.showsLanguage) return languageName;
+    if (item.dealerApplyOnly && dealerApplication) return t(`dealerApply.state.${dealerApplication.status}`);
+    return undefined;
+  };
   const menu = (signedIn ? PROFILE_MENU : guestMenu).map(group => ({
     ...group,
-    items: group.items.filter(item => !item.orgsOnly || hasOrgs),
+    items: group.items.filter(
+      item => (!item.orgsOnly || hasOrgs) && (!item.dealerApplyOnly || showDealerApply),
+    ),
   }));
   const language = useLanguage();
   const languageName = LANGUAGES.find(l => l.code === language)?.nativeName;
@@ -68,7 +82,7 @@ function Profile({ navigation }) {
             items={group.items.map(item => ({
               key: item.labelKey,
               label: labelOf(item),
-              value: item.showsLanguage ? languageName : undefined,
+              value: valueOf(item),
               onPress: () => onItemPress(item),
             }))}
           />
