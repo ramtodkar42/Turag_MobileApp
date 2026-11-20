@@ -24,6 +24,7 @@ import { timeAgo } from '../../../utils/date';
 import useRemoteData from '../../../hooks/useRemoteData';
 import useConfirmDialog from '../../../hooks/useConfirmDialog';
 import useAskPriceLock from '../../../hooks/useAskPriceLock';
+import useOfferLimits from '../../../hooks/useOfferLimits';
 import { acceptOffer, counterOffer, declineOffer } from '../../../api/services/offer.api';
 import {
   getMyListing,
@@ -65,6 +66,8 @@ function MyListing({ navigation, route }) {
   const [editingPrice, setEditingPrice] = useState(false);
   // Turag's price lock (ADR-0102): no "Change" while the price follows the valuation.
   const priceLocked = useAskPriceLock();
+  // The lowest counter the seller may send (ADR-0108), read when the counter sheet opens.
+  const limits = useOfferLimits(listingId, !!countering);
   const [listingBusy, setListingBusy] = useState(null); // 'submit' | 'withdraw'
   // Withdrawing asks why first (ADR-0105); a refusal shows in the sheet.
   const [withdrawOpen, setWithdrawOpen] = useState(false);
@@ -442,6 +445,7 @@ function MyListing({ navigation, route }) {
         visible={!!countering}
         title={t('selling.counterTitle')}
         current={countering?.amount}
+        minAmount={limits?.sellerMin}
         onClose={() => setCountering(null)}
         onSubmit={async amount => {
           await counterOffer(countering.id, amount);

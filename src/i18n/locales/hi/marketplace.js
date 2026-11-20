@@ -14,6 +14,9 @@ export default {
   'marketplace.offer.err.own': 'यह आपकी अपनी लिस्टिंग है। आप इसे मैनेज कर सकते हैं, पर इस पर ऑफ़र नहीं कर सकते।',
   'marketplace.offer.err.active': 'इस लिस्टिंग पर आपका एक ऑफ़र पहले से सक्रिय है। उसे "मेरे ऑफ़र" में देखें।',
   'marketplace.offer.err.unavailable': 'यह गाड़ी अब ऑफ़र के लिए उपलब्ध नहीं है।',
+  // The lowest offer / counter allowed (ADR-0108).
+  'marketplace.offer.minHint': 'माँगी गई कीमत {price} है। आप {min} से ऑफ़र कर सकते हैं। अभी कोई पैसा नहीं जाता। विक्रेता आपके ऑफ़र की समीक्षा करता है।',
+  'marketplace.offer.err.belowLimit': 'इस कार पर आप कम से कम {amount} का ऑफ़र दे सकते हैं।',
   'marketplace.offer.err.marketplace': 'ऑफ़र अभी कुछ समय के लिए उपलब्ध नहीं हैं। कृपया बाद में फिर कोशिश करें।',
   'marketplace.offer.err.validation': 'कृपया सही ऑफ़र राशि दर्ज करें।',
   'marketplace.price.title': 'कीमत और मूल्यांकन',

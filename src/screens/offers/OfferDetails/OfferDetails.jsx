@@ -39,6 +39,7 @@ import OfferTimeline from './components/OfferTimeline';
 import { buildOfferTimeline } from './offerTimeline';
 import { cancelQuoteText, refundOutcomeText } from './tokenRefund';
 import useOfferDetails from './useOfferDetails';
+import useOfferLimits from '../../../hooks/useOfferLimits';
 
 // A line of the token breakdown: label on the left, amount on the right.
 function AmountRow({ label, amount, strong }) {
@@ -72,6 +73,8 @@ function OfferDetails({ navigation, route }) {
   const d = useOfferDetails(offerId);
   const { confirm, dialog } = useConfirmDialog();
   const [countering, setCountering] = useState(false);
+  // The lowest counter the buyer may send (ADR-0108), read when the sheet opens.
+  const limits = useOfferLimits(d.offer?.listingId, countering);
   const header = <Header onBack={navigation.goBack} title={t('offers.detail.title')} />;
 
   if (d.loading) {
@@ -459,6 +462,7 @@ function OfferDetails({ navigation, route }) {
         visible={countering}
         title={t('offers.counterBack')}
         current={offer.amount}
+        minAmount={limits?.buyerMin}
         onClose={() => setCountering(false)}
         onSubmit={async amount => {
           await d.counter(amount);

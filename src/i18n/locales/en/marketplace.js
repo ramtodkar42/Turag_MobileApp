@@ -14,6 +14,9 @@ export default {
   'marketplace.offer.err.own': 'This is your own listing. You can manage it but not make an offer on it.',
   'marketplace.offer.err.active': 'You already have an active offer on this listing. See it under My offers.',
   'marketplace.offer.err.unavailable': 'This vehicle is no longer available for offers.',
+  // The lowest offer / counter allowed (ADR-0108).
+  'marketplace.offer.minHint': 'Asking price is {price}. You can offer from {min}. No money moves now. The seller reviews your offer.',
+  'marketplace.offer.err.belowLimit': 'The lowest offer you can make on this car is {amount}.',
   'marketplace.offer.err.marketplace': 'Offers are temporarily unavailable. Please try again later.',
   'marketplace.offer.err.validation': 'Please enter a valid offer amount.',
   'marketplace.price.title': 'Price & valuation',

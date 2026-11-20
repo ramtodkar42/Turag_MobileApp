@@ -34,6 +34,9 @@ export default {
   'offers.token.accepted': 'स्वीकार की गई राशि: {amount}',
   'offers.token.note': 'ऐप से टोकन भुगतान जल्द आ रहा है। तैयार होने पर हम आपको सूचित करेंगे।',
   'offers.counter.current': 'अभी की राशि: {amount}',
+  // The lowest offer / counter allowed (ADR-0108).
+  'offers.counter.minHint': 'आप {amount} से काउंटर कर सकते हैं।',
+  'offers.counter.belowLimit': 'आप कम से कम {amount} का काउंटर-ऑफ़र भेज सकते हैं।',
   'offers.counter.label': 'आपका काउंटर',
   'offers.counter.placeholder': 'राशि डालें',
   'offers.counter.send': 'काउंटर भेजें',

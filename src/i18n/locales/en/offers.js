@@ -35,6 +35,9 @@ export default {
   'offers.token.note':
     'Paying the token from the app is coming soon. We’ll notify you when it’s ready.',
   'offers.counter.current': 'On the table now: {amount}',
+  // The lowest offer / counter allowed (ADR-0108).
+  'offers.counter.minHint': 'You can counter from {amount}.',
+  'offers.counter.belowLimit': 'The lowest counter-offer you can send is {amount}.',
   'offers.counter.label': 'Your counter',
   'offers.counter.placeholder': 'Enter amount',
   'offers.counter.send': 'Send counter',

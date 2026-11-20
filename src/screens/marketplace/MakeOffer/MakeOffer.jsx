@@ -9,7 +9,9 @@ import {
 } from '../../../components';
 import { colors, spacing } from '../../../theme';
 import { fs } from '../../../utils/responsive';
-import { formatNumber } from '../../../utils/format';
+import { formatINR, formatNumber } from '../../../utils/format';
+import useOfferLimits from '../../../hooks/useOfferLimits';
+import { useSignedIn } from '../../../store/userStore';
 import { currentHomeRoute } from '../../../navigation/homeRoute';
 import { useT } from '../../../i18n';
 import VehicleGallery from '../components/VehicleGallery';
@@ -27,6 +29,9 @@ function MakeOffer({ navigation, route }) {
   const t = useT();
   const { vehicle } = route.params;
   const form = useOfferForm(vehicle.id);
+  // The lowest offer allowed on this car (ADR-0108; needs sign-in to read).
+  const signedIn = useSignedIn();
+  const limits = useOfferLimits(vehicle.id, signedIn);
 
   const backToMarket = () => navigation.navigate(currentHomeRoute());
 
@@ -74,6 +79,11 @@ function MakeOffer({ navigation, route }) {
             returnKeyType="done"
           />
         </View>
+        {limits?.buyerMin != null ? (
+          <AppText variant="caption" style={styles.hint}>
+            {t('marketplace.offer.minHint', { price: formatINR(limits.askPrice), min: formatINR(limits.buyerMin) })}
+          </AppText>
+        ) : null}
 
         {form.error ? (
           <AppText variant="caption" color={colors.danger} style={styles.error}>
@@ -103,6 +113,9 @@ const styles = StyleSheet.create({
   fields: {
     marginTop: spacing.md,
     gap: spacing.lg,
+  },
+  hint: {
+    marginTop: spacing.sm,
   },
   error: {
     marginTop: spacing.md,

@@ -40,9 +40,10 @@ export default function useOfferForm(vehicleId) {
       setSent(true);
     } catch (e) {
       // As the web: the server's own reason when it says why you can't offer
-      // (e.g. verify your identity first); otherwise the app's words for the code.
+      // (e.g. verify your identity first), or the lowest offer allowed on this car
+      // (ADR-0108, already in the app's words); otherwise the app's words for the code.
       setError(
-        e?.code === 'ELIGIBILITY_BLOCKED' && e.message
+        (e?.code === 'ELIGIBILITY_BLOCKED' || e?.code === 'OFFER_BELOW_NEGOTIATION_LIMIT') && e.message
           ? e.message
           : errorText(e, OFFER_ERROR_KEYS, 'marketplace.offer.sendError'),
       );

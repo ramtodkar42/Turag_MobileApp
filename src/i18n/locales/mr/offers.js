@@ -34,6 +34,9 @@ export default {
   'offers.token.accepted': 'स्वीकारलेली रक्कम: {amount}',
   'offers.token.note': 'ॲपमधून टोकन भरणे लवकरच येत आहे. तयार झाल्यावर आम्ही तुम्हाला कळवू.',
   'offers.counter.current': 'सध्याची रक्कम: {amount}',
+  // The lowest offer / counter allowed (ADR-0108).
+  'offers.counter.minHint': 'तुम्ही {amount} पासून काउंटर करू शकता.',
+  'offers.counter.belowLimit': 'तुम्ही किमान {amount} चा काउंटर-ऑफर पाठवू शकता.',
   'offers.counter.label': 'तुमचा काउंटर',
   'offers.counter.placeholder': 'रक्कम टाका',
   'offers.counter.send': 'काउंटर पाठवा',

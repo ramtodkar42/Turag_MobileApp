@@ -16,6 +16,7 @@ import { colors, spacing } from '../../../theme';
 import useRemoteData from '../../../hooks/useRemoteData';
 import useConfirmDialog from '../../../hooks/useConfirmDialog';
 import useListFilters from '../../../hooks/useListFilters';
+import useOfferLimits from '../../../hooks/useOfferLimits';
 import { acceptOffer, counterOffer, getMyOffers, withdrawOffer } from '../../../api/services/offer.api';
 import { formatINR } from '../../../utils/format';
 import { ROUTES } from '../../../navigation/routes';
@@ -55,6 +56,8 @@ function MyOffers({ navigation }) {
   const [busyId, setBusyId] = useState(null);
   const [actionError, setActionError] = useState('');
   const [countering, setCountering] = useState(null); // offer
+  // The lowest counter the buyer may send on it (ADR-0108).
+  const limits = useOfferLimits(countering?.listingId, !!countering);
 
   // Runs an action for one offer; on success puts the updated offer in the
   // list, then reloads quietly (orders, other offers may have changed).
@@ -183,6 +186,7 @@ function MyOffers({ navigation }) {
         visible={!!countering}
         title={t('offers.counterBack')}
         current={countering?.amount}
+        minAmount={limits?.buyerMin}
         onClose={() => setCountering(null)}
         onSubmit={async amount => {
           const offer = countering;

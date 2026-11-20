@@ -10,9 +10,11 @@ const MAX_DIGITS = 9; // up to ₹99,99,99,999
 
 // ₹ amount sheet: "Counter" on an offer (buyer or seller), or a listing's new
 // asking price. current: the amount now (rupees), shown for reference.
+// minAmount: the lowest counter allowed (rupees, from the server's negotiation
+// limits, ADR-0108) - shown under the field when known.
 // fieldLabel / submitLabel: default to the counter wording.
 // onSubmit(amount) runs it; errors from it show in the sheet.
-function CounterSheet({ visible, title, current, fieldLabel, submitLabel, onSubmit, onClose }) {
+function CounterSheet({ visible, title, current, minAmount, fieldLabel, submitLabel, onSubmit, onClose }) {
   const t = useT();
   const [digits, setDigits] = useState('');
   const [sending, setSending] = useState(false);
@@ -70,6 +72,11 @@ function CounterSheet({ visible, title, current, fieldLabel, submitLabel, onSubm
         autoFocus
         style={styles.field}
       />
+      {minAmount != null ? (
+        <AppText variant="caption" style={styles.min}>
+          {t('offers.counter.minHint', { amount: formatINR(minAmount) })}
+        </AppText>
+      ) : null}
       {error ? (
         <AppText variant="caption" color={colors.danger} style={styles.error}>
           {error}
@@ -105,6 +112,9 @@ const styles = StyleSheet.create({
   },
   field: {
     marginTop: spacing.lg,
+  },
+  min: {
+    marginTop: spacing.sm,
   },
   error: {
     marginTop: spacing.sm,

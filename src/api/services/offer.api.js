@@ -16,6 +16,7 @@ import { isTestGateway, openRazorpayCheckout } from '../razorpay';
 import { openHostedCheckout } from '../hostedCheckout';
 import { sampleBuyerOffers, sampleListingOffers, sampleOrders } from '../mock/account';
 import { tNow } from '../../i18n';
+import { formatINR } from '../../utils/format';
 
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 const realMarket = () => USE_REAL_API.marketplace;
@@ -25,16 +26,53 @@ const real = () => USE_REAL_API.offers;
 // the amount. `idempotencyKey`: the same key for every retry of one offer, so a
 // retry after a network error can't create a second offer.
 // Returns { offerId, status, amount (rupees), expiresAt }.
+// Negotiation limits (ADR-0108): how far below the asking price an offer may go
+// is set by Turag's team and worked out by the server - the app never calculates
+// a percentage. For a live listing: { askPrice, buyerMin (a buyer's offer or
+// counter), sellerMin (a seller's or dealer's counter) }, all in rupees. A hint
+// for the form: an amount below it is still refused, with the minimum.
+export const getOfferLimits = async listingId => {
+  if (!real() && !realMarket()) {
+    return null;
+  }
+  const data = await request(ENDPOINTS.listingOfferLimits(listingId));
+  return {
+    askPrice: toRupees(data.ask_price),
+    buyerMin: toRupees(data.buyer_min_amount),
+    sellerMin: toRupees(data.seller_min_amount),
+  };
+};
+
+// An amount the server refused for being below the limit, in plain words with
+// the lowest allowed amount (the server sends it). Anything else is passed on.
+const belowLimitError = (e, key) => {
+  if (!(e instanceof ApiError) || e.code !== 'OFFER_BELOW_NEGOTIATION_LIMIT') {
+    return e;
+  }
+  const min = toRupees(e.details?.min_amount_minor);
+  return new ApiError({
+    status: e.status,
+    code: e.code,
+    details: e.details,
+    message: min != null ? tNow(key, { amount: formatINR(min) }) : e.message,
+  });
+};
+
 export const submitOffer = async ({ vehicleId, price, idempotencyKey }) => {
   if (!realMarket()) {
     await wait(800);
     return { offerId: `OF${Date.now()}`, status: 'PENDING', amount: price, expiresAt: null };
   }
-  const data = await request(ENDPOINTS.listingOffers(vehicleId), {
-    method: 'POST',
-    body: { amount: toMoney(price) },
-    idempotencyKey,
-  });
+  let data;
+  try {
+    data = await request(ENDPOINTS.listingOffers(vehicleId), {
+      method: 'POST',
+      body: { amount: toMoney(price) },
+      idempotencyKey,
+    });
+  } catch (e) {
+    throw belowLimitError(e, 'marketplace.offer.err.belowLimit');
+  }
   const offer = data.offer ?? data;
   return {
     offerId: offer.offer_id,
@@ -247,7 +285,15 @@ export const counterOffer = async (offerId, amount) => {
     offer.updated_at = new Date().toISOString();
     return mapOffer(offer);
   }
-  return offerAction(offerId, 'counter', { amount: toMoney(amount) });
+  try {
+    return await offerAction(offerId, 'counter', { amount: toMoney(amount) });
+  } catch (e) {
+    // The listing came off the marketplace meanwhile: no more counters.
+    if (e instanceof ApiError && e.code === 'LISTING_NOT_AVAILABLE') {
+      throw new ApiError({ status: e.status, code: e.code, message: tNow('marketplace.offer.err.unavailable') });
+    }
+    throw belowLimitError(e, 'offers.counter.belowLimit');
+  }
 };
 
 // The buyer takes their offer back (while PENDING / COUNTERED).

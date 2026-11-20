@@ -29,6 +29,8 @@ export const ENDPOINTS = {
   MARKETPLACE_LISTINGS: '/marketplace/listings',
   marketplaceListing: id => `/marketplace/listings/${encodeURIComponent(id)}`,
   listingOffers: id => `/marketplace/listings/${encodeURIComponent(id)}/offers`,
+  // The lowest offer / counter allowed on a live listing (ADR-0108; signed in).
+  listingOfferLimits: id => `/marketplace/listings/${encodeURIComponent(id)}/offer-limits`,
   SAVED_LISTINGS: '/saved-listings',
   VEHICLE_PROPOSE: '/vehicles/propose',
   VEHICLE_CONFIRM: '/vehicles/confirm',
