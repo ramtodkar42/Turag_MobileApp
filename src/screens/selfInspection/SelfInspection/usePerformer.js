@@ -9,7 +9,39 @@ const NAME_MIN = 2;
 export const PERFORMER_NAME_MAX = 100;
 const SELFIE_MAX_BYTES = 10 * 1024 * 1024;
 
+// How long the page waits for this record while it opens; later, the card reads it itself.
+const PERFORMER_WAIT_MS = 4000;
+
 const clean = text => text.replace(/\s+/g, ' ').trim();
+
+// The selfie + name record, read alongside the inspection so its card is in place
+// the moment the page opens (no card popping in and pushing the page down).
+// Resolves { ok: true, record } | { ok: false, error } | null (no answer in time).
+export const readPerformer = inspectionId =>
+  new Promise(resolve => {
+    const timer = setTimeout(() => resolve(null), PERFORMER_WAIT_MS);
+    // Never fails the page: any problem becomes an answer the card can show.
+    Promise.resolve()
+      .then(() => getPerformer(inspectionId))
+      .then(
+      record => {
+        clearTimeout(timer);
+        resolve({ ok: true, record });
+      },
+      error => {
+        clearTimeout(timer);
+        resolve({ ok: false, error });
+      },
+    );
+  });
+
+// A read's answer -> the card's state. A server without this step yet (404) isn't
+// asked; if it turns out to be needed, the refused submit asks for it (markMissing).
+// Anything else unknown: ask for it (the server still decides at submit).
+const statusOf = read => {
+  if (read.ok) return 'ready';
+  return read.error?.status === 404 ? 'unsupported' : 'error';
+};
 
 // A failed save in plain words.
 const saveErrorText = e => {
@@ -25,13 +57,17 @@ const saveErrorText = e => {
 // name. Only Turag's team reviewing the inspection sees it. Submit is refused
 // until it's added, so `done` feeds the "what's left" list.
 // enabled: the owner's own inspection (M1) that is still being filled in.
+// prefetched: readPerformer()'s answer from the page load (undefined while the
+//   page loads; null when it didn't answer in time - then it's read here).
 // Returns { status ('off' | 'loading' | 'unsupported' | 'ready' | 'error'), saved ({ name } | null),
 //   done (true / false, null while loading or off), formOpen, editing, photo,
 //   name, setName, takeSelfie(), startChange(), cancelChange(), save(), busy,
 //   error, markMissing() }.
-export default function usePerformer(inspectionId, enabled) {
-  const [status, setStatus] = useState(enabled ? 'loading' : 'off');
-  const [saved, setSaved] = useState(null);
+export default function usePerformer(inspectionId, enabled, prefetched) {
+  // A late read (prefetched null): its answer.
+  const [lateRead, setLateRead] = useState(null);
+  // What happened here since the page loaded (a save, a refused submit), for this load only.
+  const [local, setLocal] = useState({ source: undefined, saved: undefined, forced: false });
   const [editing, setEditing] = useState(false);
   const [photo, setPhoto] = useState(null);
   const [name, setNameText] = useState('');
@@ -47,30 +83,25 @@ export default function usePerformer(inspectionId, enabled) {
     [],
   );
 
+  // The page load didn't get an answer in time: read it now.
   useEffect(() => {
-    if (!enabled) {
-      setStatus('off');
-      return undefined;
-    }
+    if (!enabled || prefetched !== null) return undefined;
     let live = true;
-    setStatus('loading');
-    getPerformer(inspectionId)
-      .then(record => {
-        if (!live) return;
-        setSaved(record);
-        setStatus('ready');
-      })
-      .catch(e => {
-        if (!live) return;
-        // A server without this step yet (404): not asked; if it turns out to be
-        // needed, the refused submit asks for it (markMissing).
-        // Otherwise not known: ask for it (the server still decides at submit).
-        setStatus(e?.status === 404 ? 'unsupported' : 'error');
-      });
+    readPerformer(inspectionId).then(read => live && setLateRead(read ?? { ok: false, error: null }));
     return () => {
       live = false;
     };
-  }, [inspectionId, enabled]);
+  }, [inspectionId, enabled, prefetched]);
+
+  const read = prefetched ?? (prefetched === null ? lateRead : null);
+  const mine = local.source === prefetched ? local : { source: prefetched, saved: undefined, forced: false };
+
+  let status = 'off';
+  if (enabled) {
+    if (!read) status = 'loading';
+    else status = mine.forced ? 'ready' : statusOf(read);
+  }
+  const saved = mine.saved !== undefined ? mine.saved : read?.ok ? read.record : null;
 
   const setName = text => {
     setNameText(text);
@@ -125,8 +156,7 @@ export default function usePerformer(inspectionId, enabled) {
     try {
       const record = await savePerformer(inspectionId, { name: trimmed, file: photo });
       if (!mounted.current) return;
-      setSaved(record ?? { name: trimmed });
-      setStatus('ready');
+      setLocal({ source: prefetched, saved: record ?? { name: trimmed }, forced: true });
       setEditing(false);
       setPhoto(null);
     } catch (e) {
@@ -138,10 +168,9 @@ export default function usePerformer(inspectionId, enabled) {
 
   // Submit was refused for it (e.g. it couldn't be checked earlier): ask for it.
   const markMissing = useCallback(() => {
-    setSaved(null);
+    setLocal({ source: prefetched, saved: null, forced: true });
     setEditing(false);
-    setStatus(prev => (prev === 'off' ? prev : 'ready'));
-  }, []);
+  }, [prefetched]);
 
   const asking = status === 'ready' || status === 'error';
   return {

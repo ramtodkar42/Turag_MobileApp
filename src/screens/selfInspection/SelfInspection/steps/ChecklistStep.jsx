@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { AppText, CheckCircle, FillImage } from '../../../../components';
 import { colors, fonts, radius, spacing } from '../../../../theme';
@@ -20,9 +20,8 @@ import StatusPill from '../components/StatusPill';
 // (original RC, PUC, flood, keys, servicing and its follow-ups), then the condition
 // questions, one card each. Follow-ups join only after their question's matching
 // answer. focusItem: scroll to that question (a jump from the "what's left" list).
-// Answering a question moves on to the next one by itself.
-const ADVANCE_DELAY_MS = 350;
-const HIGHLIGHT_MS = 1600;
+// Answering a question keeps the page where it is: the owner scrolls on by hand.
+const TICK = ms(18);
 
 function ChecklistStep({ si, focusItem, scrollRef, onGoStep, onAddDocument }) {
   const t = useT();
@@ -45,35 +44,6 @@ function ChecklistStep({ si, focusItem, scrollRef, onGoStep, onAddDocument }) {
     scrollToView(scrollRef, cards.current[focusItem], spacing.lg);
   }, [focusItem, scrollRef]);
 
-  // A question answered for the first time (a tap, or its details saved): a moment
-  // later - long enough to see it saved - the page glides on to the next question
-  // still open (a follow-up it just opened, or the one after), outlined for a moment
-  // so it's clear where to go. Nothing after it: back up to a required one still open.
-  const [advanceFrom, setAdvanceFrom] = useState(null);
-  const [highlight, setHighlight] = useState(null);
-  const onAnswered = useCallback(code => setAdvanceFrom({ code }), []);
-  const latest = useRef({ items: [], local: {} });
-  useEffect(() => {
-    latest.current = { items: sections.flatMap(s => s.items), local: si.local };
-  });
-  useEffect(() => {
-    if (!advanceFrom) return undefined;
-    const timer = setTimeout(() => {
-      const { items, local } = latest.current;
-      const open = q => local[q.item_code]?.saved !== true;
-      const from = items.findIndex(q => q.item_code === advanceFrom.code);
-      const next = items.slice(from + 1).find(open) ?? items.slice(0, Math.max(from, 0)).find(q => q.mandatory && open(q));
-      if (!next) return;
-      scrollToView(scrollRef, cards.current[next.item_code], spacing.lg);
-      setHighlight(next.item_code);
-    }, ADVANCE_DELAY_MS);
-    return () => clearTimeout(timer);
-  }, [advanceFrom, scrollRef]);
-  useEffect(() => {
-    if (!highlight) return undefined;
-    const timer = setTimeout(() => setHighlight(null), HIGHLIGHT_MS);
-    return () => clearTimeout(timer);
-  }, [highlight]);
 
   const photosSummary = q => {
     const shots = q.evidence_requirement?.shot_codes ?? [];
@@ -139,7 +109,10 @@ function ChecklistStep({ si, focusItem, scrollRef, onGoStep, onAddDocument }) {
   };
 
   const question = q => {
-    const done = si.local[q.item_code]?.saved === true;
+    // Answered - and still shown as answered while a changed answer saves (a failed
+    // save takes it away and shows why).
+    const answer = si.local[q.item_code];
+    const done = answer?.saved === true || answer?.saving === true;
     const group = si.sections.find(s => s.items.some(x => x.item_code === q.item_code));
     return (
       <View
@@ -151,7 +124,7 @@ function ChecklistStep({ si, focusItem, scrollRef, onGoStep, onAddDocument }) {
         style={[
           styles.question,
           done && styles.questionDone,
-          (focusItem === q.item_code || highlight === q.item_code) && styles.questionFocus,
+          focusItem === q.item_code && styles.questionFocus,
         ]}
       >
         <View style={styles.head}>
@@ -167,19 +140,22 @@ function ChecklistStep({ si, focusItem, scrollRef, onGoStep, onAddDocument }) {
               </AppText>
             ) : null}
           </View>
-          {/* Answered: a small green tick (nothing to say while it isn't). */}
-          {done ? (
-            <View accessibilityLabel={t('selfInspection.status.done')} accessible>
-              <CheckCircle size={ms(18)} />
-            </View>
-          ) : null}
+          {/* Answered: a small green tick. Its place is always kept, so the question
+              never re-flows (two lines to one) while an answer saves. */}
+          <View
+            style={styles.tick}
+            accessible={done}
+            accessibilityLabel={done ? t('selfInspection.status.done') : undefined}
+          >
+            {done ? <CheckCircle size={TICK} /> : null}
+          </View>
         </View>
         {isPhotoGridItem(q) ? photosSummary(q) : q.evidence_requirement ? singleEvidence(q) : null}
         {q.item_code === 'B1' ? aiSuggestion(q) : null}
         {isFactItem(q) ? (
-          <FactAnswer si={si} item={q} onAnswered={onAnswered} />
+          <FactAnswer si={si} item={q} />
         ) : isDocumentItem(q) ? null : (
-          <ItemAnswer si={si} item={q} onAnswered={onAnswered} />
+          <ItemAnswer si={si} item={q} />
         )}
       </View>
     );
@@ -241,6 +217,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing.sm,
+  },
+  tick: {
+    width: TICK,
+    height: TICK,
   },
   flex: {
     flex: 1,

@@ -32,7 +32,7 @@ import { tNow } from '../../../i18n';
 import { getUser } from '../../../store/userStore';
 import { shotName } from './labels';
 import useIntegrityWatch from './useIntegrityWatch';
-import usePerformer from './usePerformer';
+import usePerformer, { readPerformer } from './usePerformer';
 import { paiseToRupeesText, rupeesToPaise } from './money';
 import { integrityReasonsFor } from './integrityReasons';
 import { videoUploadErrorText } from './videoUploadError';
@@ -196,7 +196,8 @@ export const deleteWhenReady = async (mediaId, remove = deleteSelfMedia) => {
 // where the self-inspection starts; the card itself sits above every step).
 const PERFORMER_MISSING = { step: 'documents', itemCode: null, label: 'Selfie and your name', kind: 'performer' };
 
-export default function useSelfInspection(inspectionId) {
+// options.inspector: an inspection officer's job (a booking) - no owner selfie to read.
+export default function useSelfInspection(inspectionId, { inspector = false } = {}) {
   // 'loading' | 'ready' | 'error' | 'not-editable' | 'submitted'
   const [screen, setScreen] = useState('loading');
   const [sections, setSections] = useState([]);
@@ -267,7 +268,9 @@ export default function useSelfInspection(inspectionId) {
   const allItems = useMemo(() => sections.flatMap(s => s.items), [sections]);
   const isM1 = inspection?.mode === 'M1';
   // Who is doing it: selfie + name, needed before an owner's submit (ADR-0104).
-  const performer = usePerformer(inspectionId, isM1 && screen === 'ready');
+  // Read with the inspection itself, so its card is there when the page opens.
+  const [performerRead, setPerformerRead] = useState(undefined);
+  const performer = usePerformer(inspectionId, isM1 && screen === 'ready', performerRead);
   const { markMissing: performerMissing } = performer;
   const approved = isM1 && APPROVED_STATUSES.has(inspection?.status);
   const inspectionVehicle = inspection?.vehicle ?? null;
@@ -300,6 +303,8 @@ export default function useSelfInspection(inspectionId) {
 
   const load = useCallback(async () => {
     setScreen('loading');
+    // The owner's selfie + name record, at the same time as the inspection (not after it).
+    const performerAsk = inspector ? Promise.resolve(undefined) : readPerformer(inspectionId);
     try {
       const data = await getSelfInspection(inspectionId);
       const ins = data.inspection;
@@ -432,11 +437,13 @@ export default function useSelfInspection(inspectionId) {
           deleteSelfMedia(mv.id).catch(() => removeLaterRef.current?.(mv.item_code, mv.shot_code, mv.id)),
         ),
       );
+      // Shown together with the page (it's usually back already).
+      setPerformerRead(await performerAsk);
       setScreen('ready');
     } catch {
       setScreen('error');
     }
-  }, [inspectionId]);
+  }, [inspectionId, inspector]);
 
   useEffect(() => {
     load();

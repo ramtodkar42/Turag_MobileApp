@@ -1,17 +1,19 @@
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { AppText, Button, ButtonRow, Icon, TextField } from '../../../../components';
-import { colors, radius, spacing } from '../../../../theme';
-import { ms } from '../../../../utils/responsive';
+import { colors, fonts, radius, spacing } from '../../../../theme';
+import { fs, ms } from '../../../../utils/responsive';
 import { useT } from '../../../../i18n';
 import { HIT_SLOP } from '../../../../constants/layout';
 import { PERFORMER_NAME_MAX } from '../usePerformer';
-import SectionCard from './SectionCard';
 
-const SELFIE = ms(72);
+const SELFIE = ms(60);
+const BADGE = ms(22);
 
-// "Before you start: who is doing this inspection?" (ADR-0104, as the web): a
-// selfie with the front camera and the person's name, saved before submit.
-// Once saved it's one line, "Selfie added for {name}", with "Change".
+// "Before you start: who is doing this inspection?" (ADR-0104, as the web), kept
+// compact: a short heading and line, then the selfie (front camera; tap the
+// circle) beside the name, and Save. Once saved it's one line, "Selfie added for
+// {name}", with "Change". Hidden until it's known whether one was added (it's read
+// with the inspection, so it's there when the page opens).
 // performer: usePerformer().
 function PerformerCard({ performer, style }) {
   const t = useT();
@@ -26,7 +28,7 @@ function PerformerCard({ performer, style }) {
     return (
       <View style={[styles.card, styles.doneRow, style]}>
         <Icon name="check" size={ms(18)} color={colors.success} strokeWidth={2.4} />
-        <AppText variant="label" color={colors.heading} style={styles.flex}>
+        <AppText variant="label" color={colors.heading} numberOfLines={1} style={styles.flex}>
           {t('selfInspection.performer.done', { name: saved.name })}
         </AppText>
         <Pressable
@@ -43,58 +45,61 @@ function PerformerCard({ performer, style }) {
     );
   }
 
+  const selfieLabel = t(photo ? 'selfInspection.performer.retake' : 'selfInspection.performer.take');
+
   return (
-    <SectionCard
-      title={t('selfInspection.performer.title')}
-      subtitle={t('selfInspection.performer.body')}
-      style={[styles.form, style]}
-    >
+    <View style={[styles.card, style]}>
+      <AppText style={styles.kicker}>{t('selfInspection.performer.kicker')}</AppText>
+      <AppText style={styles.heading}>{t('selfInspection.performer.heading')}</AppText>
+      <AppText variant="caption" style={styles.short}>
+        {t('selfInspection.performer.short')}
+      </AppText>
       {status === 'error' ? (
-        <AppText variant="caption" color={colors.body}>
+        <AppText variant="caption" color={colors.body} style={styles.short}>
           {t('selfInspection.performer.loadErr')}
         </AppText>
       ) : null}
 
-      <View style={styles.selfieRow}>
-        <Pressable
-          onPress={takeSelfie}
-          disabled={busy}
-          accessibilityRole="button"
-          accessibilityLabel={t(photo ? 'selfInspection.performer.retake' : 'selfInspection.performer.take')}
-          style={({ pressed }) => [styles.selfie, pressed && styles.pressed]}
-        >
-          {photo ? (
-            <Image
-              source={{ uri: photo.uri }}
-              style={styles.selfieImage}
-              accessibilityLabel={t('selfInspection.performer.selfieLabel')}
-            />
-          ) : (
-            <Icon name="camera" size={ms(24)} color={colors.primary} />
-          )}
-        </Pressable>
-        <Button
-          title={t(photo ? 'selfInspection.performer.retake' : 'selfInspection.performer.take')}
-          variant="outline"
-          size="md"
-          fullWidth={false}
-          onPress={takeSelfie}
-          disabled={busy}
+      <View style={styles.row}>
+        <View style={styles.selfieCol}>
+          <Pressable
+            onPress={takeSelfie}
+            disabled={busy}
+            accessibilityRole="button"
+            accessibilityLabel={selfieLabel}
+            style={({ pressed }) => [styles.selfie, photo && styles.selfieTaken, pressed && styles.pressed]}
+          >
+            {photo ? (
+              <Image
+                source={{ uri: photo.uri }}
+                style={styles.selfieImage}
+                accessibilityLabel={t('selfInspection.performer.selfieLabel')}
+              />
+            ) : (
+              <Icon name="user" size={ms(26)} color={colors.placeholder} />
+            )}
+            <View style={styles.badge}>
+              <Icon name="camera" size={ms(12)} color={colors.white} />
+            </View>
+          </Pressable>
+          <AppText style={styles.selfieText} numberOfLines={2}>
+            {selfieLabel}
+          </AppText>
+        </View>
+        <TextField
+          label={t('selfInspection.performer.nameLabel')}
+          value={name}
+          onChangeText={setName}
+          autoCapitalize="words"
+          textContentType="name"
+          autoComplete="name"
+          maxLength={PERFORMER_NAME_MAX}
+          returnKeyType="done"
+          onSubmitEditing={save}
+          editable={!busy}
           style={styles.flex}
         />
       </View>
-
-      <TextField
-        label={t('selfInspection.performer.nameLabel')}
-        value={name}
-        onChangeText={setName}
-        autoCapitalize="words"
-        textContentType="name"
-        autoComplete="name"
-        maxLength={PERFORMER_NAME_MAX}
-        returnKeyType="done"
-        editable={!busy}
-      />
 
       {error ? (
         <AppText variant="caption" color={colors.danger}>
@@ -102,75 +107,112 @@ function PerformerCard({ performer, style }) {
         </AppText>
       ) : null}
 
-      <ButtonRow>
+      <ButtonRow style={styles.actions}>
         {editing ? (
           <Button
             title={t('common.cancel')}
             variant="outline"
-            size="md"
+            size="sm"
             fullWidth={false}
             onPress={cancelChange}
             disabled={busy}
-            style={styles.flex}
           />
         ) : null}
-        <Button
-          title={t('common.save')}
-          size="md"
-          fullWidth={false}
-          onPress={save}
-          loading={busy}
-          disabled={busy}
-          style={styles.flex}
-        />
+        <Button title={t('common.save')} size="sm" fullWidth={false} onPress={save} loading={busy} disabled={busy} />
       </ButtonRow>
-    </SectionCard>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
+    gap: spacing.sm,
     padding: spacing.md,
     borderRadius: radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     backgroundColor: colors.white,
   },
-  // A red edge, as the web: it's needed before submit.
-  form: {
-    borderLeftWidth: ms(3),
-    borderLeftColor: colors.primary,
-  },
   doneRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
   },
   flex: {
     flex: 1,
   },
-  selfieRow: {
+  kicker: {
+    fontFamily: fonts.subtitle.bold,
+    fontSize: fs(11.5),
+    lineHeight: fs(15),
+    color: colors.primary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  heading: {
+    marginTop: -spacing.xs,
+    fontFamily: fonts.title.bold,
+    fontSize: fs(16),
+    lineHeight: fs(21),
+    color: colors.heading,
+  },
+  short: {
+    marginTop: -spacing.xs,
+  },
+  row: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: spacing.md,
+    marginTop: spacing.xs,
+  },
+  selfieCol: {
+    alignItems: 'center',
+    width: SELFIE + spacing.md,
   },
   selfie: {
     width: SELFIE,
     height: SELFIE,
     borderRadius: SELFIE / 2,
-    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
+    borderStyle: 'dashed',
     borderColor: colors.border,
-    backgroundColor: colors.dangerLight,
+    backgroundColor: colors.input,
+  },
+  selfieTaken: {
+    borderStyle: 'solid',
+    borderColor: colors.success,
   },
   selfieImage: {
-    width: SELFIE,
-    height: SELFIE,
+    width: SELFIE - 2,
+    height: SELFIE - 2,
+    borderRadius: (SELFIE - 2) / 2,
+  },
+  badge: {
+    position: 'absolute',
+    right: -ms(2),
+    bottom: -ms(2),
+    width: BADGE,
+    height: BADGE,
+    borderRadius: BADGE / 2,
+    borderWidth: 2,
+    borderColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+  },
+  selfieText: {
+    marginTop: spacing.xs,
+    fontSize: fs(11),
+    lineHeight: fs(14),
+    color: colors.body,
+    textAlign: 'center',
   },
   pressed: {
     opacity: 0.85,
+  },
+  actions: {
+    justifyContent: 'flex-end',
   },
 });
 

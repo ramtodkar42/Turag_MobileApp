@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { AppText, Button, ChoiceChip, DatePickerField, TextField } from '../../../../components';
 import { colors, spacing } from '../../../../theme';
@@ -12,6 +13,8 @@ import { itemName } from '../labels';
 // Answered as a small count, with quick picks (number of keys).
 const COUNT_ITEMS = new Set(['KEYS_M1']);
 const COUNT_PICKS = ['1', '2', '3'];
+// Keys are counted in ones: two digits are plenty.
+const MAX_COUNT_DIGITS = 2;
 // A past event (the last service): any date up to today.
 const EARLIEST_DATE = '2000-01-01';
 
@@ -35,6 +38,11 @@ function FactAnswer({ si, item, onAnswered }) {
   const t = useT();
   const code = item.item_code;
   const state = si.local[code] ?? blankAnswer();
+  // The key count's "Other number" box shows exactly what was typed (1, 2 or 3
+  // too), kept apart from the quick picks so typing never jumps to a pick.
+  const [otherCount, setOtherCount] = useState(() =>
+    COUNT_ITEMS.has(code) && state.num && !COUNT_PICKS.includes(state.num) ? state.num : '',
+  );
   const disabled = si.submitting;
   const label = itemName(t, item);
   const answer = async patch => {
@@ -168,7 +176,8 @@ function FactAnswer({ si, item, onAnswered }) {
     );
   }
 
-  // The number of keys: quick picks, or any other number.
+  // The number of keys: quick picks, or any other number. A pick shows as chosen
+  // at once (the save carries on behind it); typing a number clears the picks.
   return (
     <View style={styles.wrap}>
       <View style={styles.row} accessibilityRole="radiogroup" accessibilityLabel={label}>
@@ -176,18 +185,25 @@ function FactAnswer({ si, item, onAnswered }) {
           <Chip
             key={n}
             label={n}
-            selected={state.saved === true && state.num === n}
+            selected={otherCount === '' && state.num === n}
             disabled={disabled}
-            onPress={() => answer({ num: n, severity: 'OK' })}
+            onPress={() => {
+              setOtherCount('');
+              answer({ num: n, severity: 'OK' });
+            }}
           />
         ))}
       </View>
       <TextField
         label={t('selfInspection.fact.otherNumber')}
         keyboardType="number-pad"
-        value={COUNT_PICKS.includes(state.num) ? '' : state.num}
+        value={otherCount}
         editable={!disabled}
-        onChangeText={num => si.typeAnswer(code, { num })}
+        onChangeText={text => {
+          const num = text.replace(/\D/g, '').slice(0, MAX_COUNT_DIGITS);
+          setOtherCount(num);
+          si.typeAnswer(code, { num });
+        }}
       />
       {error}
     </View>

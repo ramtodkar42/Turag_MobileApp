@@ -59,7 +59,7 @@ const FOCUS_FOR_MS = 1500;
 function SelfInspection({ navigation, route }) {
   const t = useT();
   const { inspectionId, vehicle, valuation, bookingId } = route.params ?? {};
-  const si = useSelfInspection(inspectionId);
+  const si = useSelfInspection(inspectionId, { inspector: !!bookingId });
   const inspector = !!bookingId || si.inspection?.mode === 'M2';
   const titleKey = inspector ? 'selfInspection.inspector.title' : 'selfInspection.title';
   const [step, setStep] = useState('documents');

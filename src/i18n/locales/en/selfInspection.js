@@ -232,8 +232,9 @@ export default {
   'selfInspection.review.beforeSubmit': 'Before you can submit ({count} left)',
   'selfInspection.review.allSet': 'All set — you can submit',
   // Before you start: who is doing the self-inspection, a selfie + name (ADR-0104).
-  'selfInspection.performer.title': 'Before you start: who is doing this inspection?',
-  'selfInspection.performer.body': 'Take a selfie and enter your name. Only the Turag team reviewing your inspection can see it. It is not shown on your report or to buyers. You need it before you can submit.',
+  'selfInspection.performer.kicker': 'Before you start',
+  'selfInspection.performer.heading': 'Who is doing this inspection?',
+  'selfInspection.performer.short': 'Needed before you submit. Only Turag’s review team sees it, not buyers.',
   'selfInspection.performer.loadErr': 'We couldn’t check whether you already added one. Add it now.',
   'selfInspection.performer.nameLabel': 'Your name',
   'selfInspection.performer.take': 'Take selfie',

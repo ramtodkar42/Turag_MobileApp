@@ -232,8 +232,9 @@ export default {
   'selfInspection.review.beforeSubmit': 'सबमिट करण्यापूर्वी ({count} बाकी)',
   'selfInspection.review.allSet': 'सर्व तयार — तुम्ही सबमिट करू शकता',
   // Before you start: who is doing the self-inspection, a selfie + name (ADR-0104).
-  'selfInspection.performer.title': 'सुरू करण्यापूर्वी: ही तपासणी कोण करत आहे?',
-  'selfInspection.performer.body': 'एक सेल्फी घ्या आणि तुमचे नाव लिहा. ते फक्त तुमच्या तपासणीचे पुनरावलोकन करणारी Turag टीम पाहू शकते. ते तुमच्या रिपोर्टवर किंवा खरेदीदारांना दाखवले जात नाही. सबमिट करण्यापूर्वी हे आवश्यक आहे.',
+  'selfInspection.performer.kicker': 'सुरू करण्यापूर्वी',
+  'selfInspection.performer.heading': 'ही तपासणी कोण करत आहे?',
+  'selfInspection.performer.short': 'सबमिट करण्यापूर्वी आवश्यक. हे फक्त Turag ची तपासणी टीम पाहते, खरेदीदार नाही.',
   'selfInspection.performer.loadErr': 'तुम्ही आधी जोडली आहे का ते तपासता आले नाही. आता जोडा.',
   'selfInspection.performer.nameLabel': 'तुमचे नाव',
   'selfInspection.performer.take': 'सेल्फी घ्या',

@@ -415,32 +415,25 @@ describe('Self-inspection screen', () => {
     expect(api.recordSelfAnswer).toHaveBeenLastCalledWith('insp_1', 'PUC_M1', { severity: 'OK' });
   });
 
-  test('an answer moves on by itself: the page glides to the next open question and outlines it', async () => {
+  test('an answer keeps the page where it is: no jump to the next question (scrolled by hand)', async () => {
     const { scrollToView } = require('../src/utils/scrollToView');
     const { StyleSheet } = require('react-native');
     const { colors } = require('../src/theme');
     const root = await render();
     await act(async () => tab(root, 'Checklist').props.onPress());
     const outlined = title => StyleSheet.flatten(question(root, title).props.style).borderColor === colors.primary;
-    const settle = () => act(async () => new Promise(resolve => setTimeout(resolve, 400)));
+    const settle = () => act(async () => new Promise(resolve => setTimeout(resolve, 900)));
     const rc = 'Is the physical original RC (hard copy) available with you?';
     scrollToView.mockClear();
 
     await act(async () => radio(root, 'No', question(root, rc)).props.onPress());
     await settle();
-    expect(scrollToView).toHaveBeenCalledTimes(1);
-    expect(outlined('Is the PUC document available?')).toBe(true);
-
     await act(async () => radio(root, 'Yes', question(root, 'Is the PUC document available?')).props.onPress());
     await settle();
-    expect(outlined('Has the vehicle ever been flooded?')).toBe(true);
-    expect(outlined('Is the PUC document available?')).toBe(false);
-
-    // Changing an answer already given stays where it is.
-    scrollToView.mockClear();
-    await act(async () => radio(root, 'Yes', question(root, rc)).props.onPress());
-    await settle();
+    expect(api.recordSelfAnswer).toHaveBeenCalledWith('insp_1', 'PUC_M1', { severity: 'OK' });
     expect(scrollToView).not.toHaveBeenCalled();
+    expect(outlined('Is the PUC document available?')).toBe(false);
+    expect(outlined('Has the vehicle ever been flooded?')).toBe(false);
   });
 
   test('an answer that asks for more (a repair cost, why it can\'t be checked) waits for it', async () => {
@@ -495,6 +488,58 @@ describe('Self-inspection screen', () => {
     await act(async () => tab(root, 'Checklist').props.onPress());
     await act(async () => radio(root, '2', question(root, 'How many keys are available with the vehicle?')).props.onPress());
     expect(api.recordSelfAnswer).toHaveBeenCalledWith('insp_1', 'KEYS_M1', { severity: 'OK', numeric_value: 2 });
+  });
+
+  test('the number of keys: a pick shows at once, before the save is back', async () => {
+    let finish;
+    api.recordSelfAnswer.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    const root = await render();
+    await act(async () => tab(root, 'Checklist').props.onPress());
+    const keys = () => question(root, 'How many keys are available with the vehicle?');
+    const chosen = n => radio(root, n, keys()).props.accessibilityState.selected;
+    const { CheckCircle } = require('../src/components');
+    const ticked = () => keys().findAllByType(CheckCircle).length > 0;
+    // Not answered yet: no tick, but its place is kept (the title never re-flows).
+    expect(ticked()).toBe(false);
+    expect(keys().findAll(n => n.props.accessibilityLabel === undefined && n.props.accessible === false).length).toBeGreaterThan(0);
+    act(() => {
+      radio(root, '2', keys()).props.onPress();
+    });
+    // Chosen at once, before the save even starts...
+    expect(chosen('2')).toBe(true);
+    expect(chosen('1')).toBe(false);
+    // ...and while it is still on its way.
+    await act(async () => {});
+    expect(api.recordSelfAnswer).toHaveBeenCalledWith('insp_1', 'KEYS_M1', { severity: 'OK', numeric_value: 2 });
+    expect(chosen('2')).toBe(true);
+    expect(ticked()).toBe(true); // shown as answered while it saves
+    await act(async () => finish({}));
+    expect(ticked()).toBe(true);
+    expect(chosen('2')).toBe(true);
+  });
+
+  test('the number of keys: "Other number" shows what is typed, even 1 to 3, and no pick is chosen', async () => {
+    const root = await render();
+    await act(async () => tab(root, 'Checklist').props.onPress());
+    const keys = () => question(root, 'How many keys are available with the vehicle?');
+    const chosen = n => radio(root, n, keys()).props.accessibilityState.selected;
+    const other = () => keys().findAll(n => n.props.keyboardType === 'number-pad' && n.props.onChangeText)[0];
+    await act(async () => radio(root, '1', keys()).props.onPress());
+    expect(chosen('1')).toBe(true);
+
+    await act(async () => other().props.onChangeText('2'));
+    expect(other().props.value).toBe('2');
+    expect(['1', '2', '3'].map(chosen)).toEqual([false, false, false]);
+    await act(async () => new Promise(resolve => setTimeout(resolve, 900)));
+    expect(api.recordSelfAnswer).toHaveBeenLastCalledWith('insp_1', 'KEYS_M1', { severity: 'OK', numeric_value: 2 });
+    expect(other().props.value).toBe('2');
+
+    // Letters are dropped; a pick clears the box.
+    await act(async () => other().props.onChangeText('4a'));
+    expect(other().props.value).toBe('4');
+    await act(async () => radio(root, '3', keys()).props.onPress());
+    expect(other().props.value).toBe('');
+    expect(chosen('3')).toBe(true);
   });
 
   test('a saved answer comes back from the server (value_text) and follow-ups show', async () => {
@@ -773,7 +818,7 @@ describe('Self-inspection screen', () => {
     takePhoto.mockResolvedValueOnce({ uri: 'file:///me.jpg', type: 'image/jpeg', fileSize: 120000 });
     const root = await render();
     expect(api.getPerformer).toHaveBeenCalledWith('insp_1');
-    expect(hasText(root, 'Before you start: who is doing this inspection?')).toBe(true);
+    expect(hasText(root, 'Who is doing this inspection?')).toBe(true);
 
     // Listed first in what's left; Submit stays off.
     await act(async () => tab(root, 'Estimate').props.onPress());
@@ -788,7 +833,7 @@ describe('Self-inspection screen', () => {
     expect(hasText(root, 'Take a selfie and enter your name.')).toBe(true);
 
     // The front camera, then Save.
-    await act(async () => root.findAll(n => n.props.title === 'Take selfie' && n.props.onPress)[0].props.onPress());
+    await act(async () => pressable(root, 'Take selfie').props.onPress());
     expect(takePhoto).toHaveBeenCalledWith({ front: true });
     await act(async () => save().props.onPress());
     expect(api.savePerformer).toHaveBeenCalledWith('insp_1', {
@@ -796,7 +841,7 @@ describe('Self-inspection screen', () => {
       file: { uri: 'file:///me.jpg', type: 'image/jpeg', fileSize: 120000 },
     });
     expect(hasText(root, 'Selfie added for Ravi Kumar')).toBe(true);
-    expect(hasText(root, 'Before you start: who is doing this inspection?')).toBe(false);
+    expect(hasText(root, 'Who is doing this inspection?')).toBe(false);
     expect(hasText(root, 'Selfie and your name')).toBe(false);
 
     // "Change" opens it again with the name filled in; Cancel closes it.
@@ -804,6 +849,19 @@ describe('Self-inspection screen', () => {
     expect(field().props.value).toBe('Ravi Kumar');
     await act(async () => root.findAll(n => n.props.title === 'Cancel' && n.props.onPress)[0].props.onPress());
     expect(hasText(root, 'Selfie added for Ravi Kumar')).toBe(true);
+  });
+
+  test('before you start: the card is there when the page opens (read with the inspection, no pop-in)', async () => {
+    let answer;
+    api.getPerformer.mockImplementationOnce(() => new Promise(resolve => { answer = resolve; }));
+    const root = await render();
+    // Asked at the same time as the inspection; the page waits for it rather than showing without it.
+    expect(api.getPerformer).toHaveBeenCalledWith('insp_1');
+    expect(tab(root, 'Checklist')).toBeUndefined();
+    await act(async () => answer(null));
+    expect(tab(root, 'Checklist')).toBeDefined();
+    expect(hasText(root, 'Who is doing this inspection?')).toBe(true);
+    expect(hasText(root, 'Needed before you submit.')).toBe(true);
   });
 
   test('before you start: already added shows one line; an inspector never sees it', async () => {
@@ -817,13 +875,13 @@ describe('Self-inspection screen', () => {
     root = await render({ bookingId: 'bk_1' });
     expect(api.getPerformer).not.toHaveBeenCalled();
     expect(hasText(root, 'Selfie added for')).toBe(false);
-    expect(hasText(root, 'Before you start: who is doing this inspection?')).toBe(false);
+    expect(hasText(root, 'Who is doing this inspection?')).toBe(false);
   });
 
   test('before you start: a server without this step yet (404) does not ask for it', async () => {
     api.getPerformer.mockRejectedValue(Object.assign(new Error('Not found'), { status: 404 }));
     const root = await render();
-    expect(hasText(root, 'Before you start: who is doing this inspection?')).toBe(false);
+    expect(hasText(root, 'Who is doing this inspection?')).toBe(false);
     await act(async () => tab(root, 'Estimate').props.onPress());
     expect(hasText(root, 'Selfie and your name')).toBe(false);
   });
@@ -831,7 +889,7 @@ describe('Self-inspection screen', () => {
   test('before you start: if it could not be checked, it is asked for (the server decides at submit)', async () => {
     api.getPerformer.mockRejectedValue(Object.assign(new Error('offline'), { status: 0 }));
     const root = await render();
-    expect(hasText(root, 'Before you start: who is doing this inspection?')).toBe(true);
+    expect(hasText(root, 'Who is doing this inspection?')).toBe(true);
     expect(hasText(root, 'We couldn’t check whether you already added one. Add it now.')).toBe(true);
   });
 
