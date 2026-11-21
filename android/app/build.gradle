@@ -86,8 +86,8 @@ android {
         applicationId "ai.turag.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        // Every upload to Play needs a higher versionCode (5 was built on 2026-11-20 before the offer limits).
-        versionCode 6
+        // Every upload to Play needs a higher versionCode (6 is on Play since 2026-11-20).
+        versionCode 7
         versionName "1.0"
         // Google Maps key (react-native-maps). Kept out of git: add a line
         // MAPS_API_KEY=your_key to android/local.properties.

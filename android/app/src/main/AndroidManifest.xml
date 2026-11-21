@@ -25,6 +25,16 @@
   <uses-feature
     android:name="android.hardware.location.gps"
     android:required="false" />
+  <!-- Play treats these as required on its own (portrait: the activity's
+       screenOrientation; Wi-Fi: a library's ACCESS_WIFI_STATE), which hides the app
+       from some devices. Neither is needed: the app still opens in portrait where
+       the device supports it, and works on mobile data. -->
+  <uses-feature
+    android:name="android.hardware.screen.portrait"
+    android:required="false" />
+  <uses-feature
+    android:name="android.hardware.wifi"
+    android:required="false" />
 
   <!-- Voice search: lets the app find the phone's speech recognition service
        (Android 11+ hides other apps' services unless declared here). -->
